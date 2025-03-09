@@ -1,8 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 using RainMeadow;
 using Menu.Remix.MixedUI;
 using UnityEngine;
@@ -33,9 +31,6 @@ public class CTPMenu : StoryOnlineMenu
         //remove "match save" option
         if (clientWantsToOverwriteSave != null) clientWantsToOverwriteSave.Checked = false;
         clientWantsToOverwriteSave?.RemoveSprites();
-
-        //ChangePageBackground();
-        AdjustBackgroundLocation();
 
         previousPageIdx = slugcatPageIndex;
     }
@@ -111,58 +106,67 @@ public class CTPMenu : StoryOnlineMenu
         if (string.IsNullOrEmpty(storyGameMode.region)) return; //don't process false regions
         try
         {
-            //find original image
-            //int slugImageIdx = slugcatPages[slugcatPageIndex].subObjects.IndexOf(slugcatPages[slugcatPageIndex].slugcatImage);
-            //if (slugcatPageIndex < 0) return; //if the background doesn't exist yet... don't change it, I guess
-
             //remove sprites
             if (slugcatPages[slugcatPageIndex].slugcatImage != null)
             {
-                //pages[0].RemoveSubObject(slugcatPages[slugcatPageIndex].slugcatImage);
-                //slugcatPages[slugcatPageIndex].RemoveSubObject(slugcatPages[slugcatPageIndex].slugcatImage);
-                slugcatPages[slugcatPageIndex].slugcatImage.UnloadImages();
+                //slugcatPages[slugcatPageIndex].slugcatImage.UnloadImages();
                 slugcatPages[slugcatPageIndex].slugcatImage.RemoveSprites();
-                //slugcatPages[slugcatPageIndex].slugcatImage = null;
-                //slugcatPages[slugcatPageIndex].subObjects[slugcatPageIndex]?.RemoveSprites();
+                //slugcatPages[slugcatPageIndex].RemoveSubObject(slugcatPages[slugcatPageIndex].slugcatImage);
 
-                /*slugcatPages[slugcatPageIndex].slugcatImage.sceneID = Region.GetRegionLandscapeScene(storyGameMode.region);
-                slugcatPages[slugcatPageIndex].slugcatImage.BuildScene();
-                AddBackgroundIllustrations(slugcatPages[slugcatPageIndex].slugcatImage);*/
                 slugcatPages[slugcatPageIndex].slugcatImage = new InteractiveMenuScene(this, slugcatPages[slugcatPageIndex], Region.GetRegionLandscapeScene(storyGameMode.region));
 
+                //setup image size, alpha, etc.
+                slugcatPages[slugcatPageIndex].slugcatImage.useFlatCrossfades = false;
+                slugcatPages[slugcatPageIndex].slugcatImage.flatMode = true; //so there are no crossfades, just a flat image
+                foreach (var img in slugcatPages[slugcatPageIndex].slugcatImage.flatIllustrations)
+                {
+                    //img.setAlpha = 0.5f;
+                    //img.alpha = 0.5f;
+                    //img.size *= 0.5f;
+                    //img.pos *= 0.5f;
+                    var newColor = img.color;
+                    newColor.a *= 0.5f;
+                    img.color = newColor;
+                    img.sprite.MoveToBack();
+                }
+
+                slugcatPages[slugcatPageIndex].slugcatImage.TriggerCrossfade(40);
                 slugcatPages[slugcatPageIndex].slugcatImage.Show();
-                slugcatPages[slugcatPageIndex].slugcatImage.Container.MoveToBack(); //don't let it cover up anything else; that's annoying
+                //AdjustBackgroundLocation();
+
+                //slugcatPages[slugcatPageIndex].subObjects.Insert(0, slugcatPages[slugcatPageIndex].slugcatImage); //move it to the VERY back
+
+                //add it to backgroundContainer
+                //backgroundContainer.RemoveAllChildren();
+                //backgroundContainer.AddChild(slugcatPages[slugcatPageIndex].slugcatImage.Container);
 
                 previousRegion = storyGameMode.region;
 
                 RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {previousRegion}.");
             }
-
-            //create new background
-            //new MenuScene()
-            //slugcatPages[slugcatPageIndex].slugcatImage = new InteractiveMenuScene(this, pages[0], Region.GetRegionLandscapeScene(storyGameMode.region));
-
-            //replace old background
-            //slugcatPages[slugcatPageIndex].subObjects[slugcatPageIndex] = slugcatPages[slugcatPageIndex].slugcatImage;
-            //slugcatPages[slugcatPageIndex].subObjects.Insert(slugImageIdx, slugcatPages[slugcatPageIndex].slugcatImage);
-            //pages[0].subObjects.Add(slugcatPages[slugcatPageIndex].slugcatImage);
-            //slugcatPages[slugcatPageIndex].slugcatImage.
-            //slugcatPages[slugcatPageIndex].slugcatImage.Show();
-
-            //previousRegion = storyGameMode.region;
-        } catch { }
+        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
 
     private void AdjustBackgroundLocation()
     {
-        if (OnlineManager.lobby.isOwner) return; //don't change host's background
-        if (slugcatPages[slugcatPageIndex].slugcatImage == null)
+        //if (OnlineManager.lobby.isOwner) return; //don't change host's background
+        //backgroundContainer.alpha = 0.5f; //make it partially transparent
+        //backgroundContainer.SetPosition(0, 0); //center it
+        //backgroundContainer.scale = 0.5f; //increase scale so it doesn't cover the entire screen
+        /*
+        var img = slugcatPages[slugcatPageIndex].slugcatImage;
+        List<MenuIllustration> subObjs = img.flatIllustrations;
+        subObjs.AddRange(img.depthIllustrations.ConvertAll(ill => ill as MenuIllustration));
+        foreach (var cf in img.crossFades.Values) subObjs.AddRange(cf);
+        foreach (var obj in subObjs)
         {
-            RainMeadow.RainMeadow.Debug("[CTP]: Couldn't change background image; no background to be changed!!");
-            return;
+            obj.setAlpha = 0.5f;
+            obj.alpha = 0.5f;
+            //obj.size *= 0.5f;
+            //obj.pos *= 0.5f;
+            //obj.myContainer?.MoveToBack();
+            obj.Container.MoveToBack();
         }
-        slugcatPages[slugcatPageIndex].slugcatImage.Container.alpha = 0.7f; //make it partially transparent
-        //slugcatPages[slugcatPageIndex].slugcatImage.Container.SetPosition(0, 0); //center it
-        slugcatPages[slugcatPageIndex].slugcatImage.Container.scale = 0.5f; //increase scale so it doesn't cover the entire screen
+        */
     }
 }
