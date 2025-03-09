@@ -9,6 +9,8 @@ namespace CaptureThePearl;
 
 public class CTPGameMode : StoryGameMode
 {
+    public const string GameModeDescription = "Team up with other players to steal the opposing team's pearls and bring them back to your home shelter!";
+
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
         friendlyFire = true;
@@ -23,6 +25,13 @@ public class CTPGameMode : StoryGameMode
     public override ProcessManager.ProcessID MenuProcessId()
     {
         return Plugin.CTPMenuProcessID;
+    }
+
+    public override void LobbyTick(uint tick)
+    {
+        base.LobbyTick(tick);
+
+        readyForGate = ReadyForGate.Closed; //ensure players can NEVER cross through gates
     }
 
     public override bool AllowedInMode(PlacedObject item)
@@ -48,5 +57,17 @@ public class CTPGameMode : StoryGameMode
 
         //remove hooks here?
         CTPGameHooks.RemoveHooks();
+    }
+
+
+    public static bool IsCTPGameMode(out CTPGameMode gamemode)
+    {
+        gamemode = null;
+        if (OnlineManager.lobby?.gameMode is CTPGameMode ctpMode)
+        {
+            gamemode = ctpMode;
+            return true;
+        }
+        return false;
     }
 }

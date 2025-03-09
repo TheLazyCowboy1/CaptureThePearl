@@ -6,6 +6,10 @@ using System.Threading.Tasks;
 
 namespace CaptureThePearl;
 
+/// <summary>
+/// Hooks that are only active WHILE playing the game mode.
+/// For example, no swallowing pearls.
+/// </summary>
 public static class CTPGameHooks
 {
 

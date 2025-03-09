@@ -49,7 +49,7 @@ public class Plugin : BaseUnityPlugin
 
         if (IsInit)
         {
-
+            On.ProcessManager.PostSwitchMainProcess -= ProcessManager_PostSwitchMainProcess;
 
             IsInit = false;
         }
@@ -62,13 +62,17 @@ public class Plugin : BaseUnityPlugin
         try
         {
             if (IsInit) return; //prevents adding hooks twice
+
+            //set up ExtEnums first!!!
+            SetupExtEnums();
+
+            MeadowHooks.ApplyHooks(Logger);
+            On.ProcessManager.PostSwitchMainProcess += ProcessManager_PostSwitchMainProcess;
             
             MachineConnector.SetRegisteredOI(MOD_ID, Options);
             IsInit = true;
 
             Logger.LogDebug("Hooks added!");
-
-            SetupExtEnums();
         }
         catch (Exception ex)
         {
@@ -77,12 +81,23 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
+    private void ProcessManager_PostSwitchMainProcess(On.ProcessManager.orig_PostSwitchMainProcess orig, ProcessManager self, ProcessManager.ProcessID ID)
+    {
+        if (ID == CTPMenuProcessID) self.currentMainLoop = new CTPMenu(self);
+        orig(self, ID);
+    }
 
     public static ProcessManager.ProcessID CTPMenuProcessID;
+    public static MeadowGameMode.OnlineGameModeType CTPGameModeType;
 
-    private void SetupExtEnums()
+    public void SetupExtEnums()
     {
         CTPMenuProcessID = new ProcessManager.ProcessID("CaptureThePearlMenu", true);
+
+        CTPGameModeType = new MeadowGameMode.OnlineGameModeType("Capture the Pearl", true);
+        //MeadowGameMode.gamemodes.Add(CTPGameModeType, typeof(CTPGameMode));
+        MeadowGameMode.RegisterType(CTPGameModeType, typeof(CTPGameMode), CTPGameMode.GameModeDescription);
+
     }
 
 }
