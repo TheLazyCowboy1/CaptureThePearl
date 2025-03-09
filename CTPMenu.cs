@@ -44,7 +44,7 @@ public class CTPMenu : StoryOnlineMenu
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
             //RegionSelected = RegionDropdownBox.value;
-            storyGameMode.region = RegionDropdownBox.value;
+            storyGameMode.region = Region.GetRegionFullName(RegionDropdownBox.value, slugcatPages[slugcatPageIndex].slugcatNumber);
 
             if (slugcatPageIndex != previousPageIdx)
             {
@@ -102,8 +102,8 @@ public class CTPMenu : StoryOnlineMenu
         if (string.IsNullOrEmpty(storyGameMode.region)) return; //don't process false regions
         try
         {
-            scene?.RemoveSprites();
-            scene = new InteractiveMenuScene(this, slugcatPages[slugcatPageIndex], Region.GetRegionLandscapeScene(storyGameMode.region));
+            slugcatPages[slugcatPageIndex].slugcatImage?.RemoveSprites();
+            slugcatPages[slugcatPageIndex].slugcatImage = new InteractiveMenuScene(this, slugcatPages[slugcatPageIndex], Region.GetRegionLandscapeScene(storyGameMode.region));
         } catch { }
     }
 }
