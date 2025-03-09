@@ -43,16 +43,19 @@ public class CTPMenu : StoryOnlineMenu
 
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
-            //RegionSelected = RegionDropdownBox.value;
-            storyGameMode.region = RegionDropdownBox.value;
-
-            if (slugcatPageIndex != previousPageIdx)
+            if (RegionDropdownBox != null)
             {
-                var oldItems = RegionDropdownBox._itemList;
-                var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
-                RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
-                RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
-                previousPageIdx = slugcatPageIndex;
+                //RegionSelected = RegionDropdownBox.value;
+                storyGameMode.region = RegionDropdownBox.value;
+
+                if (slugcatPageIndex != previousPageIdx)
+                {
+                    var oldItems = RegionDropdownBox._itemList;
+                    var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
+                    RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
+                    RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                    previousPageIdx = slugcatPageIndex;
+                }
             }
         }
         else //client update stuff
@@ -100,73 +103,53 @@ public class CTPMenu : StoryOnlineMenu
         return list;
     }
 
+    private FSprite backgroundSprite;
     public void ChangePageBackground()
     {
+        //RainMeadow.RainMeadow.Debug($"[CTP]: Attempting background change for {storyGameMode.region}");
         if (OnlineManager.lobby.isOwner) return; //owner gets default background scene
         if (string.IsNullOrEmpty(storyGameMode.region)) return; //don't process false regions
         try
         {
+            var page = slugcatPages[slugcatPageIndex];
             //remove sprites
-            if (slugcatPages[slugcatPageIndex].slugcatImage != null)
+            if (page.slugcatImage != null)
             {
-                //slugcatPages[slugcatPageIndex].slugcatImage.UnloadImages();
-                slugcatPages[slugcatPageIndex].slugcatImage.RemoveSprites();
-                //slugcatPages[slugcatPageIndex].RemoveSubObject(slugcatPages[slugcatPageIndex].slugcatImage);
-
-                slugcatPages[slugcatPageIndex].slugcatImage = new InteractiveMenuScene(this, slugcatPages[slugcatPageIndex], Region.GetRegionLandscapeScene(storyGameMode.region));
-
-                //setup image size, alpha, etc.
-                slugcatPages[slugcatPageIndex].slugcatImage.useFlatCrossfades = false;
-                slugcatPages[slugcatPageIndex].slugcatImage.flatMode = true; //so there are no crossfades, just a flat image
-                foreach (var img in slugcatPages[slugcatPageIndex].slugcatImage.flatIllustrations)
-                {
-                    //img.setAlpha = 0.5f;
-                    //img.alpha = 0.5f;
-                    //img.size *= 0.5f;
-                    //img.pos *= 0.5f;
-                    var newColor = img.color;
-                    newColor.a *= 0.5f;
-                    img.color = newColor;
-                    img.sprite.MoveToBack();
-                }
-
-                slugcatPages[slugcatPageIndex].slugcatImage.TriggerCrossfade(40);
-                slugcatPages[slugcatPageIndex].slugcatImage.Show();
-                //AdjustBackgroundLocation();
-
-                //slugcatPages[slugcatPageIndex].subObjects.Insert(0, slugcatPages[slugcatPageIndex].slugcatImage); //move it to the VERY back
-
-                //add it to backgroundContainer
-                //backgroundContainer.RemoveAllChildren();
-                //backgroundContainer.AddChild(slugcatPages[slugcatPageIndex].slugcatImage.Container);
-
-                previousRegion = storyGameMode.region;
-
-                RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {previousRegion}.");
+                page.RemoveSubObject(page.slugcatImage);
+                page.slugcatImage.RemoveSprites();
             }
-        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
-    }
 
-    private void AdjustBackgroundLocation()
-    {
-        //if (OnlineManager.lobby.isOwner) return; //don't change host's background
-        //backgroundContainer.alpha = 0.5f; //make it partially transparent
-        //backgroundContainer.SetPosition(0, 0); //center it
-        //backgroundContainer.scale = 0.5f; //increase scale so it doesn't cover the entire screen
-        /*
-        var img = slugcatPages[slugcatPageIndex].slugcatImage;
-        List<MenuIllustration> subObjs = img.flatIllustrations;
-        subObjs.AddRange(img.depthIllustrations.ConvertAll(ill => ill as MenuIllustration));
-        foreach (var cf in img.crossFades.Values) subObjs.AddRange(cf);
-        foreach (var obj in subObjs)
+            var scene = new InteractiveMenuScene(this, page, Region.GetRegionLandscapeScene(storyGameMode.region));
+            scene.flatMode = true;
+            scene.BuildScene(); //rebuild, but flat this time!!!!!
+            if (ModManager.MSC) scene.BuildMSCScene();
+
+            if (scene.flatIllustrations.Count < 1)
+            {
+                RainMeadow.RainMeadow.Debug("Couldn't find flat illustration!!!");
+                return;
+            }
+
+            backgroundSprite?.RemoveFromContainer(); //remove its old self from its container
+
+            backgroundSprite = scene.flatIllustrations[0].sprite;
+            scene.flatIllustrations.Clear(); //remove its references to my stuff!!!!
+
+            backgroundSprite.alpha = 0.5f;
+            backgroundSprite.scale = 0.7f;
+            backgroundSprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
+            backgroundSprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
+
+            //page.Container.AddChild(backgroundSprite);
+            page.Container.AddChildAtIndex(backgroundSprite, 0);
+
+            previousRegion = storyGameMode.region;
+
+            RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {previousRegion}.");
+        } 
+        catch (Exception ex) 
         {
-            obj.setAlpha = 0.5f;
-            obj.alpha = 0.5f;
-            //obj.size *= 0.5f;
-            //obj.pos *= 0.5f;
-            //obj.myContainer?.MoveToBack();
-            obj.Container.MoveToBack();
+            RainMeadow.RainMeadow.Error(ex); 
         }
-        */
     }
 }
