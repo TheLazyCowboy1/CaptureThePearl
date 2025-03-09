@@ -41,22 +41,27 @@ public class CTPMenu : StoryOnlineMenu
     {
         base.Update();
 
-        //RegionSelected = RegionDropdownBox.value;
-        storyGameMode.region = RegionDropdownBox.value;
-
-        if (slugcatPageIndex != previousPageIdx)
+        if (OnlineManager.lobby.isOwner) //host update stuff
         {
-            var oldItems = RegionDropdownBox._itemList;
-            var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
-            RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
-            RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
-            previousPageIdx = slugcatPageIndex;
+            //RegionSelected = RegionDropdownBox.value;
+            storyGameMode.region = RegionDropdownBox.value;
+
+            if (slugcatPageIndex != previousPageIdx)
+            {
+                var oldItems = RegionDropdownBox._itemList;
+                var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
+                RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
+                RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                previousPageIdx = slugcatPageIndex;
+            }
         }
-
-        if (storyGameMode.region != previousRegion)
+        else //client update stuff
         {
-            ChangePageBackground();
-            previousRegion = storyGameMode.region;
+            if (storyGameMode.region != previousRegion)
+            {
+                ChangePageBackground();
+                previousRegion = storyGameMode.region;
+            }
         }
     }
 
