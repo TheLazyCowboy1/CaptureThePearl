@@ -11,6 +11,9 @@ using Vector2 = UnityEngine.Vector2;
 
 namespace CaptureThePearl.Helpers;
 
+/// <summary>
+/// Used to find the exact shelter at which to spawn.
+/// </summary>
 public static class RandomShelterChooser
 {
     //public const float MINIMUM_SHELTER_DISTANCE = 500f; //regions are typically 2000-4000 wide, so this is pretty small
@@ -70,6 +73,10 @@ public static class RandomShelterChooser
     }
 }
 
+/// <summary>
+/// Used to find all valid shelters in the region.
+/// Don't use this; use RandomShelterChooser if possible.
+/// </summary>
 public static class RandomShelterFilter
 {
     public static string[] BANNED_SHELTERS = new string[] //put shelter names here, of course. Like SB_S03 or something
