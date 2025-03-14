@@ -52,12 +52,13 @@ public static class RandomShelterChooser
         foreach (var s in unorderedShelters)
         {
             float score = MIN_DISTANCE(s.Item2, otherShelterLocs);
-            int idx = orderedShelters.FindIndex(s => score < s.Item2); //index of first shelter with a worse score
+            int idx = orderedShelters.FindIndex(s => score > s.Item2); //index of first shelter with a better score
             if (idx < 0) orderedShelters.Add((s.n, score));
             else orderedShelters.Insert(idx, (s.n, score));
         }
 
         var shelterArr = orderedShelters.Select(s => s.Item1).ToArray();
+        RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", shelterArr)}");
 
         int randomIdx = Mathf.FloorToInt(UnityEngine.Random.value * shelterArr.Length * distanceLeniency); //find a random shelter in the BEST FIRST HALF
 
@@ -112,6 +113,8 @@ public static class RandomShelterFilter
 
         //blacklist unaccessible shelters
         BlacklistShelters(shelters, filePath, slugcat.value);
+
+        shelterNames = shelters.ToArray();
 
         //get map positions
         string mapPath = FindMapFile(region, slugcat.value);

@@ -34,8 +34,7 @@ public class CTPMenu : StoryOnlineMenu
         SetupRegionDropdown();
 
         //remove "match save" option
-        if (clientWantsToOverwriteSave != null) clientWantsToOverwriteSave.Checked = false;
-        clientWantsToOverwriteSave?.RemoveSprites();
+        RemoveMenuObject(clientWantsToOverwriteSave);
 
         //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
         for (int k = 0; k < slugcatPages.Count; k++) this.pages.Remove(this.slugcatPages[k]);
@@ -204,6 +203,7 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
+<<<<<<< HEAD
     //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
     public new void StartGame(SlugcatStats.Name storyGameCharacter)
     {
@@ -242,4 +242,16 @@ public class CTPMenu : StoryOnlineMenu
 
         manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
     }
+=======
+    private static void RemoveMenuObject(MenuObject obj)
+    {
+        if (obj != null)
+        {
+            if (obj is CheckBox cb) cb.Checked = false;
+            obj.RemoveSprites();
+            obj.inactive = true;
+        }
+    }
+
+>>>>>>> 67b7369898f30fef97872c7587e704948103e764
 }
