@@ -42,19 +42,18 @@ public class CTPMenu : StoryOnlineMenu
 
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
-            if (RegionDropdownBox != null)
-            {
-                //RegionSelected = RegionDropdownBox.value;
-                storyGameMode.region = RegionDropdownBox.value;
+            if (RegionDropdownBox == null)
+                SetupRegionDropdown();
+            //RegionSelected = RegionDropdownBox.value;
+            storyGameMode.region = RegionDropdownBox.value;
 
-                if (slugcatPageIndex != previousPageIdx)
-                {
-                    var oldItems = RegionDropdownBox._itemList;
-                    var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
-                    RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
-                    RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
-                    previousPageIdx = slugcatPageIndex;
-                }
+            if (slugcatPageIndex != previousPageIdx)
+            {
+                var oldItems = RegionDropdownBox._itemList;
+                var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
+                RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
+                RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                previousPageIdx = slugcatPageIndex;
             }
         }
         else //client update stuff
