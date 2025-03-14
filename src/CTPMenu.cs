@@ -31,6 +31,7 @@ public class CTPMenu : StoryOnlineMenu
         //remove "match save" option
         if (clientWantsToOverwriteSave != null) clientWantsToOverwriteSave.Checked = false;
         clientWantsToOverwriteSave?.RemoveSprites();
+        clientWantsToOverwriteSave.inactive = true;
 
         previousPageIdx = slugcatPageIndex;
     }
@@ -152,4 +153,5 @@ public class CTPMenu : StoryOnlineMenu
             RainMeadow.RainMeadow.Error(ex); 
         }
     }
+
 }

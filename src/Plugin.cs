@@ -51,6 +51,9 @@ public class Plugin : BaseUnityPlugin
         {
             On.ProcessManager.PostSwitchMainProcess -= ProcessManager_PostSwitchMainProcess;
 
+            On.PlayerProgression.IsThereASavedGame -= PlayerProgression_IsThereASavedGame;
+            On.Menu.SlugcatSelectMenu.ContinueStartedGame -= CTPMenu_ContinueStartedGame;
+
             IsInit = false;
         }
     }
@@ -68,7 +71,11 @@ public class Plugin : BaseUnityPlugin
 
             MeadowHooks.ApplyHooks(Logger);
             On.ProcessManager.PostSwitchMainProcess += ProcessManager_PostSwitchMainProcess;
-            
+
+            //these are not in CTPGameHooks is because they affect the select menu
+            On.PlayerProgression.IsThereASavedGame += PlayerProgression_IsThereASavedGame;
+            On.Menu.SlugcatSelectMenu.ContinueStartedGame += CTPMenu_ContinueStartedGame;
+
             MachineConnector.SetRegisteredOI(MOD_ID, Options);
             IsInit = true;
 
@@ -99,5 +106,31 @@ public class Plugin : BaseUnityPlugin
         MeadowGameMode.RegisterType(CTPGameModeType, typeof(CTPGameMode), CTPGameMode.GameModeDescription);
 
     }
+
+
+    private static bool PlayerProgression_IsThereASavedGame(On.PlayerProgression.orig_IsThereASavedGame orig, PlayerProgression self, SlugcatStats.Name saveStateNumber)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var _)) //this prevents the game from starting dream sequences
+        {
+            Debug("Overriding isSaveGame to true");
+            return true;
+        }
+        return orig(self, saveStateNumber);
+    }
+    private static void CTPMenu_ContinueStartedGame(On.Menu.SlugcatSelectMenu.orig_ContinueStartedGame orig, Menu.SlugcatSelectMenu self, SlugcatStats.Name storyGameCharacter)
+    {
+        if (self.ID == CTPMenuProcessID)
+        {
+            Debug("Avoiding potential statistics menu detour");
+
+            self.manager.menuSetup.startGameCondition = ProcessManager.MenuSetup.StoryGameInitCondition.Load;
+            self.manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
+            self.PlaySound(SoundID.MENU_Continue_Game);
+        }
+        else orig(self, storyGameCharacter);
+    }
+
+
+    public static void Debug(object obj) => RainMeadow.RainMeadow.Debug($"[CTP]: {obj}");
 
 }
