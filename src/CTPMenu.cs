@@ -6,6 +6,8 @@ using Menu.Remix.MixedUI;
 using UnityEngine;
 using Menu.Remix;
 using Menu;
+using System.Globalization;
+using RWCustom;
 
 namespace CaptureThePearl;
 
@@ -20,6 +22,9 @@ public class CTPMenu : StoryOnlineMenu
 
     private MenuTabWrapper tabWrapper; //what on earth is this mess...
 
+    public SimpleButton hostScugButton;
+    public int hostSlugIndex;
+
     public CTPMenu(ProcessManager manager) : base(manager)
     {
         tabWrapper = new MenuTabWrapper(this, pages[0]);
@@ -31,7 +36,24 @@ public class CTPMenu : StoryOnlineMenu
         //remove "match save" option
         RemoveMenuObject(clientWantsToOverwriteSave);
 
+        //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
+        for (int k = 0; k < slugcatPages.Count; k++) this.pages.Remove(this.slugcatPages[k]);
+        slugcatPages.Clear();
+        redIsDead = false;
+        artificerIsDead = false;
+        saintIsDead = false;
+        for (int j = 0; j < slugcatColorOrder.Count; j++)
+        {
+            slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
+            pages.Add(slugcatPages[j]);
+        }
+        //
         previousPageIdx = slugcatPageIndex;
+
+        storyGameMode = (CTPGameMode)OnlineManager.lobby.gameMode;
+
+        storyGameMode.Sanitize();
+        storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
     }
 
     private int previousPageIdx;
@@ -55,6 +77,35 @@ public class CTPMenu : StoryOnlineMenu
                 RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
                 previousPageIdx = slugcatPageIndex;
             }
+            //remove restart game and req campaign slug, change start text and let host switch scugs
+            restartAvailable = false;
+            restartCheckbox.RemoveSprites();
+
+            storyGameMode.requireCampaignSlugcat = false;
+            reqCampaignSlug.buttonBehav.greyedOut = true;
+		    reqCampaignSlug.selectable = false;
+			reqCampaignSlug.Checked = false;
+            reqCampaignSlug.RemoveSprites();
+
+            startButton.menuLabel.text = Translate("NEW SESSION");
+            var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
+            //host button stuff
+            if (hostScugButton == null)
+            {
+                //change scugs on a rotor whenever clicked and set the player to that scug
+                var pos = new Vector2(restartCheckbox.pos.x /*+35f*/, restartCheckboxPos.y + 20f);
+
+                hostSlugIndex = 0;
+                hostScugButton = new SimpleButton(this, pages[0], SlugcatStats.getSlugcatName(slugcatColorOrder[hostSlugIndex]), "CTPHostScugButton", pos, new Vector2(110, 30));
+                pages[0].subObjects.Add(hostScugButton);
+            }
+            personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
+            storyGameMode.avatarSettings.playingAs = personaSettings.playingAs;
+
+            //move custom colours
+            colorsCheckbox.pos = new Vector2(friendlyFire.pos.x, friendlyFire.pos.y - 30f);
+            float textWidth = GetRestartTextWidth(base.CurrLang);
+            colorsCheckbox.label.pos = new Vector2(-textWidth * 1.5f, colorsCheckbox.pos.y + 3f - 30f);
         }
         else //client update stuff
         {
@@ -80,7 +131,7 @@ public class CTPMenu : StoryOnlineMenu
                 200,
                 GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber)
                 );
-        RegionDropdownBox.description = "";
+        RegionDropdownBox.description = "tba";
 
         new UIelementWrapper(tabWrapper, RegionDropdownBox);
     }
@@ -151,6 +202,46 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
+<<<<<<< HEAD
+    //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
+    public new void StartGame(SlugcatStats.Name storyGameCharacter)
+    {
+        if (OnlineManager.lobby.isOwner)
+        {
+            personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
+        }
+
+        if (this.colorChecked)
+        {
+            List<Color> val = new();
+            for (int i = 0; i < manager.rainWorld.progression.miscProgressionData.colorChoices[slugcatColorOrder[hostSlugIndex].value].Count; i++)
+            {
+                Vector3 vector = new Vector3(1f, 1f, 1f);
+                if (manager.rainWorld.progression.miscProgressionData.colorChoices[slugcatColorOrder[hostSlugIndex].value][i].Contains(","))
+                {
+                    string[] array = manager.rainWorld.progression.miscProgressionData.colorChoices[slugcatColorOrder[hostSlugIndex].value][i].Split(new char[1] { ',' });
+                    vector = new Vector3(float.Parse(array[0], (NumberStyles)511, (IFormatProvider)(object)CultureInfo.InvariantCulture),
+                        float.Parse(array[1], (NumberStyles)511, (IFormatProvider)(object)CultureInfo.InvariantCulture), float.Parse(array[2],
+                        (NumberStyles)511, (IFormatProvider)(object)CultureInfo.InvariantCulture));
+                }
+                val.Add(RWCustom.Custom.HSL2RGB(vector[0], vector[1], vector[2]));
+            }
+
+            personaSettings.currentColors = val;
+        }
+        else
+        {
+            // Use the default colors for this slugcat when the checkbox is unchecked
+            personaSettings.currentColors = PlayerGraphics.DefaultBodyPartColorHex(slugcatColorOrder[hostSlugIndex]).Select(Custom.hexToColor).ToList();
+        }
+        manager.arenaSitting = null;
+
+        manager.rainWorld.progression.WipeSaveState(storyGameMode.currentCampaign);//ALWAYS load a new game
+        manager.menuSetup.startGameCondition = ProcessManager.MenuSetup.StoryGameInitCondition.New;
+
+        manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
+    }
+=======
     private static void RemoveMenuObject(MenuObject obj)
     {
         if (obj != null)
@@ -161,4 +252,5 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
+>>>>>>> 67b7369898f30fef97872c7587e704948103e764
 }

@@ -51,9 +51,6 @@ public class Plugin : BaseUnityPlugin
         {
             On.ProcessManager.PostSwitchMainProcess -= ProcessManager_PostSwitchMainProcess;
 
-            On.PlayerProgression.IsThereASavedGame -= PlayerProgression_IsThereASavedGame;
-            On.Menu.SlugcatSelectMenu.ContinueStartedGame -= CTPMenu_ContinueStartedGame;
-
             IsInit = false;
         }
     }
@@ -70,13 +67,14 @@ public class Plugin : BaseUnityPlugin
             SetupExtEnums();
 
             MeadowHooks.ApplyHooks(Logger);
-            On.ProcessManager.PostSwitchMainProcess += ProcessManager_PostSwitchMainProcess;
+            CTPMenuHooks.ApplyHooks();
 
             //these are not in CTPGameHooks is because they affect the select menu
             On.PlayerProgression.IsThereASavedGame += PlayerProgression_IsThereASavedGame;
             On.Menu.SlugcatSelectMenu.ContinueStartedGame += CTPMenu_ContinueStartedGame;
 
             MachineConnector.SetRegisteredOI(MOD_ID, Options);
+
             IsInit = true;
 
             Logger.LogDebug("Hooks added!");
@@ -88,11 +86,7 @@ public class Plugin : BaseUnityPlugin
         }
     }
 
-    private void ProcessManager_PostSwitchMainProcess(On.ProcessManager.orig_PostSwitchMainProcess orig, ProcessManager self, ProcessManager.ProcessID ID)
-    {
-        if (ID == CTPMenuProcessID) self.currentMainLoop = new CTPMenu(self);
-        orig(self, ID);
-    }
+
 
     public static ProcessManager.ProcessID CTPMenuProcessID;
     public static MeadowGameMode.OnlineGameModeType CTPGameModeType;
