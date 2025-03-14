@@ -13,7 +13,8 @@ public class CTPGameMode : StoryGameMode
 
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
-        friendlyFire = true;
+        friendlyFire = true;//maybe not though,,,
+        requireCampaignSlugcat = false;
         //figure out a way to make all players on the other team muted, but that should probably not be in the constructor
         //mutedPlayers.Add();
 
