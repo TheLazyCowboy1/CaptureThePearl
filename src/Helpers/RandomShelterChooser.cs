@@ -58,7 +58,7 @@ public static class RandomShelterChooser
         }
 
         var shelterArr = orderedShelters.Select(s => s.Item1).ToArray();
-        Plugin.Debug($"Choosing top {distanceLeniency} of shelters: {string.Join(", ", shelterArr)}");
+        RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", shelterArr)}");
 
         int randomIdx = Mathf.FloorToInt(UnityEngine.Random.value * shelterArr.Length * distanceLeniency); //find a random shelter in the BEST FIRST HALF
 
@@ -113,6 +113,8 @@ public static class RandomShelterFilter
 
         //blacklist unaccessible shelters
         BlacklistShelters(shelters, filePath, slugcat.value);
+
+        shelterNames = shelters.ToArray();
 
         //get map positions
         string mapPath = FindMapFile(region, slugcat.value);

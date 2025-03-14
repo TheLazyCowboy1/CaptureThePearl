@@ -29,9 +29,7 @@ public class CTPMenu : StoryOnlineMenu
         SetupRegionDropdown();
 
         //remove "match save" option
-        if (clientWantsToOverwriteSave != null) clientWantsToOverwriteSave.Checked = false;
-        clientWantsToOverwriteSave?.RemoveSprites();
-        clientWantsToOverwriteSave.inactive = true;
+        RemoveMenuObject(clientWantsToOverwriteSave);
 
         previousPageIdx = slugcatPageIndex;
     }
@@ -151,6 +149,16 @@ public class CTPMenu : StoryOnlineMenu
         catch (Exception ex) 
         {
             RainMeadow.RainMeadow.Error(ex); 
+        }
+    }
+
+    private static void RemoveMenuObject(MenuObject obj)
+    {
+        if (obj != null)
+        {
+            if (obj is CheckBox cb) cb.Checked = false;
+            obj.RemoveSprites();
+            obj.inactive = true;
         }
     }
 

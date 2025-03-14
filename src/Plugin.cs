@@ -112,7 +112,7 @@ public class Plugin : BaseUnityPlugin
     {
         if (CTPGameMode.IsCTPGameMode(out var _)) //this prevents the game from starting dream sequences
         {
-            Debug("Overriding isSaveGame to true");
+            RainMeadow.RainMeadow.Debug("[CTP]: Overriding isSaveGame to true");
             return true;
         }
         return orig(self, saveStateNumber);
@@ -121,7 +121,7 @@ public class Plugin : BaseUnityPlugin
     {
         if (self.ID == CTPMenuProcessID)
         {
-            Debug("Avoiding potential statistics menu detour");
+            RainMeadow.RainMeadow.Debug("[CTP]: Avoiding potential statistics menu detour");
 
             self.manager.menuSetup.startGameCondition = ProcessManager.MenuSetup.StoryGameInitCondition.Load;
             self.manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
@@ -129,8 +129,5 @@ public class Plugin : BaseUnityPlugin
         }
         else orig(self, storyGameCharacter);
     }
-
-
-    public static void Debug(object obj) => RainMeadow.RainMeadow.Debug($"[CTP]: {obj}");
 
 }
