@@ -30,24 +30,34 @@ public class CTPMenu : StoryOnlineMenu
         tabWrapper = new MenuTabWrapper(this, pages[0]);
         pages[0].subObjects.Add(tabWrapper);
 
+        //remove "match save" option
+        RemoveMenuObject(clientWantsToOverwriteSave);
+        RemoveMenuObject(restartCheckbox);
+
+        //NOTE: I personally don't agree with this. I think requiring campaign slugcat is a pretty important feature.
+        RemoveMenuObject(reqCampaignSlug);
+        storyGameMode.requireCampaignSlugcat = false;
+
+
+        //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
+        if (OnlineManager.lobby.isOwner) //messes up client menu
+        {
+            for (int k = 0; k < slugcatPages.Count; k++) this.pages.Remove(this.slugcatPages[k]);
+            slugcatPages.Clear();
+            redIsDead = false;
+            artificerIsDead = false;
+            saintIsDead = false;
+            for (int j = 0; j < slugcatColorOrder.Count; j++)
+            {
+                slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
+                pages.Add(slugcatPages[j]);
+            }
+        }
+        //
+
         //add region dropdowns
         SetupRegionDropdown();
 
-        //remove "match save" option
-        RemoveMenuObject(clientWantsToOverwriteSave);
-
-        //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
-        for (int k = 0; k < slugcatPages.Count; k++) this.pages.Remove(this.slugcatPages[k]);
-        slugcatPages.Clear();
-        redIsDead = false;
-        artificerIsDead = false;
-        saintIsDead = false;
-        for (int j = 0; j < slugcatColorOrder.Count; j++)
-        {
-            slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
-            pages.Add(slugcatPages[j]);
-        }
-        //
         previousPageIdx = slugcatPageIndex;
 
         storyGameMode = (CTPGameMode)OnlineManager.lobby.gameMode;
@@ -66,9 +76,10 @@ public class CTPMenu : StoryOnlineMenu
         {
             if (RegionDropdownBox == null)
                 SetupRegionDropdown();
-            //RegionSelected = RegionDropdownBox.value;
+
             storyGameMode.region = RegionDropdownBox.value;
 
+            //Update region dropdown list
             if (slugcatPageIndex != previousPageIdx)
             {
                 var oldItems = RegionDropdownBox._itemList;
@@ -77,17 +88,13 @@ public class CTPMenu : StoryOnlineMenu
                 RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
                 previousPageIdx = slugcatPageIndex;
             }
-            //remove restart game and req campaign slug, change start text and let host switch scugs
-            restartAvailable = false;
-            restartCheckbox.RemoveSprites();
 
-            storyGameMode.requireCampaignSlugcat = false;
-            reqCampaignSlug.buttonBehav.greyedOut = true;
-		    reqCampaignSlug.selectable = false;
-			reqCampaignSlug.Checked = false;
-            reqCampaignSlug.RemoveSprites();
-
+            //Set start text to always be "NEW SESSION"
             startButton.menuLabel.text = Translate("NEW SESSION");
+
+            //Could this stuff be moved to the constructor, or preferably to a separate function called by the constructor?
+            //It doesn't make sense to run it every tick; but if it works, don't bother changing it.
+
             var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
             //host button stuff
             if (hostScugButton == null)
@@ -109,10 +116,10 @@ public class CTPMenu : StoryOnlineMenu
         }
         else //client update stuff
         {
-            if (storyGameMode.region != previousRegion)
+            //Change background if host changes region or client changes slugcat
+            if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex)
             {
                 ChangePageBackground();
-                //previousRegion = storyGameMode.region; //changed in ChangePageBackground() instead
             }
             if (onlineDifficultyLabel != null)
             {
@@ -193,6 +200,7 @@ public class CTPMenu : StoryOnlineMenu
             page.Container.AddChildAtIndex(backgroundSprite, 0);
 
             previousRegion = storyGameMode.region;
+            previousPageIdx = slugcatPageIndex;
 
             RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {previousRegion}.");
         } 
@@ -202,7 +210,6 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
-<<<<<<< HEAD
     //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
     public new void StartGame(SlugcatStats.Name storyGameCharacter)
     {
@@ -236,21 +243,19 @@ public class CTPMenu : StoryOnlineMenu
         }
         manager.arenaSitting = null;
 
-        manager.rainWorld.progression.WipeSaveState(storyGameMode.currentCampaign);//ALWAYS load a new game
+        //manager.rainWorld.progression.WipeSaveState(storyGameMode.currentCampaign);//ALWAYS load a new game
         manager.menuSetup.startGameCondition = ProcessManager.MenuSetup.StoryGameInitCondition.New;
 
         manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
     }
-=======
+
     private static void RemoveMenuObject(MenuObject obj)
     {
         if (obj != null)
         {
-            if (obj is CheckBox cb) cb.Checked = false;
+            if (obj is CheckBox cb) { cb.Checked = false; cb.selectable = false; }
             obj.RemoveSprites();
             obj.inactive = true;
         }
     }
-
->>>>>>> 67b7369898f30fef97872c7587e704948103e764
 }

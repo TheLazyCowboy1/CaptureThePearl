@@ -16,6 +16,8 @@ namespace CaptureThePearl
         public static void RemoveHooks()
         {
             On.ProcessManager.PostSwitchMainProcess -= ProcessManager_PostSwitchMainProcess;
+            On.Menu.SlugcatSelectMenu.AddColorButtons -= SlugcatSelectMenu_AddColorButtons;
+            On.Menu.SimpleButton.Clicked -= SimpleButton_Clicked;
         }
         public static void ApplyHooks()
         {

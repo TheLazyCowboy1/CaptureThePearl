@@ -14,26 +14,31 @@ namespace CaptureThePearl;
 /// </summary>
 public static class MeadowHooks
 {
-    public static void ApplyHooks(ManualLogSource logger)
+    public static void ApplyHooks()
     {
         lobbySelectHook = new Hook(
             typeof(LobbySelectMenu).GetConstructors()[0],
             LobbySelectMenu_ctor
             );
-        /*lobbyCreateHook = new Hook(
-            typeof(LobbyCreateMenu).GetConstructors()[0],
-            LobbyCreateMenu_ctor
-            );*/
+        deathScreenRPCHook = new Hook(
+            typeof(StoryRPCs).GetMethod(nameof(StoryRPCs.GoToDeathScreen)),
+            StoryRPCs_GoToDeathScreen
+            );
+        leaveLobbyHook = new Hook(
+            typeof(OnlineManager).GetMethod(nameof(OnlineManager.LeaveLobby)),
+            OnlineManager_LeaveLobby
+            );
 
-        logger.LogDebug("Applied Rain Meadow hooks");
+        RainMeadow.RainMeadow.Debug("[CTP]: Applied Rain Meadow hooks");
     }
 
-    private static Hook lobbySelectHook, lobbyCreateHook;
+    private static Hook lobbySelectHook, deathScreenRPCHook, leaveLobbyHook;
 
     public static void RemoveHooks()
     {
         lobbySelectHook?.Undo();
-        lobbyCreateHook?.Undo();
+        deathScreenRPCHook?.Undo();
+        leaveLobbyHook?.Undo();
     }
 
 
@@ -45,11 +50,20 @@ public static class MeadowHooks
         self.filterModeDropDown.AddItems(true, new Menu.Remix.MixedUI.ListItem("Capture the Pearl"));
     }
 
-    private delegate void LobbyCreateMenu_ctor_orig(LobbyCreateMenu self, ProcessManager manager);
-    private static void LobbyCreateMenu_ctor(LobbyCreateMenu_ctor_orig orig, LobbyCreateMenu self, ProcessManager manager)
+    //Don't go to death screen while in the Capture the Pearl gamemode!!
+    //This probably ought to go in CTPGameHooks, but I'm keeping it here to keep all the Meadow and Rain World stuff separated.
+    private delegate void EmptyDelegate();
+    private static void StoryRPCs_GoToDeathScreen(EmptyDelegate orig)
     {
-        orig(self, manager);
-
-        self.modeDropDown.AddItems(true, new Menu.Remix.MixedUI.ListItem("Capture the Pearl"));
+        if (CTPGameMode.IsCTPGameMode(out var _)) return;
+        orig();
     }
+
+    private static void OnlineManager_LeaveLobby(EmptyDelegate orig)
+    {
+        orig();
+
+        CTPGameHooks.RemoveHooks();
+    }
+
 }

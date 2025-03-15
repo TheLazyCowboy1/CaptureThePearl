@@ -49,7 +49,8 @@ public class Plugin : BaseUnityPlugin
 
         if (IsInit)
         {
-            On.ProcessManager.PostSwitchMainProcess -= ProcessManager_PostSwitchMainProcess;
+            MeadowHooks.RemoveHooks();
+            CTPMenuHooks.RemoveHooks();
 
             IsInit = false;
         }
@@ -66,12 +67,8 @@ public class Plugin : BaseUnityPlugin
             //set up ExtEnums first!!!
             SetupExtEnums();
 
-            MeadowHooks.ApplyHooks(Logger);
+            MeadowHooks.ApplyHooks();
             CTPMenuHooks.ApplyHooks();
-
-            //these are not in CTPGameHooks is because they affect the select menu
-            On.PlayerProgression.IsThereASavedGame += PlayerProgression_IsThereASavedGame;
-            On.Menu.SlugcatSelectMenu.ContinueStartedGame += CTPMenu_ContinueStartedGame;
 
             MachineConnector.SetRegisteredOI(MOD_ID, Options);
 
@@ -99,29 +96,6 @@ public class Plugin : BaseUnityPlugin
         //MeadowGameMode.gamemodes.Add(CTPGameModeType, typeof(CTPGameMode));
         MeadowGameMode.RegisterType(CTPGameModeType, typeof(CTPGameMode), CTPGameMode.GameModeDescription);
 
-    }
-
-
-    private static bool PlayerProgression_IsThereASavedGame(On.PlayerProgression.orig_IsThereASavedGame orig, PlayerProgression self, SlugcatStats.Name saveStateNumber)
-    {
-        if (CTPGameMode.IsCTPGameMode(out var _)) //this prevents the game from starting dream sequences
-        {
-            RainMeadow.RainMeadow.Debug("[CTP]: Overriding isSaveGame to true");
-            return true;
-        }
-        return orig(self, saveStateNumber);
-    }
-    private static void CTPMenu_ContinueStartedGame(On.Menu.SlugcatSelectMenu.orig_ContinueStartedGame orig, Menu.SlugcatSelectMenu self, SlugcatStats.Name storyGameCharacter)
-    {
-        if (self.ID == CTPMenuProcessID)
-        {
-            RainMeadow.RainMeadow.Debug("[CTP]: Avoiding potential statistics menu detour");
-
-            self.manager.menuSetup.startGameCondition = ProcessManager.MenuSetup.StoryGameInitCondition.Load;
-            self.manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
-            self.PlaySound(SoundID.MENU_Continue_Game);
-        }
-        else orig(self, storyGameCharacter);
     }
 
 }

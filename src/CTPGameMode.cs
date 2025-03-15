@@ -13,7 +13,7 @@ public class CTPGameMode : StoryGameMode
 
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
-        friendlyFire = true;//maybe not though,,,
+        friendlyFire = true;//maybe not though,,, //yeah, this will change later
         requireCampaignSlugcat = false;
         //figure out a way to make all players on the other team muted, but that should probably not be in the constructor
         //mutedPlayers.Add();
@@ -42,6 +42,11 @@ public class CTPGameMode : StoryGameMode
         return base.AllowedInMode(item);
     }
 
+    public override bool PlayerCanOwnResource(OnlinePlayer from, OnlineResource onlineResource)
+    {
+        return true; //allows the host to transfer the world session to another player
+    }
+
     public override void PreGameStart()
     {
         base.PreGameStart();
@@ -56,11 +61,16 @@ public class CTPGameMode : StoryGameMode
     {
         base.GameShutDown(game);
 
-        //remove hooks here?
-        CTPGameHooks.RemoveHooks();
+        //remove hooks here? NOPE; doesn't work, sadly...
+        //CTPGameHooks.RemoveHooks(); //moved to OnlineManager.LeaveLobby()
     }
 
 
+    /// <summary>
+    /// Safely determines whether a CTP gamemode is the currently active game mode.
+    /// </summary>
+    /// <param name="gamemode">The CTPGameMode if active, or null otherwise.</param>
+    /// <returns></returns>
     public static bool IsCTPGameMode(out CTPGameMode gamemode)
     {
         gamemode = null;
