@@ -86,13 +86,18 @@ public static class CTPGameHooks
             save.redExtraCycles = false;
             save.initiatedInGameVersion = 0;
 
-            //get den pos (TEMPORARY IMPLEMENTATION!)
-            string denPos = gamemode.lobby.isOwner
+            //get den pos
+            /*string denPos = gamemode.lobby.isOwner
                 ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, new string[0])
-                : gamemode.defaultDenPos;
+                : gamemode.defaultDenPos;*/
+            byte myTeam = gamemode.PlayerTeams[OnlineManager.mePlayer];
+            string denPos = gamemode.hasSpawnedIn
+                ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte) i != myTeam).ToArray(), Plugin.Options.RespawnCloseness.Value)
+                : gamemode.TeamShelters[myTeam];
+            gamemode.hasSpawnedIn = true;
 
             save.denPosition = denPos;
-            gamemode.defaultDenPos = denPos; //TEMPORARY!!
+            gamemode.defaultDenPos = denPos; //hopefully unnecessary
             gamemode.myLastDenPos = denPos;
 
             return save;

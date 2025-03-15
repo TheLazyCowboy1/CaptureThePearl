@@ -24,13 +24,13 @@ public class Plugin : BaseUnityPlugin
     public const string MOD_VERSION = "0.0.1";
 
     //made static for easy access. Hopefully this mod should never be initiated twice anyway...
-    public static ConfigOptions Options;
+    public static CTPConfigOptions Options;
 
     public Plugin()
     {
         try
         {
-            Options = new ConfigOptions(Logger);
+            Options = new CTPConfigOptions(Logger);
         }
         catch (Exception ex)
         {
@@ -92,7 +92,7 @@ public class Plugin : BaseUnityPlugin
     {
         CTPMenuProcessID = new ProcessManager.ProcessID("CaptureThePearlMenu", true);
 
-        CTPGameModeType = new MeadowGameMode.OnlineGameModeType("Capture the Pearl", true);
+        CTPGameModeType = new MeadowGameMode.OnlineGameModeType(CTPGameMode.GameModeName, true);
         //MeadowGameMode.gamemodes.Add(CTPGameModeType, typeof(CTPGameMode));
         MeadowGameMode.RegisterType(CTPGameModeType, typeof(CTPGameMode), CTPGameMode.GameModeDescription);
 

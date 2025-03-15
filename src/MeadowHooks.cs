@@ -47,7 +47,7 @@ public static class MeadowHooks
     {
         orig(self, manager);
 
-        self.filterModeDropDown.AddItems(true, new Menu.Remix.MixedUI.ListItem("Capture the Pearl"));
+        self.filterModeDropDown.AddItems(true, new Menu.Remix.MixedUI.ListItem(CTPGameMode.GameModeName));
     }
 
     //Don't go to death screen while in the Capture the Pearl gamemode!!

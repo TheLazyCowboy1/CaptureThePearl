@@ -46,6 +46,7 @@ public static class RandomShelterChooser
 
         var unorderedShelters = RandomShelterFilter.shelterNames
             .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]))
+            .Where(kvp => !otherTeamShelters.Contains(kvp.n)) //don't spawn in other teams' shelters!!!
             .ToList();
         //manual sort... :(
         List<(string, float)> orderedShelters = new(unorderedShelters.Count);
