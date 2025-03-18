@@ -19,10 +19,14 @@ public class CTPGameMode : StoryGameMode
     public string[] TeamShelters = new string[0];
     public int[] TeamPoints = new int[0];
 
+    //(settings)
     public byte NumberOfTeams = 2; //for now, make it always 2
+    public int TimerLength = 10; //length in minutes
+    public bool SpawnCreatures = true;
 
     //Non-synced variables
-    public OnlinePhysicalObject[] TeamPearls = new OnlinePhysicalObject[0];
+    public OnlinePhysicalObject[] teamPearls = new OnlinePhysicalObject[0];
+    public PearlIndicator[] pearlIndicators = new PearlIndicator[0];
 
     public bool gameSetup = false;
     public bool hasSpawnedIn = false; //this applies only to "myself", to decide whether to spawn in the team shelter or somewhere random
@@ -52,7 +56,8 @@ public class CTPGameMode : StoryGameMode
         //apply game hooks!
         CTPGameHooks.ApplyHooks();
 
-        TeamPearls = new OnlinePhysicalObject[NumberOfTeams];
+        teamPearls = new OnlinePhysicalObject[NumberOfTeams];
+        pearlIndicators = new PearlIndicator[NumberOfTeams];
 
         gameSetup = true;
     }
@@ -79,19 +84,19 @@ public class CTPGameMode : StoryGameMode
         var playerKeys = PlayerTeams.Keys;
         foreach (var player in playerKeys)
         {
-            if (!OnlineManager.players.Contains(player))
+            if (!lobby.participants.Contains(player))
                 PlayerTeams.Remove(player);
         }
 
         //check if we can skip all these over-complicated checks
-        if (PlayerTeams.Count == OnlineManager.players.Count)
+        if (PlayerTeams.Count == lobby.participants.Count)
             return;
 
         //add players that are not currently in the team list
 
         //shuffle player list, so we don't get the same teams every time
-        List<OnlinePlayer> tempPlayers = OnlineManager.players.ToList(); //make it distinct
-        List<OnlinePlayer> shuffledPlayers = new(OnlineManager.players.Count);
+        List<OnlinePlayer> tempPlayers = lobby.participants.ToList(); //make it distinct
+        List<OnlinePlayer> shuffledPlayers = new(lobby.participants.Count);
         while (tempPlayers.Count > 0)
         {
             int idx = UnityEngine.Random.Range(0, tempPlayers.Count);
@@ -155,10 +160,45 @@ public class CTPGameMode : StoryGameMode
         SearchForPearls();
         SpawnPearls();
         RepositionPearls();
+
+        for (int i = 0; i < NumberOfTeams; i++)
+        {
+            if (teamPearls[i] != null && pearlIndicators[i] == null)
+                AddIndicator(teamPearls[i], i);
+        }
+    }
+
+    public void AddIndicator(OnlinePhysicalObject opo, int team)
+    {
+        var cam = opo.apo.world?.game?.cameras[0];
+        var hud = cam?.hud;
+        if (hud == null)
+        {
+            RainMeadow.RainMeadow.Error($"[CTP]: Couldn't find HUD for game containing {opo}");
+            return;
+        }
+        pearlIndicators[team] = new PearlIndicator(hud, cam, opo.apo);
+        hud.AddPart(pearlIndicators[team]);
+    }
+    public void RemoveIndicator(int team)
+    {
+        var ind = pearlIndicators[team];
+        if (ind != null)
+        {
+            ind.slatedForDeletion = true;
+        }
+        pearlIndicators[team] = null;
     }
 
     private static int TeamToPearlIdx(byte team) => team + 2;
     public static byte PearlIdxToTeam(int idx) => (byte)(idx - 2);
+
+    //This is a poor place to have this function; or at least pearls should use it to decide their color!
+    public Color GetTeamColor(int team)
+    {
+        return Color.HSVToRGB((float)team / (float)NumberOfTeams, 1f, 0.9f);
+    }
+
     public void SearchForPearls()
     {
         //remove pearls that can no longer be found
@@ -166,25 +206,29 @@ public class CTPGameMode : StoryGameMode
         {
             try
             {
-                if (TeamPearls[i] != null)
+                if (teamPearls[i] != null)
                 {
                     //I don't think this case can ever happen...?
-                    if (TeamPearls[i].apo == null || !OnlineManager.recentEntities.ContainsValue(TeamPearls[i])) //if the object isn't there, ensure it's marked as null
+                    if (teamPearls[i].apo == null || !OnlineManager.recentEntities.ContainsValue(teamPearls[i])) //if the object isn't there, ensure it's marked as null
                     {
                         RainMeadow.RainMeadow.Debug($"[CTP]: Forgetting pearl for team {i}");
-                        TeamPearls[i].Deregister();
-                        TeamPearls[i] = null;
+                        teamPearls[i].Deregister();
+                        teamPearls[i] = null;
+                        RemoveIndicator(i);
                     }
-                    else if (TeamPearls[i].isMine) //also remove pearls that are in an enemy den
+                    else if (teamPearls[i].isMine) //also remove pearls that are in an enemy den
                     {
-                        int idx = PearlInEnemyShelter(TeamPearls[i], i);
+                        int idx = PearlInEnemyShelter(teamPearls[i], i);
                         if (idx >= 0)
                         {
-                            DestroyPearl(ref TeamPearls[i]); //if it's in someone else's shelter... bye-bye!
-                            if (lobby.isOwner)
-                                TeamScored(idx);
-                            else
-                                lobby.owner.InvokeRPC(CTPRPCs.PointScored, (byte)i);
+                            DestroyPearl(ref teamPearls[i]); //if it's in someone else's shelter... bye-bye!
+                            RemoveIndicator(i);
+                            TeamScored(idx);
+                            //tell everyone that a point was scored!
+                            foreach (var p in lobby.participants)
+                            {
+                                if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx);
+                            }
                         }
                     }
                 }
@@ -198,7 +242,7 @@ public class CTPGameMode : StoryGameMode
         //search for pearls within the world
         for (int i = 0; i < NumberOfTeams; i++)
         {
-            if (TeamPearls[i] == null)
+            if (teamPearls[i] == null)
             {
                 //search through all active entities in the world for the pearl
                 foreach (var entity in OnlineManager.recentEntities.Values)
@@ -207,7 +251,8 @@ public class CTPGameMode : StoryGameMode
                         && PearlIdxToTeam((opo.apo as DataPearl.AbstractDataPearl).dataPearlType.index) == i)
                     {
                         RainMeadow.RainMeadow.Debug($"[CTP]: Found pearl for team {i}: {opo}");
-                        TeamPearls[i] = opo;
+                        teamPearls[i] = opo;
+                        AddIndicator(opo, i);
                         break;
                     }
                 }
@@ -246,7 +291,7 @@ public class CTPGameMode : StoryGameMode
         //spawn pearls if they don't exist
         for (byte i = 0; i < NumberOfTeams; i++)
         {
-            var pearl = TeamPearls[i];
+            var pearl = teamPearls[i];
             if (pearl == null)
             {
                 //RainMeadow.RainMeadow.Debug($"[CTP]: Spawn pearl {i}?");
@@ -267,10 +312,11 @@ public class CTPGameMode : StoryGameMode
                         -1, null, new(DataPearl.AbstractDataPearl.DataPearlType.values.GetEntry(TeamToPearlIdx(i)), false));
 
                     room.AddEntity(abPearl);
-                    //abPearl.RealizeInRoom();
-                    //abPearl.realizedObject.firstChunk.pos = realPlayer.firstChunk.pos; //spawn at my location, just to be safe
+                    abPearl.RealizeInRoom();
+                    abPearl.realizedObject.firstChunk.pos = realPlayer.firstChunk.pos; //spawn at my location, just to be safe
 
-                    TeamPearls[i] = abPearl.GetOnlineObject();
+                    teamPearls[i] = abPearl.GetOnlineObject();
+                    AddIndicator(teamPearls[i], i);
                 }
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
@@ -279,12 +325,11 @@ public class CTPGameMode : StoryGameMode
 
     public void RepositionPearls()
     {
-        foreach (var pearl in TeamPearls)
+        foreach (var pearl in teamPearls)
         {
             try
             {
                 //If the pearl is mine, yet destroyed //and in the same room
-                //var player = GetMyPlayer();
                 if (pearl != null && pearl.isMine)
                 {
                     if (pearl.apo?.realizedObject?.grabbedBy?.Count > 0 && !pearl.apo.realizedObject.grabbedBy[0].grabber.dead)
@@ -295,12 +340,13 @@ public class CTPGameMode : StoryGameMode
                     //&& pearl.apo.Room.index == player.Room.index)
                     {
                         var player = GetMyPlayer();
-                        if (player == null || pearl.apo.Room.index != player.Room.index)
+                        if (player?.realizedObject == null || pearl.apo.Room.index != player.Room.index)
                             continue; //don't try repositioning it if I'm not there to grab it
 
                         RainMeadow.RainMeadow.Debug($"[CTP]: Attempting to reposition pearl!");
                         //respawn the pearl at my location; it belongs to me!!
                         pearl.apo.pos = player.pos;
+                        pearl.apo.InDen = false; //if a creature took it, move it out of the den
                         if (pearl.apo.realizedObject == null)
                             pearl.apo.RealizeInRoom();
                         else
@@ -331,17 +377,6 @@ public class CTPGameMode : StoryGameMode
         ChatLogManager.LogMessage("", "  Scores: " + scoreString);
     }
 
-    /*public override void EntityLeftResource(OnlineEntity oe, OnlineResource inResource)
-    {
-        base.EntityLeftResource(oe, inResource);
-
-        //remove pearls from TeamPearls list if they have left
-        if (oe is OnlinePhysicalObject opo && opo.apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl)
-        {
-            int idx = Array.IndexOf(TeamPearls, opo);
-            if (idx >= 0) TeamPearls[idx] = null;
-        }
-    }*/
 
     public override bool AllowedInMode(PlacedObject item)
     {
@@ -358,7 +393,7 @@ public class CTPGameMode : StoryGameMode
     //can be used to prevent spawning creatures
     public override bool ShouldLoadCreatures(RainWorldGame game, WorldSession worldSession)
     {
-        return base.ShouldLoadCreatures(game, worldSession);
+        return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
     }
 
     public override void FilterItems(Room room)
@@ -370,7 +405,7 @@ public class CTPGameMode : StoryGameMode
             foreach (var item in list)
             {
                 //remove any DataPearls that aren't in the TeamPearls list
-                if (item is DataPearl && !TeamPearls.Any(pearl => pearl.apo == item.abstractPhysicalObject))
+                if (item is DataPearl && !teamPearls.Any(pearl => pearl.apo == item.abstractPhysicalObject))
                 {
                     var apo = item.abstractPhysicalObject;
                     apo.GetOnlineObject()?.Deregister();
@@ -386,6 +421,28 @@ public class CTPGameMode : StoryGameMode
         base.ResourceAvailable(onlineResource);
         if (onlineResource is Lobby)
             onlineResource.AddData(new CTPLobbyData());
+    }
+
+    //Not working well at the moment... trying to get players on other teams to have their team color
+    public override void Customize(Creature creature, OnlineCreature oc)
+    {
+        base.Customize(creature, oc);
+
+        //Set players team colors, if on other team
+        if (oc.TryGetData<SlugcatCustomization>(out var data))
+        {
+            if (PlayerTeams.TryGetValue(OnlineManager.mePlayer, out var myTeam) && PlayerTeams.TryGetValue(oc.owner, out var hisTeam))
+            {
+                if (myTeam != hisTeam)
+                {
+                    RainMeadow.RainMeadow.Debug($"[CTF]: Customizing team color for player {oc.owner}");
+                    (RainMeadow.RainMeadow.creatureCustomizations.GetValue(creature, (c) => data) as SlugcatCustomization)
+                        .bodyColor = GetTeamColor(PlayerTeams[oc.owner]);
+                }
+            }
+            else
+                RainMeadow.RainMeadow.Error($"[CTF]: Could not find player {oc.owner} in team list!!");
+        }
     }
 
     public override void PreGameStart()

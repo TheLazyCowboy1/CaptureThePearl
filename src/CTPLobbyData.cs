@@ -36,6 +36,8 @@ public class CTPLobbyData : OnlineResource.ResourceData
             //teamPearls = new(gamemode.TeamPearls.Select(p => p == null ? new OnlineEntity.EntityId(0, OnlineEntity.EntityId.IdType.none, -1) : p.id).ToList());
             teamPoints = gamemode.TeamPoints;
             numberOfTeams = gamemode.NumberOfTeams;
+            timerLength = gamemode.TimerLength;
+            spawnCreatures = gamemode.SpawnCreatures;
         }
 
         [OnlineField]
@@ -51,12 +53,16 @@ public class CTPLobbyData : OnlineResource.ResourceData
         private int[] teamPoints;
         [OnlineField]
         private byte numberOfTeams;
+        [OnlineField]
+        private int timerLength;
+        [OnlineField]
+        private bool spawnCreatures;
 
         public override void ReadTo(OnlineResource.ResourceData data, OnlineResource resource)
         {
             if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
 
-            //gamemode.PlayerTeams = teamPlayers.list.Select((id, idx) => new KeyValuePair<OnlinePlayer, byte>(OnlineManager.players.Find(player => player.id == id), (byte)idx)).ToDictionary();
+            //gamemode.PlayerTeams = teamPlayers.list.Select((id, idx) => new KeyValuePair<OnlinePlayer, byte>(lobby.participants.Find(player => player.id == id), (byte)idx)).ToDictionary();
             gamemode.PlayerTeams = new(teamPlayers.list.Count);
             for (int i = 0; i < teamPlayers.list.Count; i++)
                 gamemode.PlayerTeams.Add(OnlineManager.players.Find(player => player.id == teamPlayers.list[i]), (byte)playerTeams.list[i]);
@@ -65,31 +71,10 @@ public class CTPLobbyData : OnlineResource.ResourceData
             //gamemode.TeamPearls = teamPearls.list.Select(id => id.id == -1 ? null : (id.FindEntity(true) as OnlinePhysicalObject)).ToArray();
 
             gamemode.NumberOfTeams = numberOfTeams;
+            gamemode.TimerLength = timerLength;
+            gamemode.SpawnCreatures = spawnCreatures;
 
-            if (teamPoints.Length == 0)
-                gamemode.TeamPoints = new int[0];
-            else
-            {
-                if (teamPoints.Length != gamemode.TeamPoints.Length)
-                {
-                    gamemode.TeamPoints = new int[teamPoints.Length];
-                    RainMeadow.RainMeadow.Debug($"[CTP]: Changing TeamPoints.Length to {teamPoints.Length}");
-                }
-                else //check if points changed
-                {
-                    for (int i = 0; i < teamPoints.Length; i++)
-                    {
-                        if (gamemode.TeamPoints[i] != teamPoints[i])
-                        {
-                            gamemode.TeamPoints[i] = teamPoints[i];
-                            gamemode.TeamScoredMessage(i);
-                        }
-                    }
-                }
-                for (int i = 0; i < teamPoints.Length; i++)
-                    gamemode.TeamPoints[i] = teamPoints[i];
-            }
-
+            gamemode.TeamPoints = teamPoints;
 
             //ensure cannot join game unless I have been assigned a team
             gamemode.changedRegions = !gamemode.PlayerTeams.ContainsKey(OnlineManager.mePlayer);

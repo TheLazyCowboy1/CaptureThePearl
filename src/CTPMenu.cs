@@ -19,11 +19,19 @@ public class CTPMenu : StoryOnlineMenu
     //public OpComboBox2 RegionDropdownBox;
     public OpComboBox RegionDropdownBox;
     public Configurable<string> regionConfig = new("SU");
+    public OpUpdown TeamUpdown;
+    public Configurable<int> teamConfig = new(2, new ConfigAcceptableRange<int>(2, 10));
+    public OpUpdown TimerUpdown;
+    public Configurable<int> timerConfig = new(10, new ConfigAcceptableRange<int>(1, 30));
+    public CheckBox CreatureCheckbox;
+    //public Configurable<bool> creaturesConfig = new(true);
 
     private MenuTabWrapper tabWrapper; //what on earth is this mess...
 
     public SimpleButton hostScugButton;
     public int hostSlugIndex;
+
+    public CTPGameMode gameMode => storyGameMode as CTPGameMode;
 
     public CTPMenu(ProcessManager manager) : base(manager)
     {
@@ -67,6 +75,28 @@ public class CTPMenu : StoryOnlineMenu
         storyGameMode.Sanitize();
         (storyGameMode as CTPGameMode).SanitizeCTP();
         storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
+
+
+        //Pocky's menu changes so far
+
+        var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
+        //host button stuff
+        if (hostScugButton == null)
+        {
+            //change scugs on a rotor whenever clicked and set the player to that scug
+            var pos = new Vector2(restartCheckbox.pos.x /*+35f*/, restartCheckboxPos.y + 20f);
+
+            hostSlugIndex = 0;
+            hostScugButton = new SimpleButton(this, pages[0], SlugcatStats.getSlugcatName(slugcatColorOrder[hostSlugIndex]), "CTPHostScugButton", pos, new Vector2(110, 30));
+            pages[0].subObjects.Add(hostScugButton);
+        }
+        personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
+        storyGameMode.avatarSettings.playingAs = personaSettings.playingAs;
+
+        //move custom colours
+        colorsCheckbox.pos = new Vector2(friendlyFire.pos.x, friendlyFire.pos.y - 30f);
+        float textWidth = GetRestartTextWidth(base.CurrLang);
+        colorsCheckbox.label.pos = new Vector2(-textWidth * 1.5f, colorsCheckbox.pos.y + 3f - 30f);
     }
 
     private int previousPageIdx;
@@ -80,7 +110,7 @@ public class CTPMenu : StoryOnlineMenu
             if (RegionDropdownBox == null)
                 SetupRegionDropdown();
 
-            storyGameMode.region = RegionDropdownBox.value;
+            UpdateConfigs();
 
             //Update region dropdown list
             if (slugcatPageIndex != previousPageIdx)
@@ -95,27 +125,6 @@ public class CTPMenu : StoryOnlineMenu
             //Set start text to always be "NEW SESSION"
             startButton.menuLabel.text = Translate("NEW SESSION");
 
-            //Could this stuff be moved to the constructor, or preferably to a separate function called by the constructor?
-            //It doesn't make sense to run it every tick; but if it works, don't bother changing it.
-
-            var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
-            //host button stuff
-            if (hostScugButton == null)
-            {
-                //change scugs on a rotor whenever clicked and set the player to that scug
-                var pos = new Vector2(restartCheckbox.pos.x /*+35f*/, restartCheckboxPos.y + 20f);
-
-                hostSlugIndex = 0;
-                hostScugButton = new SimpleButton(this, pages[0], SlugcatStats.getSlugcatName(slugcatColorOrder[hostSlugIndex]), "CTPHostScugButton", pos, new Vector2(110, 30));
-                pages[0].subObjects.Add(hostScugButton);
-            }
-            personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
-            storyGameMode.avatarSettings.playingAs = personaSettings.playingAs;
-
-            //move custom colours
-            colorsCheckbox.pos = new Vector2(friendlyFire.pos.x, friendlyFire.pos.y - 30f);
-            float textWidth = GetRestartTextWidth(base.CurrLang);
-            colorsCheckbox.label.pos = new Vector2(-textWidth * 1.5f, colorsCheckbox.pos.y + 3f - 30f);
         }
         else //client update stuff
         {
@@ -128,22 +137,59 @@ public class CTPMenu : StoryOnlineMenu
             {
                 onlineDifficultyLabel.text = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
+
+            //set custom settings
+            RegionDropdownBox.value = storyGameMode.region;
+            TeamUpdown.value = gameMode.NumberOfTeams.ToString();
+            TimerUpdown.value = gameMode.TimerLength.ToString();
+            CreatureCheckbox.Checked = gameMode.SpawnCreatures;
         }
     }
 
     public void SetupRegionDropdown()
     {
-        if (!OnlineManager.lobby.isOwner) return;
+        //if (!OnlineManager.lobby.isOwner) return;
 
         RegionDropdownBox = new(
                 regionConfig,
-                this.nextButton.pos + new Vector2(-50, 300),
-                200,
+                this.nextButton.pos + new Vector2(0, 300),
+                180,
                 GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber)
                 );
-        RegionDropdownBox.description = "tba";
-
+        RegionDropdownBox.description = "\nThe region in which to play.";
+        RegionDropdownBox.greyedOut = !OnlineManager.lobby.isOwner;
+        //RegionDropdownBox.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, RegionDropdownBox);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Region:", RegionDropdownBox.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
+
+        TeamUpdown = new(teamConfig, this.nextButton.pos + new Vector2(0, 350), 60);
+        TeamUpdown.description = "\nThe number of teams to use. Make sure there are more shelters than teams!!";
+        TeamUpdown.greyedOut = !OnlineManager.lobby.isOwner;
+        //TeamUpdown.OnChange += UpdateConfigs;
+        new UIelementWrapper(tabWrapper, TeamUpdown);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Teams:", TeamUpdown.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
+
+        TimerUpdown = new(timerConfig, this.nextButton.pos + new Vector2(150, 350), 60);
+        TimerUpdown.description = "\nThe length of the game in minutes.";
+        TimerUpdown.greyedOut = !OnlineManager.lobby.isOwner;
+        //TimerUpdown.OnChange += UpdateConfigs;
+        new UIelementWrapper(tabWrapper, TimerUpdown);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Timer:", TimerUpdown.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
+
+        CreatureCheckbox = new(this, pages[0], this, this.nextButton.pos + new Vector2(0, 450), 100f, "Creatures?", "CreatureCheckbox");//new(creaturesConfig, this.nextButton.pos + new Vector2(0, 450));
+        //CreatureCheckbox.description = "\nWhether creatures should spawn in the world.";
+        CreatureCheckbox.buttonBehav.greyedOut = !OnlineManager.lobby.isOwner;
+        //CreatureCheckbox.OnChange += UpdateConfigs;
+        //new UIelementWrapper(tabWrapper, CreatureCheckbox);
+        //pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Creatures?", CreatureCheckbox.pos + new Vector2(-100f, 0), new Vector2(100f, 30f), false));
+    }
+
+    public void UpdateConfigs()
+    {
+        storyGameMode.region = RegionDropdownBox.value;
+        gameMode.NumberOfTeams = (byte)TeamUpdown.GetValueInt();
+        gameMode.TimerLength = TimerUpdown.GetValueInt();
+        gameMode.SpawnCreatures = CreatureCheckbox.Checked;
     }
 
     private List<ListItem> GetRegionList(SlugcatStats.Name slugcat)

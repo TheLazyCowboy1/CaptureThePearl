@@ -24,20 +24,25 @@ public static class CTPGameHooks
 
         On.RainWorldGame.Update += RainWorldGame_Update;
 
-        On.Player.Update += Player_Update;
+        //On.Player.Update += Player_Update;
+        On.RainCycle.GetDesiredCycleLength += RainCycle_GetDesiredCycleLength;
+        On.RainWorldGame.BlizzardHardEndTimer += RainWorldGame_BlizzardHardEndTimer;
+        On.RainWorldGame.AllowRainCounterToTick += RainWorldGame_AllowRainCounterToTick;
+        On.RainCycle.Update += RainCycle_Update;
+
         On.Player.CanBeSwallowed += Player_CanBeSwallowed;
         On.PlayerProgression.SaveToDisk += PlayerProgression_SaveToDisk;
         On.PlayerProgression.GetOrInitiateSaveState += PlayerProgression_GetOrInitiateSaveState;
         On.HUD.TextPrompt.Update += TextPrompt_Update;
         try
-        {
+        { //Remove Meadow changing the game over text
             On.HUD.TextPrompt.UpdateGameOverString -= RainMeadow.RainMeadow.instance.TextPrompt_UpdateGameOverString;
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
         try
-        {
+        { //Remove Meadow preventing restarts
             On.Menu.KarmaLadderScreen.Update -= RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
@@ -48,7 +53,6 @@ public static class CTPGameHooks
         HooksApplied = true;
     }
 
-
     public static void RemoveHooks()
     {
         if (!HooksApplied) return;
@@ -56,7 +60,12 @@ public static class CTPGameHooks
 
         On.RainWorldGame.Update -= RainWorldGame_Update;
 
-        On.Player.Update -= Player_Update;
+        //On.Player.Update -= Player_Update;
+        On.RainCycle.GetDesiredCycleLength -= RainCycle_GetDesiredCycleLength;
+        On.RainWorldGame.BlizzardHardEndTimer -= RainWorldGame_BlizzardHardEndTimer;
+        On.RainWorldGame.AllowRainCounterToTick -= RainWorldGame_AllowRainCounterToTick;
+        On.RainCycle.Update -= RainCycle_Update;
+
         On.Player.CanBeSwallowed -= Player_CanBeSwallowed;
         On.PlayerProgression.SaveToDisk -= PlayerProgression_SaveToDisk;
         On.PlayerProgression.GetOrInitiateSaveState -= PlayerProgression_GetOrInitiateSaveState;
@@ -84,7 +93,57 @@ public static class CTPGameHooks
             gamemode.ClientGameTick();
     }
 
+    //Sets game timer, basically
+    private static int RainCycle_GetDesiredCycleLength(On.RainCycle.orig_GetDesiredCycleLength orig, RainCycle self)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode)) //should always be true
+        {
+            int time = gamemode.TimerLength * 40 * 60;
+            self.cycleLength = time;
+            self.baseCycleLength = time;
+            return time;
+        }
+        else return orig(self);
+    }
+
+    //Sets time before Saint's blizzard kills EVERYONE (TimerLength + 1)
+    private static int RainWorldGame_BlizzardHardEndTimer(On.RainWorldGame.orig_BlizzardHardEndTimer orig, bool storyMode)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode)) //should always be true
+            return (gamemode.TimerLength + 1) * 40 * 60;
+        return orig(storyMode);
+    }
+
+    //Ensures the timer always ticks
+    private static bool RainWorldGame_AllowRainCounterToTick(On.RainWorldGame.orig_AllowRainCounterToTick orig, RainWorldGame self)
+    {
+        return true;
+    }
+
+    //Ensures death rain happens
+    private static void RainCycle_Update(On.RainCycle.orig_Update orig, RainCycle self)
+    {
+        orig(self);
+
+        //if death rain SHOULD hit (but has not because we're a region with no rain), force it to hit
+        if (!self.deathRainHasHit && self.timer >= self.cycleLength)
+        {
+            self.RainHit();
+            self.deathRainHasHit = true;
+        }
+
+        //if time is long enough, switch to total death rain
+        if (self.timer >= self.cycleLength + 40 * 60) //more than one minute of rain
+        {
+            var globRain = self.world.game.globalRain;
+            if (globRain.deathRain == null) globRain.InitDeathRain();
+            globRain.deathRain.deathRainMode = GlobalRain.DeathRain.DeathRainMode.Mayhem;
+            globRain.Intensity = 1f;
+        }
+    }
+
     //Ensures player is glowing
+    //Hopefully not needed because SaveState is marked as theGlow = true
     private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
     {
         orig(self, eu);
@@ -119,6 +178,7 @@ public static class CTPGameHooks
             save.loaded = true;
             save.redExtraCycles = false;
             save.initiatedInGameVersion = 0;
+            save.theGlow = true; //make players glow; it's a nice convenience!
 
             //get den pos
             /*string denPos = gamemode.lobby.isOwner
@@ -157,6 +217,10 @@ public static class CTPGameHooks
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
         {
+            //if the timer has ended, no respawning!
+            if (self.world.rainCycle.timer >= self.world.rainCycle.cycleLength)
+                return;
+
             //Try to determine if there is ANY OTHER player who is still active in the game
             bool otherPlayerInGame = gamemode.lobby.clientSettings.Values.Any(cs => cs.inGame && !cs.isMine);
             RainMeadow.RainMeadow.Debug($"[CTP]: Other player in game = {otherPlayerInGame}");
