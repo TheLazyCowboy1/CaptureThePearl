@@ -27,6 +27,8 @@ public class CTPMenu : StoryOnlineMenu
 
     public CTPMenu(ProcessManager manager) : base(manager)
     {
+        RainMeadow.RainMeadow.Debug("[CTP]: Setting up menu");
+
         tabWrapper = new MenuTabWrapper(this, pages[0]);
         pages[0].subObjects.Add(tabWrapper);
 

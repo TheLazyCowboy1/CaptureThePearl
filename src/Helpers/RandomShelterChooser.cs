@@ -53,7 +53,7 @@ public static class RandomShelterChooser
         foreach (var s in unorderedShelters)
         {
             float score = MIN_DISTANCE(s.Item2, otherShelterLocs);
-            int idx = orderedShelters.FindIndex(s => score > s.Item2); //index of first shelter with a better score
+            int idx = orderedShelters.FindIndex(s => score < s.Item2); //index of first shelter with a worse score
             if (idx < 0) orderedShelters.Add((s.n, score));
             else orderedShelters.Insert(idx, (s.n, score));
         }

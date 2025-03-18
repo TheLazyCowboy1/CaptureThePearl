@@ -22,48 +22,81 @@ public static class CTPGameHooks
         if (HooksApplied) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Applying CTPGameHooks");
 
-        On.Player.ctor += Player_ctor;
+        On.RainWorldGame.Update += RainWorldGame_Update;
+
+        On.Player.Update += Player_Update;
+        On.Player.CanBeSwallowed += Player_CanBeSwallowed;
         On.PlayerProgression.SaveToDisk += PlayerProgression_SaveToDisk;
         On.PlayerProgression.GetOrInitiateSaveState += PlayerProgression_GetOrInitiateSaveState;
-        On.HUD.TextPrompt.UpdateGameOverString += TextPrompt_UpdateGameOverString;
         On.HUD.TextPrompt.Update += TextPrompt_Update;
+        try
+        {
+            On.HUD.TextPrompt.UpdateGameOverString -= RainMeadow.RainMeadow.instance.TextPrompt_UpdateGameOverString;
+        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
-        //On.Menu.KarmaLadderScreen.Update += KarmaLadderScreen_Update;
         try
         {
             On.Menu.KarmaLadderScreen.Update -= RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
+        //pearl colors
+        On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
+        On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
+
         HooksApplied = true;
     }
+
 
     public static void RemoveHooks()
     {
         if (!HooksApplied) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Removing CTPGameHooks");
 
-        On.Player.ctor -= Player_ctor;
+        On.RainWorldGame.Update -= RainWorldGame_Update;
+
+        On.Player.Update -= Player_Update;
+        On.Player.CanBeSwallowed -= Player_CanBeSwallowed;
         On.PlayerProgression.SaveToDisk -= PlayerProgression_SaveToDisk;
         On.PlayerProgression.GetOrInitiateSaveState -= PlayerProgression_GetOrInitiateSaveState;
-        On.PlayerProgression.GetOrInitiateSaveState -= PlayerProgression_GetOrInitiateSaveState;
-        On.HUD.TextPrompt.UpdateGameOverString -= TextPrompt_UpdateGameOverString;
         On.HUD.TextPrompt.Update -= TextPrompt_Update;
+
+        On.HUD.TextPrompt.UpdateGameOverString += RainMeadow.RainMeadow.instance.TextPrompt_UpdateGameOverString;
 
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
-        //On.Menu.KarmaLadderScreen.Update -= KarmaLadderScreen_Update;
+
         On.Menu.KarmaLadderScreen.Update += RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
+
+        On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
+        On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
 
         HooksApplied = false;
     }
 
-    //Makes players have neuron glow always
-    private static void Player_ctor(On.Player.orig_ctor orig, Player self, AbstractCreature abstractCreature, World world)
+
+    //Update gamemode for clients
+    private static void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
     {
-        orig(self, abstractCreature, world);
+        orig(self);
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            gamemode.ClientGameTick();
+    }
+
+    //Ensures player is glowing
+    private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
+    {
+        orig(self, eu);
+
         self.glowing = true;
+    }
+
+    //Prevents players from swallowing pearls
+    private static bool Player_CanBeSwallowed(On.Player.orig_CanBeSwallowed orig, Player self, PhysicalObject testObj)
+    {
+        if (testObj is DataPearl) return false;
+        return orig(self, testObj);
     }
 
     //Don't overwrite my save files with silly CTP stuff!!!
@@ -74,6 +107,7 @@ public static class CTPGameHooks
     }
 
     //Prevents the game from loading a pre-existing save state, instead forcing it to use a brand new one.
+    //ALSO chooses spawn position!
     private static SaveState PlayerProgression_GetOrInitiateSaveState(On.PlayerProgression.orig_GetOrInitiateSaveState orig, PlayerProgression self, SlugcatStats.Name saveStateNumber, RainWorldGame game, ProcessManager.MenuSetup setup, bool saveAsDeathOrQuit)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode)) //hopefully this check is redundant, but I need the gamemode anyway
@@ -105,12 +139,6 @@ public static class CTPGameHooks
         return orig(self, saveStateNumber, game, setup, saveAsDeathOrQuit);
     }
 
-    //Resets the game over string to something more palatable...
-    private static void TextPrompt_UpdateGameOverString(On.HUD.TextPrompt.orig_UpdateGameOverString orig, HUD.TextPrompt self, Options.ControlSetup.Preset controllerType)
-    {
-        self.gameOverString = "Um go restart you're probably dead now no use fighting it give up already okay bye bye hopefully this won't break the universe";
-    }
-
     //Overrides Meadow overriding the function of going to the death screen after dying... ...did I word that poorly?
     private static void TextPrompt_Update(On.HUD.TextPrompt.orig_Update orig, HUD.TextPrompt self)
     {
@@ -119,11 +147,11 @@ public static class CTPGameHooks
         if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
         {
             self.gameOverMode = true;
-            self.restartNotAllowed = 0; //let restarts be allowed ya jerk!! (idk y my comments are so weird)
+            self.restartNotAllowed = 0; //let restarts be allowed!
         }
     }
 
-    //Attempts to prevent players from restarting while no other players are alive at the moment... we'll see how this goes...
+    //Prevent players from restarting while no other players are alive at the moment
     //ALSO stops Rain Meadow from preventing clients from restarting!!
     private static void RainWorldGame_GoToDeathScreen(On.RainWorldGame.orig_GoToDeathScreen orig, RainWorldGame self)
     {
@@ -148,27 +176,24 @@ public static class CTPGameHooks
         orig(self);
     }
 
-    //Overrides Rain Meadow blocking the continue button for the host
-    private static SimpleButton tempContinueButton = null;
-    private static void KarmaLadderScreen_Update(On.Menu.KarmaLadderScreen.orig_Update orig, Menu.KarmaLadderScreen self)
-    {
-        //Override Rain Meadow's stuff; ugh it can be frustrating sometimes...
-        if (tempContinueButton != null && self.continueButton == null)
-            self.continueButton = tempContinueButton;
-
-        orig(self);
-
-        self.continueButton.buttonBehav.greyedOut = self.ButtonsGreyedOut; //override whether it is greyed out
-
-        tempContinueButton = self.continueButton;
-        self.continueButton = null; //set it to null so Rain Meadow can't mess with it
-
-        //NOTE: Rain Meadow's code for greying out the button applies after ALL of this
-    }
-
     //Prevents the host from passaging; that'd be annoying
     private static void SleepAndDeathScreen_AddPassageButton(On.Menu.SleepAndDeathScreen.orig_AddPassageButton orig, SleepAndDeathScreen self, bool buttonBlack)
     {
         return; //just absolutely do nothing; don't add it
+    }
+
+    //Sets the pearl team colors; currently done automatically, but we'll probably want to change this later
+    private static Color DataPearl_UniquePearlMainColor(On.DataPearl.orig_UniquePearlMainColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 1f, 0.9f);
+        return orig(pearlType);
+    }
+    //Sets the highlight to the same color but with lower saturation
+    private static Color? DataPearl_UniquePearlHighLightColor(On.DataPearl.orig_UniquePearlHighLightColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
+        return orig(pearlType);
     }
 }
