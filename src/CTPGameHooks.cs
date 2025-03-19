@@ -41,6 +41,7 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
+        On.ShelterDoor.Close += ShelterDoor_Close;
         try
         { //Remove Meadow preventing restarts
             On.Menu.KarmaLadderScreen.Update -= RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
@@ -75,6 +76,7 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
+        On.ShelterDoor.Close -= ShelterDoor_Close;
 
         On.Menu.KarmaLadderScreen.Update += RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
 
@@ -140,15 +142,6 @@ public static class CTPGameHooks
             globRain.deathRain.deathRainMode = GlobalRain.DeathRain.DeathRainMode.Mayhem;
             globRain.Intensity = 1f;
         }
-    }
-
-    //Ensures player is glowing
-    //Hopefully not needed because SaveState is marked as theGlow = true
-    private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
-    {
-        orig(self, eu);
-
-        self.glowing = true;
     }
 
     //Prevents players from swallowing pearls
@@ -260,6 +253,12 @@ public static class CTPGameHooks
     private static void SleepAndDeathScreen_AddPassageButton(On.Menu.SleepAndDeathScreen.orig_AddPassageButton orig, SleepAndDeathScreen self, bool buttonBlack)
     {
         return; //just absolutely do nothing; don't add it
+    }
+
+    //Prevents shelter doors from closing and triggering the win screen
+    private static void ShelterDoor_Close(On.ShelterDoor.orig_Close orig, ShelterDoor self)
+    {
+        return;
     }
 
     //Sets the pearl team colors; currently done automatically, but we'll probably want to change this later
