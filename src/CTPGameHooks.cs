@@ -206,8 +206,17 @@ public static class CTPGameHooks
 
         if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
         {
-            self.gameOverMode = true;
-            self.restartNotAllowed = 0; //let restarts be allowed!
+            if (self.hud.owner is Player player
+                && player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength + 40 * 60)
+            { //if the game has fully ended, hide the game over screen
+                self.gameOverMode = false;
+                self.restartNotAllowed = 1; //and prevent restarts; use Rain Meadow's exit menu thingy instead
+            }
+            else
+            {
+                self.gameOverMode = true;
+                self.restartNotAllowed = 0; //let restarts be allowed!
+            }
         }
     }
 
@@ -257,14 +266,19 @@ public static class CTPGameHooks
     private static Color DataPearl_UniquePearlMainColor(On.DataPearl.orig_UniquePearlMainColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 1f, 0.9f);
+            return gamemode.GetTeamColor(CTPGameMode.PearlIdxToTeam(pearlType.index));
+            //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 1f, 0.9f);
         return orig(pearlType);
     }
     //Sets the highlight to the same color but with lower saturation
     private static Color? DataPearl_UniquePearlHighLightColor(On.DataPearl.orig_UniquePearlHighLightColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
     {
-        if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
-        return orig(pearlType);
+        //if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
+        //return orig(pearlType);
+        Color.RGBToHSV(DataPearl.UniquePearlMainColor(pearlType), out float h, out float s, out float v);
+        s *= 0.7f;
+        v *= 1.05f;
+        return Color.HSVToRGB(h, s, v);
     }
 }

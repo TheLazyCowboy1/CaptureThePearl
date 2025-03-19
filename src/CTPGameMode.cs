@@ -205,7 +205,9 @@ public class CTPGameMode : StoryGameMode
     //This is a poor place to have this function; or at least pearls should use it to decide their color!
     public Color GetTeamColor(int team)
     {
-        return Color.HSVToRGB((float)team / (float)NumberOfTeams, 1f, 0.9f);
+        float h = (float)team / (float)NumberOfTeams;
+        if (NumberOfTeams == 2 && team == 1) h = 2f / 3f; //set it to fully blue; cyan doesn't look as nice
+        return Color.HSVToRGB(h, 1f, 0.9f);
     }
 
     public void SearchForPearls()
@@ -437,6 +439,12 @@ public class CTPGameMode : StoryGameMode
         base.PlayerLeftLobby(player);
 
         if (PlayerTeams.ContainsKey(player)) PlayerTeams.Remove(player);
+    }
+    public override void NewPlayerInLobby(OnlinePlayer player)
+    {
+        base.NewPlayerInLobby(player);
+
+        if (gameSetup) AssignPlayerTeams(); //immediately give the player a team if the game is already in progress
     }
 
     //Not working well at the moment... trying to get players on other teams to have their team color
