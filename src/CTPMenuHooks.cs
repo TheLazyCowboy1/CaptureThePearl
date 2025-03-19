@@ -18,13 +18,22 @@ namespace CaptureThePearl
             On.ProcessManager.PostSwitchMainProcess -= ProcessManager_PostSwitchMainProcess;
             On.Menu.SlugcatSelectMenu.AddColorButtons -= SlugcatSelectMenu_AddColorButtons;
             On.Menu.SimpleButton.Clicked -= SimpleButton_Clicked;
+            On.Menu.SlugcatSelectMenu.StartGame -= SlugcatSelectMenu_StartGame;
         }
         public static void ApplyHooks()
         {
             On.ProcessManager.PostSwitchMainProcess += ProcessManager_PostSwitchMainProcess;
             On.Menu.SlugcatSelectMenu.AddColorButtons += SlugcatSelectMenu_AddColorButtons;
             On.Menu.SimpleButton.Clicked += SimpleButton_Clicked;
+            On.Menu.SlugcatSelectMenu.StartGame += SlugcatSelectMenu_StartGame;
         }
+
+        private static void SlugcatSelectMenu_StartGame(On.Menu.SlugcatSelectMenu.orig_StartGame orig, SlugcatSelectMenu self, SlugcatStats.Name storyGameCharacter)
+        {
+            if (self is CTPMenu menu) menu.StartGame(storyGameCharacter);
+            else orig(self, storyGameCharacter);
+        }
+
         private static void SlugcatSelectMenu_AddColorButtons(On.Menu.SlugcatSelectMenu.orig_AddColorButtons orig, SlugcatSelectMenu self)
         {
             if (self is CTPMenu storyMenu && OnlineManager.lobby.isOwner)
