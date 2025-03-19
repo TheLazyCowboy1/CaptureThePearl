@@ -47,6 +47,11 @@ public class CTPGameMode : StoryGameMode
     {
         RainMeadow.RainMeadow.Debug("[CTP]: Sanitizing gamemode");
         PlayerTeams.Clear();
+        TeamShelters = new string[0];
+        TeamPoints = new int[0];
+        teamPearls = new OnlinePhysicalObject[0];
+        for (int i = 0; i < pearlIndicators.Length; i++) RemoveIndicator(i);
+        pearlIndicators = new PearlIndicator[0];
         gameSetup = false;
         hasSpawnedIn = false;
     }
@@ -84,19 +89,22 @@ public class CTPGameMode : StoryGameMode
         var playerKeys = PlayerTeams.Keys;
         foreach (var player in playerKeys)
         {
-            if (!lobby.participants.Contains(player))
+            if (!OnlineManager.players.Contains(player))
+            {
+                RainMeadow.RainMeadow.Debug($"[CTP]: Removing player {player}");
                 PlayerTeams.Remove(player);
+            }
         }
 
         //check if we can skip all these over-complicated checks
-        if (PlayerTeams.Count == lobby.participants.Count)
+        if (PlayerTeams.Count == OnlineManager.players.Count)
             return;
 
         //add players that are not currently in the team list
 
         //shuffle player list, so we don't get the same teams every time
-        List<OnlinePlayer> tempPlayers = lobby.participants.ToList(); //make it distinct
-        List<OnlinePlayer> shuffledPlayers = new(lobby.participants.Count);
+        List<OnlinePlayer> tempPlayers = OnlineManager.players.ToList(); //make it distinct
+        List<OnlinePlayer> shuffledPlayers = new(OnlineManager.players.Count);
         while (tempPlayers.Count > 0)
         {
             int idx = UnityEngine.Random.Range(0, tempPlayers.Count);
@@ -108,6 +116,7 @@ public class CTPGameMode : StoryGameMode
         {
             if (!PlayerTeams.ContainsKey(player))
             {
+                RainMeadow.RainMeadow.Debug($"[CTP]: Adding player {player}");
                 //get team counts
                 int[] teamCounts = new int[NumberOfTeams];
                 int minCount = Int32.MaxValue;
@@ -225,7 +234,7 @@ public class CTPGameMode : StoryGameMode
                             RemoveIndicator(i);
                             TeamScored(idx);
                             //tell everyone that a point was scored!
-                            foreach (var p in lobby.participants)
+                            foreach (var p in OnlineManager.players)
                             {
                                 if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx);
                             }
@@ -423,6 +432,13 @@ public class CTPGameMode : StoryGameMode
             onlineResource.AddData(new CTPLobbyData());
     }
 
+    public override void PlayerLeftLobby(OnlinePlayer player)
+    {
+        base.PlayerLeftLobby(player);
+
+        if (PlayerTeams.ContainsKey(player)) PlayerTeams.Remove(player);
+    }
+
     //Not working well at the moment... trying to get players on other teams to have their team color
     public override void Customize(Creature creature, OnlineCreature oc)
     {
@@ -431,18 +447,21 @@ public class CTPGameMode : StoryGameMode
         //Set players team colors, if on other team
         if (oc.TryGetData<SlugcatCustomization>(out var data))
         {
-            if (PlayerTeams.TryGetValue(OnlineManager.mePlayer, out var myTeam) && PlayerTeams.TryGetValue(oc.owner, out var hisTeam))
+            if (PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte myTeam) && PlayerTeams.TryGetValue(oc.owner, out byte hisTeam))
             {
                 if (myTeam != hisTeam)
                 {
-                    RainMeadow.RainMeadow.Debug($"[CTF]: Customizing team color for player {oc.owner}");
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Customizing team color for player {oc.owner}");
                     (RainMeadow.RainMeadow.creatureCustomizations.GetValue(creature, (c) => data) as SlugcatCustomization)
                         .bodyColor = GetTeamColor(PlayerTeams[oc.owner]);
                 }
+                else RainMeadow.RainMeadow.Debug($"[CTP]: Player on same team: {oc.owner}");
             }
             else
-                RainMeadow.RainMeadow.Error($"[CTF]: Could not find player {oc.owner} in team list!!");
+                RainMeadow.RainMeadow.Error($"[CTP]: Could not find player {oc.owner} in team list!!");
         }
+        else if (creature is Player)
+            RainMeadow.RainMeadow.Error($"Couldn't find customization data for player {creature}");
     }
 
     public override void PreGameStart()

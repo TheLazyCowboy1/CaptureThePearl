@@ -219,7 +219,14 @@ public static class CTPGameHooks
         {
             //if the timer has ended, no respawning!
             if (self.world.rainCycle.timer >= self.world.rainCycle.cycleLength)
+            {
+                if (self.world.rainCycle.timer >= self.world.rainCycle.cycleLength + 40 * 60)
+                { //extra 1 minute over; everyone is dead; the game may end now
+                    gamemode.SanitizeCTP();
+                    orig(self);
+                }
                 return;
+            }
 
             //Try to determine if there is ANY OTHER player who is still active in the game
             bool otherPlayerInGame = gamemode.lobby.clientSettings.Values.Any(cs => cs.inGame && !cs.isMine);

@@ -8,6 +8,7 @@ using Menu.Remix;
 using Menu;
 using System.Globalization;
 using RWCustom;
+using Menu.Remix.MixedUI.ValueTypes;
 
 namespace CaptureThePearl;
 
@@ -18,13 +19,13 @@ public class CTPMenu : StoryOnlineMenu
 {
     //public OpComboBox2 RegionDropdownBox;
     public OpComboBox RegionDropdownBox;
-    public Configurable<string> regionConfig = new("SU");
+    public Configurable<string> regionConfig;// = new("SU");
     public OpUpdown TeamUpdown;
-    public Configurable<int> teamConfig = new(2, new ConfigAcceptableRange<int>(2, 10));
+    public Configurable<int> teamConfig;// = new(2, new ConfigAcceptableRange<int>(2, 10));
     public OpUpdown TimerUpdown;
-    public Configurable<int> timerConfig = new(10, new ConfigAcceptableRange<int>(1, 30));
-    public CheckBox CreatureCheckbox;
-    //public Configurable<bool> creaturesConfig = new(true);
+    public Configurable<int> timerConfig;// = new(10, new ConfigAcceptableRange<int>(1, 30));
+    public OpCheckBox CreatureCheckbox;
+    public Configurable<bool> creaturesConfig;// = new(true);
 
     private MenuTabWrapper tabWrapper; //what on earth is this mess...
 
@@ -63,10 +64,6 @@ public class CTPMenu : StoryOnlineMenu
                 pages.Add(slugcatPages[j]);
             }
         }
-        //
-
-        //add region dropdowns
-        SetupRegionDropdown();
 
         previousPageIdx = slugcatPageIndex;
 
@@ -75,6 +72,14 @@ public class CTPMenu : StoryOnlineMenu
         storyGameMode.Sanitize();
         (storyGameMode as CTPGameMode).SanitizeCTP();
         storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
+
+
+        //add region dropdowns
+        regionConfig = new(storyGameMode.region == null ? "SU" : storyGameMode.region);
+        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 10));
+        timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 30));
+        creaturesConfig = new(gameMode.SpawnCreatures);
+        SetupRegionDropdown();
 
 
         //Pocky's menu changes so far
@@ -140,9 +145,9 @@ public class CTPMenu : StoryOnlineMenu
 
             //set custom settings
             RegionDropdownBox.value = storyGameMode.region;
-            TeamUpdown.value = gameMode.NumberOfTeams.ToString();
-            TimerUpdown.value = gameMode.TimerLength.ToString();
-            CreatureCheckbox.Checked = gameMode.SpawnCreatures;
+            TeamUpdown.SetValueInt(gameMode.NumberOfTeams);
+            TimerUpdown.SetValueInt(gameMode.TimerLength);
+            CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
         }
     }
 
@@ -156,40 +161,72 @@ public class CTPMenu : StoryOnlineMenu
                 180,
                 GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber)
                 );
-        RegionDropdownBox.description = "\nThe region in which to play.";
+        RegionDropdownBox.description = "\n\nThe region in which to play.";
         RegionDropdownBox.greyedOut = !OnlineManager.lobby.isOwner;
         //RegionDropdownBox.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, RegionDropdownBox);
         pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Region:", RegionDropdownBox.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
 
         TeamUpdown = new(teamConfig, this.nextButton.pos + new Vector2(0, 350), 60);
-        TeamUpdown.description = "\nThe number of teams to use. Make sure there are more shelters than teams!!";
+        TeamUpdown.description = "\n\nThe number of teams to use. Make sure there are more shelters than teams!!";
         TeamUpdown.greyedOut = !OnlineManager.lobby.isOwner;
         //TeamUpdown.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, TeamUpdown);
-        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Teams:", TeamUpdown.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Teams:", TeamUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
 
-        TimerUpdown = new(timerConfig, this.nextButton.pos + new Vector2(150, 350), 60);
-        TimerUpdown.description = "\nThe length of the game in minutes.";
+        TimerUpdown = new(timerConfig, this.nextButton.pos + new Vector2(100, 350), 60);
+        TimerUpdown.description = "\n\nThe length of the game in minutes.";
         TimerUpdown.greyedOut = !OnlineManager.lobby.isOwner;
         //TimerUpdown.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, TimerUpdown);
-        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Timer:", TimerUpdown.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Timer:", TimerUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
 
-        CreatureCheckbox = new(this, pages[0], this, this.nextButton.pos + new Vector2(0, 450), 100f, "Creatures?", "CreatureCheckbox");//new(creaturesConfig, this.nextButton.pos + new Vector2(0, 450));
-        //CreatureCheckbox.description = "\nWhether creatures should spawn in the world.";
-        CreatureCheckbox.buttonBehav.greyedOut = !OnlineManager.lobby.isOwner;
+        //CreatureCheckbox = new(this, pages[0], this, this.nextButton.pos + new Vector2(100, 400), 100f, "Creatures?", "CreatureCheckbox");//new(creaturesConfig, this.nextButton.pos + new Vector2(0, 450));
+        CreatureCheckbox = new(creaturesConfig, this.nextButton.pos + new Vector2(100, 400));
+        CreatureCheckbox.description = "\n\nWhether creatures should spawn in the world.";
+        CreatureCheckbox.greyedOut = !OnlineManager.lobby.isOwner;
+        //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
+        //if (OnlineManager.lobby.isOwner) CreatureCheckbox.selectable = true;
+        //pages[0].subObjects.Add(CreatureCheckbox);
+        //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
+        //if (gameMode.SpawnCreatures) CreatureCheckbox.Clicked();
         //CreatureCheckbox.OnChange += UpdateConfigs;
-        //new UIelementWrapper(tabWrapper, CreatureCheckbox);
-        //pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Creatures?", CreatureCheckbox.pos + new Vector2(-100f, 0), new Vector2(100f, 30f), false));
+        new UIelementWrapper(tabWrapper, CreatureCheckbox);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Creatures?", CreatureCheckbox.pos + new Vector2(-100f, 0), new Vector2(100f, 30f), false));
     }
 
     public void UpdateConfigs()
     {
         storyGameMode.region = RegionDropdownBox.value;
+
+        //these configs have been giving me no end to trouble
+        /*byte teams = (byte)TeamUpdown.valueInt;
+        if (teams != null) gameMode.NumberOfTeams = teams;
+        int timer = TimerUpdown.valueInt;
+        if (timer != null) gameMode.TimerLength = timer;
+        bool creatures = CreatureCheckbox.GetValueBool();
+        if (creatures != null) gameMode.SpawnCreatures = creatures;*/
+
+        //teamConfig.BoxedValue = ValueConverter.ConvertToValue(TeamUpdown.value, teamConfig.settingType);
+        //gameMode.NumberOfTeams = (byte)teamConfig.Value;//(byte)TeamUpdown.GetValueInt();
+        //if (gameMode.NumberOfTeams < 2) gameMode.NumberOfTeams = 2;
+        //if (gameMode.NumberOfTeams > 10) gameMode.NumberOfTeams = 10;
+        //timerConfig.BoxedValue = ValueConverter.ConvertToValue(TimerUpdown.value, timerConfig.settingType);
+        //gameMode.TimerLength = timerConfig.Value;//TimerUpdown.GetValueInt();
+        //if (gameMode.TimerLength < 1) gameMode.TimerLength = 1;
+        //if (gameMode.TimerLength > 30) gameMode.TimerLength = 30;
+        //gameMode.SpawnCreatures = CreatureCheckbox.Checked;
+        //if (gameMode.SpawnCreatures) gameMode.SpawnCreatures = true;
+    }
+
+    public override void ShutDownProcess()
+    {
+        base.ShutDownProcess();
+
         gameMode.NumberOfTeams = (byte)TeamUpdown.GetValueInt();
         gameMode.TimerLength = TimerUpdown.GetValueInt();
-        gameMode.SpawnCreatures = CreatureCheckbox.Checked;
+        gameMode.SpawnCreatures = CreatureCheckbox.GetValueBool();
+        RainMeadow.RainMeadow.Debug("[CTP]: Menu set configs!");
     }
 
     private List<ListItem> GetRegionList(SlugcatStats.Name slugcat)
