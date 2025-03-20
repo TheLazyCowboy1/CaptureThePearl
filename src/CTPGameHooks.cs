@@ -42,6 +42,7 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
+        On.GhostWorldPresence.ctor += GhostWorldPresence_ctor;
         On.ShelterDoor.Close += ShelterDoor_Close;
         On.World.LoadMapConfig += World_LoadMapConfig;
         On.HUD.Map.ShelterMarker.ctor += ShelterMarker_ctor;
@@ -56,9 +57,12 @@ public static class CTPGameHooks
         //pearl colors
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
+        On.DataPearl.ctor += DataPearl_ctor;
 
         On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
+
+        On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
 
         On.Oracle.Update += Oracle_Update;
         try
@@ -71,6 +75,7 @@ public static class CTPGameHooks
 
         HooksApplied = true;
     }
+
     private static Hook IteratorUnconsciousHook;
 
     public static void RemoveHooks()
@@ -95,6 +100,7 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
+        On.GhostWorldPresence.ctor -= GhostWorldPresence_ctor;
         On.ShelterDoor.Close -= ShelterDoor_Close;
         On.World.LoadMapConfig -= World_LoadMapConfig;
         On.HUD.Map.ShelterMarker.ctor -= ShelterMarker_ctor;
@@ -106,12 +112,15 @@ public static class CTPGameHooks
 
         On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
+        On.DataPearl.ctor -= DataPearl_ctor;
 
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
 
         On.Oracle.Update -= Oracle_Update;
         IteratorUnconsciousHook?.Undo();
+
+        On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
 
         HooksApplied = false;
     }
@@ -323,6 +332,13 @@ public static class CTPGameHooks
         return; //just absolutely do nothing; don't add it
     }
 
+    //Prevents echoes from spawning
+    private static void GhostWorldPresence_ctor(On.GhostWorldPresence.orig_ctor orig, GhostWorldPresence self, World world, GhostWorldPresence.GhostID ghostID)
+    {
+        orig(self, world, ghostID);
+        self.ghostRoom = new AbstractRoom("FAKE_GHOST_ROOM", new int[] {-1}, -1, -1, -1, -1); //nope; don't spawn ghosts, please; they're scary!
+    }
+
     //Prevents shelter doors from closing and triggering the win screen
     private static void ShelterDoor_Close(On.ShelterDoor.orig_Close orig, ShelterDoor self)
     {
@@ -407,6 +423,14 @@ public static class CTPGameHooks
         return CTPGameMode.LigherTeamColor(DataPearl.UniquePearlMainColor(pearlType));
     }
 
+    //Makes pearls buoyant; handy for Shoreline!
+    private static void DataPearl_ctor(On.DataPearl.orig_ctor orig, DataPearl self, AbstractPhysicalObject abstractPhysicalObject, World world)
+    {
+        orig(self, abstractPhysicalObject, world);
+
+        self.buoyancy = 1.5f; //hopefully this is enough...?
+    }
+
     //Prevent arena overlay from trying to start a new game or something stupid like that!
     private static void ArenaOverlay_PlayerPressedContinue(On.Menu.ArenaOverlay.orig_PlayerPressedContinue orig, ArenaOverlay self)
     {
@@ -439,5 +463,30 @@ public static class CTPGameHooks
     public static bool Oracle_Conscious_Get(orig_Get_Oracle_Consious orig, Oracle self)
     {
         return false;
+    }
+
+
+
+    //Remove connections to blocked rooms
+    private static void WorldLoader_CreatingWorld(On.WorldLoader.orig_CreatingWorld orig, WorldLoader self)
+    {
+        //add list of indices to block
+        List<int> blockedConnections = new();
+        foreach (var room in self.abstractRooms)
+        {
+            if (RandomShelterFilter.BLOCKED_ROOMS.Contains(room.name))
+                blockedConnections.Add(room.index);
+        }
+
+        foreach (var room in self.abstractRooms)
+        {
+            for (int i = 0; i < room.connections.Length; i++)
+            {
+                if (blockedConnections.Contains(room.connections[i]))
+                    room.connections[i] = -1;
+            }
+        }
+
+        orig(self);
     }
 }

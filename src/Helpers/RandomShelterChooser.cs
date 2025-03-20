@@ -85,16 +85,48 @@ public static class RandomShelterFilter
 {
     public static string[] BANNED_SHELTERS = new string[] //put shelter names here, of course. Like SB_S03 or something
     {
-        "idk that precipice one",
-        "the OE one near the SU gate",
-        "the SU one near the OE gate",
-        "possibly the DS_SB shelter because that one would suck?",
-        "the MSC shelter at the top of Subterranean (Farm Arrays entrance)",
-        "oh no... submerged superstructure... what to do about that...???", //maybe just blacklist ALL of Bitter Aerie...? (except for Saint)
-                                                                            //but Bitter Aerie sounds like a lot more fun than Submerged Superstructure!!
-                                                                            //maybe make Bitter Aerie and Submerged Superstructure separate region options? That'd be a mess
-        "the SH shelter near its GW entrance", //accessible only by Arti, Spearmaster, Saint, or a lot of spear-climbing or advanced movement; not fun
-        "possibly the top shelter in Five Pebbles?" //also definitely for RM
+        "SB_S09", //top of Sub ravine
+        "SU_S05", //OE shelter; accessible only to Saint
+        "OE_S03", //the shelter near SU
+        "SH_S11", //near SH gate; accessible only to a few slugcats
+        "SL_STOP", //above Moon
+        "SL_S15", //MS gate; extremely hard to access
+        "SL_S13", //precipice
+        "MS_S01", //Submerged Superstructure blocked; only Bitter Aerie allowed
+        "MS_LAB05", //^^^
+        "MS_S03",
+        "MS_S04",
+        "MS_S05",
+        "MS_S06",
+        "MS_S09",
+        "RM_S04" //top of the Rot; mostly inaccessible
+    };
+
+    public static string[] PENALIZED_SHELTERS = new string[] //shelters that should be used ONLY as a last resort
+    {
+        "DS_S03", //in SB gate; a long linear path to get to it; easy to guard, hard to escape
+        "LF_S04", //in SB gate; just really far away
+        "SS_S04", //near SS_UW gate; again: long, linear path
+        "GW_S09", //near SH gate; again: far removed; guarded by a scav toll
+        "VS_S02" //near SL gate; way too far away from other shelters
+    };
+
+    public static string[] BLOCKED_ROOMS = new string[] //this needs to get moved to another file
+    {
+        "SU_CAVE01", //gives Saint access to OE area
+        "LC_FINAL", //scav king fight
+        "OE_CAVE03", //grants access to OE_SU area
+        "OE_FINAL03", //alt ending room
+        "HR_AI", //just block it off; don't want people crawing into there or achieving Saint's ending
+        "SH_LEDGE", //accessible only to a few slugcats; way to GW gate
+        "SL_C14", //way to MS gate
+        "UW_H01", //the way to roof; difficult to access for most slugcats + far removed area
+        "SI_SAINTINTRO", //difficult to get back from
+        "MS_MEM06", //gives Saint access to Submerged Superstructure proper
+        "SB_D06", //gives access to the Depths
+        "SB_F03", //the ravine; over-powered for Saint, who can climb up it easily
+        "RM_D07", //above RM_AI; mostly inaccessible
+        "RM_CORE" //grants access to the core
     };
 
     public static string[] shelterNames = new string[0];
@@ -123,6 +155,13 @@ public static class RandomShelterFilter
         string mapPath = FindMapFile(region, slugcat.value);
         if (!File.Exists(mapPath)) throw new FileNotFoundException($"Failed to find map file for {region}");
         shelterPositions = FindShelterPositions(shelters, mapPath);
+
+        //penalize shelters
+        for (int i = 0; i < shelterNames.Length; i++)
+        {
+            if (PENALIZED_SHELTERS.Contains(shelterNames[i]))
+                shelterPositions[i] += new Vector2(100000f, 100000f); //move it far away, basically
+        }
 
         lastSearchedRegion = region;
         lastSearchedSlugcat = slugcat;
