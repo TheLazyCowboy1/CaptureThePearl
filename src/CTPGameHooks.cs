@@ -42,6 +42,11 @@ public static class CTPGameHooks
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
         On.ShelterDoor.Close += ShelterDoor_Close;
+        On.World.LoadMapConfig += World_LoadMapConfig;
+        On.HUD.Map.ShelterMarker.ctor += ShelterMarker_ctor;
+        On.HUD.Map.ShelterMarker.Draw += ShelterMarker_Draw;
+        On.ShortcutGraphics.Draw += ShortcutGraphics_Draw;
+        On.HUD.Map.ctor += Map_ctor;
         try
         { //Remove Meadow preventing restarts
             On.Menu.KarmaLadderScreen.Update -= RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
@@ -77,6 +82,11 @@ public static class CTPGameHooks
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
         On.ShelterDoor.Close -= ShelterDoor_Close;
+        On.World.LoadMapConfig -= World_LoadMapConfig;
+        On.HUD.Map.ShelterMarker.ctor -= ShelterMarker_ctor;
+        On.HUD.Map.ShelterMarker.Draw -= ShelterMarker_Draw;
+        On.ShortcutGraphics.Draw -= ShortcutGraphics_Draw;
+        On.HUD.Map.ctor -= Map_ctor;
 
         On.Menu.KarmaLadderScreen.Update += RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
 
@@ -200,8 +210,8 @@ public static class CTPGameHooks
         if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
         {
             if (self.hud.owner is Player player
-                && player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength + 40 * 60)
-            { //if the game has fully ended, hide the game over screen
+                && player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength)
+            { //if respawns are not allowed, hide the game over screen
                 self.gameOverMode = false;
                 self.restartNotAllowed = 1; //and prevent restarts; use Rain Meadow's exit menu thingy instead
             }
@@ -261,6 +271,67 @@ public static class CTPGameHooks
         return;
     }
 
+    //Ensures ALL shelters are marked on the map!
+    private static void World_LoadMapConfig(On.World.orig_LoadMapConfig orig, World self, SlugcatStats.Name slugcatNumber)
+    {
+        orig(self, slugcatNumber);
+
+        for (int i = 0; i < self.brokenShelters.Length; i++) self.brokenShelters[i] = false;
+    }
+
+    //Colorizes team shelters on the map; a helpful little bonus!
+    private static void ShelterMarker_ctor(On.HUD.Map.ShelterMarker.orig_ctor orig, HUD.Map.ShelterMarker self, HUD.Map map, int room, Vector2 inRoomPosition)
+    {
+        orig(self, map, room, inRoomPosition);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            string name = map.mapData.NameOfRoom(room);
+            int idx = Array.IndexOf(gamemode.TeamShelters, name);
+            if (idx >= 0)
+                self.symbolSprite.color = CTPGameMode.LigherTeamColor(gamemode.GetTeamColor(idx));
+        }
+    }
+
+    //Prevents Rain World from resetting the shelter color!!!
+    private static void ShelterMarker_Draw(On.HUD.Map.ShelterMarker.orig_Draw orig, HUD.Map.ShelterMarker self, float timeStacker)
+    {
+        var origColor = self.symbolSprite.color;
+        orig(self, timeStacker);
+        self.symbolSprite.color = origColor;
+    }
+
+    //Colorize team shortcut entrances
+    //Has to be done here because Rain World keeps resetting its colors in Draw. Annoying and inefficient...
+    private static void ShortcutGraphics_Draw(On.ShortcutGraphics.orig_Draw orig, ShortcutGraphics self, float timeStacker, Vector2 camPos)
+    {
+        orig(self, timeStacker, camPos);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            for (int i = 0; i < self.entraceSpriteToRoomExitIndex.Length; i++)
+            {
+                //if (kvp.Value.element.name == "ShortcutShelter" || kvp.Value.element.name == "ShortcutAShelter")
+                int destNode = self.entraceSpriteToRoomExitIndex[i];
+                if (destNode >= 0) {
+                    var sprite = self.entranceSprites[i, 0];
+                    string shelterName = self.room.world.GetAbstractRoom(self.room.abstractRoom.connections[destNode])?.name;
+                    int idx = Array.IndexOf(gamemode.TeamShelters, shelterName);
+                    if (idx >= 0)
+                        sprite.color = CTPGameMode.LigherTeamColor(gamemode.GetTeamColor(idx));
+                }
+            }
+        }
+    }
+
+    //Set all parts of the map to discovered!
+    private static void Map_ctor(On.HUD.Map.orig_ctor orig, HUD.Map self, HUD.HUD hud, HUD.Map.MapData mapData)
+    {
+        hud.rainWorld.setup.revealMap = true;
+
+        orig(self, hud, mapData);
+    }
+
     //Sets the pearl team colors; currently done automatically, but we'll probably want to change this later
     private static Color DataPearl_UniquePearlMainColor(On.DataPearl.orig_UniquePearlMainColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
     {
@@ -275,9 +346,6 @@ public static class CTPGameHooks
         //if (CTPGameMode.IsCTPGameMode(out var gamemode))
         //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
         //return orig(pearlType);
-        Color.RGBToHSV(DataPearl.UniquePearlMainColor(pearlType), out float h, out float s, out float v);
-        s *= 0.7f;
-        v *= 1.05f;
-        return Color.HSVToRGB(h, s, v);
+        return CTPGameMode.LigherTeamColor(DataPearl.UniquePearlMainColor(pearlType));
     }
 }

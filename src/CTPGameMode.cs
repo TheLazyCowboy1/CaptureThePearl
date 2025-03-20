@@ -209,6 +209,18 @@ public class CTPGameMode : StoryGameMode
         if (NumberOfTeams == 2 && team == 1) h = 2f / 3f; //set it to fully blue; cyan doesn't look as nice
         return Color.HSVToRGB(h, 1f, 0.9f);
     }
+    /// <summary>
+    /// Lightens the color given in a standardized manner.
+    /// </summary>
+    /// <param name="color">The team color; accessible through gamemode.GetTeamColor().</param>
+    /// <returns>The lightened team color.</returns>
+    public static Color LigherTeamColor(Color color)
+    {
+        Color.RGBToHSV(color, out float h, out float s, out float v);
+        s *= 0.7f;
+        v *= 1.05f;
+        return Color.HSVToRGB(h, s, v);
+    }
 
     public void SearchForPearls()
     {

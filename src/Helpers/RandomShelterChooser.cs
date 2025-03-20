@@ -52,16 +52,18 @@ public static class RandomShelterChooser
         List<(string, float)> orderedShelters = new(unorderedShelters.Count);
         foreach (var s in unorderedShelters)
         {
-            float score = MIN_DISTANCE(s.Item2, otherShelterLocs);
+            float score = MIN_DISTANCE(s.Item2, otherShelterLocs); //higher score = better
             int idx = orderedShelters.FindIndex(s => s.Item2 < score); //index of first shelter with a worse score
-            if (idx < 0) orderedShelters.Add((s.n, score));
-            else orderedShelters.Insert(idx, (s.n, score));
+            if (idx < 0) orderedShelters.Add((s.n, score)); //this is the worst; add to the end
+            else orderedShelters.Insert(idx, (s.n, score)); //insert in front of worse shelter
         }
 
         var shelterArr = orderedShelters.Select(s => s.Item1).ToArray();
-        RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", shelterArr)}");
+        //RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", shelterArr)}");
+        RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", orderedShelters.Select(s => $"({s.Item1},{s.Item2})").ToArray())}");
 
         int randomIdx = Mathf.FloorToInt(UnityEngine.Random.value * shelterArr.Length * distanceLeniency); //find a random shelter in the BEST FIRST HALF
+        if (randomIdx >= shelterArr.Length) randomIdx = shelterArr.Length - 1;
 
         return shelterArr[randomIdx];
     }
@@ -201,29 +203,22 @@ public static class RandomShelterFilter
         bool roomStartFound = false;
         foreach (string line in lines)
         {
-            if (!roomStartFound) //block start
-            {
-                if (line.StartsWith("ROOMS"))
-                    roomStartFound = true;
-            }
-            else if (line.StartsWith("END ")) //block end
+            if (string.IsNullOrWhiteSpace(line)) continue;
+            if (line.StartsWith("Connection:"))
                 break;
-            else //actual line, hopefully
-            {
-                if (string.IsNullOrWhiteSpace(line)) continue;
-                string l = line.Trim();
-                if (l.StartsWith("//")) continue; //don't process comments
 
-                string[] nameData = l.Split(':');
-                int idx = shelterNames.IndexOf(nameData[0]);
-                if (idx < 0) continue;
+            string l = line.Trim();
+            if (l.StartsWith("//")) continue; //don't process comments; although there shouldn't be any in map files!!!
 
-                string data = nameData[1].Trim();
-                string[] d = Regex.Split(data, "><");
-                if (d.Length < 2) continue; //invalid data, somehow?
-                if (float.TryParse(d[0], out var x) && float.TryParse(d[1], out var y))
-                    shelterLocs[idx] = new Vector2(x, y);
-            }
+            string[] nameData = l.Split(':');
+            int idx = shelterNames.IndexOf(nameData[0]);
+            if (idx < 0) continue;
+
+            string data = nameData[1].Trim();
+            string[] d = Regex.Split(data, "><");
+            if (d.Length < 2) continue; //invalid data, somehow?
+            if (float.TryParse(d[0], out var x) && float.TryParse(d[1], out var y))
+                shelterLocs[idx] = new Vector2(x, y);
         }
 
         return shelterLocs;
