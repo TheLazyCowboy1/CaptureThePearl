@@ -42,6 +42,13 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
+        On.GhostWorldPresence.ctor += GhostWorldPresence_ctor;
+        On.ShelterDoor.Close += ShelterDoor_Close;
+        On.World.LoadMapConfig += World_LoadMapConfig;
+        On.HUD.Map.ShelterMarker.ctor += ShelterMarker_ctor;
+        On.HUD.Map.ShelterMarker.Draw += ShelterMarker_Draw;
+        On.ShortcutGraphics.Draw += ShortcutGraphics_Draw;
+        On.HUD.Map.ctor += Map_ctor;
         try
         { //Remove Meadow preventing restarts
             On.Menu.KarmaLadderScreen.Update -= RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
@@ -50,12 +57,26 @@ public static class CTPGameHooks
         //pearl colors
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
+        On.DataPearl.ctor += DataPearl_ctor;
 
-        //manual hook
-        new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.)), StoryMenu_Update);
+        On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
+        On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
+
+        On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
+
+        On.Oracle.Update += Oracle_Update;
+        try
+        {
+            IteratorUnconsciousHook = new(
+                typeof(Oracle).GetProperty(nameof(Oracle.Consious)).GetGetMethod(),
+                Oracle_Conscious_Get
+                );
+        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         HooksApplied = true;
     }
+
+    private static Hook IteratorUnconsciousHook;
 
     public static void RemoveHooks()
     {
@@ -79,22 +100,76 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
+        On.GhostWorldPresence.ctor -= GhostWorldPresence_ctor;
+        On.ShelterDoor.Close -= ShelterDoor_Close;
+        On.World.LoadMapConfig -= World_LoadMapConfig;
+        On.HUD.Map.ShelterMarker.ctor -= ShelterMarker_ctor;
+        On.HUD.Map.ShelterMarker.Draw -= ShelterMarker_Draw;
+        On.ShortcutGraphics.Draw -= ShortcutGraphics_Draw;
+        On.HUD.Map.ctor -= Map_ctor;
 
         On.Menu.KarmaLadderScreen.Update += RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
 
         On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
+        On.DataPearl.ctor -= DataPearl_ctor;
+
+        On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
+        On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
+
+        On.Oracle.Update -= Oracle_Update;
+        IteratorUnconsciousHook?.Undo();
+
+        On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
 
         HooksApplied = false;
     }
 
 
     //Update gamemode for clients
+    //ALSO check if the game should end as the host
     private static void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
     {
         orig(self);
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
             gamemode.ClientGameTick();
+
+            //should game end?
+            if (gamemode.gameSetup && self.world != null && self.world.rainCycle != null
+                && self.world.rainCycle.timer >= self.world.rainCycle.cycleLength)
+            {
+                //display no respawns message
+                if (self.world.rainCycle.timer == self.world.rainCycle.cycleLength)
+                {
+                    ChatLogManager.LogMessage("", "The game is ending! Respawns are now disabled.");
+                }
+
+                bool shouldEnd = self.world.rainCycle.timer >= self.world.rainCycle.cycleLength + 40 * 60; //1 minute hard limit
+                if (!shouldEnd)
+                {
+                    shouldEnd = true;
+                    foreach (var kvp in gamemode.lobby.playerAvatars) //search if any player is still alive
+                    {
+                        var oc = kvp.Value.FindEntity(true) as OnlineCreature;
+                        if (oc != null && oc.abstractCreature.state.alive)
+                        {
+                            shouldEnd = false;
+                            break;
+                        }
+                    }
+                    if (shouldEnd) RainMeadow.RainMeadow.Debug("[CTP]: Ending game because no more players are still alive!");
+                }
+                if (shouldEnd)
+                {
+                    gamemode.EndGame();
+                    foreach (var player in OnlineManager.players) //tell others the game is over
+                    {
+                        if (!player.isMe) player.InvokeOnceRPC(CTPRPCs.GameFinished);
+                    }
+                }
+            }
+        }
     }
 
     //Sets game timer, basically
@@ -121,9 +196,7 @@ public static class CTPGameHooks
     //Ensures the timer always ticks
     private static bool RainWorldGame_AllowRainCounterToTick(On.RainWorldGame.orig_AllowRainCounterToTick orig, RainWorldGame self)
     {
-        bool result = orig(self);
-        if (CTPGameMode.IsCTPGameMode(out var mode)) result = true;
-        return result;
+        return true;
     }
 
     //Ensures death rain happens
@@ -131,38 +204,27 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        if (CTPGameMode.IsCTPGameMode(out var mode))
+        //if death rain SHOULD hit (but has not because we're a region with no rain), force it to hit
+        if (!self.deathRainHasHit && self.timer >= self.cycleLength)
         {
-            //if death rain SHOULD hit (but has not because we're a region with no rain), force it to hit
-            if (!self.deathRainHasHit && self.timer >= self.cycleLength)
-            {
-                self.RainHit();
-                self.deathRainHasHit = true;
-            }
-
-            //if time is long enough, switch to total death rain
-            if (self.timer >= self.cycleLength + 40 * 60) //more than one minute of rain
-            {
-                var globRain = self.world.game.globalRain;
-                if (globRain.deathRain == null) globRain.InitDeathRain();
-                globRain.deathRain.deathRainMode = GlobalRain.DeathRain.DeathRainMode.Mayhem;
-                globRain.Intensity = 1f;
-            }
+            self.RainHit();
+            self.deathRainHasHit = true;
         }
-    }
 
-    //Ensures player is glowing
-    //Hopefully not needed because SaveState is marked as theGlow = true
-    private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
-    {
-        orig(self, eu);
-        if(CTPGameMode.IsCTPGameMode(out var mode)) self.glowing = true;
+        //if time is long enough, switch to total death rain
+        if (self.timer >= self.cycleLength + 40 * 60) //more than one minute of rain
+        {
+            var globRain = self.world.game.globalRain;
+            if (globRain.deathRain == null) globRain.InitDeathRain();
+            globRain.deathRain.deathRainMode = GlobalRain.DeathRain.DeathRainMode.Mayhem;
+            globRain.Intensity = 1f;
+        }
     }
 
     //Prevents players from swallowing pearls
     private static bool Player_CanBeSwallowed(On.Player.orig_CanBeSwallowed orig, Player self, PhysicalObject testObj)
     {
-        if (CTPGameMode.IsCTPGameMode(out var mode) && testObj is DataPearl) return false;
+        if (testObj is DataPearl) return false;
         return orig(self, testObj);
     }
 
@@ -212,9 +274,15 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        if (CTPGameMode.IsCTPGameMode(out var _))
+        if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver && OnlineManager.players.Count > 1) //don't do this in single-player
         {
-            if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
+            if (self.hud.owner is Player player
+                && player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength)
+            { //if respawns are not allowed, hide the game over screen
+                self.gameOverMode = false;
+                self.restartNotAllowed = 1; //and prevent restarts; use Rain Meadow's exit menu thingy instead
+            }
+            else
             {
                 self.gameOverMode = true;
                 self.restartNotAllowed = 0; //let restarts be allowed!
@@ -261,22 +329,164 @@ public static class CTPGameHooks
     //Prevents the host from passaging; that'd be annoying
     private static void SleepAndDeathScreen_AddPassageButton(On.Menu.SleepAndDeathScreen.orig_AddPassageButton orig, SleepAndDeathScreen self, bool buttonBlack)
     {
-        if(CTPGameMode.IsCTPGameMode(out var _)) return; //just absolutely do nothing; don't add it
-        orig(self, buttonBlack);
+        return; //just absolutely do nothing; don't add it
+    }
+
+    //Prevents echoes from spawning
+    private static void GhostWorldPresence_ctor(On.GhostWorldPresence.orig_ctor orig, GhostWorldPresence self, World world, GhostWorldPresence.GhostID ghostID)
+    {
+        orig(self, world, ghostID);
+        self.ghostRoom = new AbstractRoom("FAKE_GHOST_ROOM", new int[] {-1}, -1, -1, -1, -1); //nope; don't spawn ghosts, please; they're scary!
+    }
+
+    //Prevents shelter doors from closing and triggering the win screen
+    private static void ShelterDoor_Close(On.ShelterDoor.orig_Close orig, ShelterDoor self)
+    {
+        return;
+    }
+
+    //Ensures ALL shelters are marked on the map!
+    private static void World_LoadMapConfig(On.World.orig_LoadMapConfig orig, World self, SlugcatStats.Name slugcatNumber)
+    {
+        orig(self, slugcatNumber);
+
+        for (int i = 0; i < self.brokenShelters.Length; i++) self.brokenShelters[i] = false;
+    }
+
+    //Colorizes team shelters on the map; a helpful little bonus!
+    private static void ShelterMarker_ctor(On.HUD.Map.ShelterMarker.orig_ctor orig, HUD.Map.ShelterMarker self, HUD.Map map, int room, Vector2 inRoomPosition)
+    {
+        orig(self, map, room, inRoomPosition);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            string name = map.mapData.NameOfRoom(room);
+            int idx = Array.IndexOf(gamemode.TeamShelters, name);
+            if (idx >= 0)
+                self.symbolSprite.color = CTPGameMode.LigherTeamColor(gamemode.GetTeamColor(idx));
+        }
+    }
+
+    //Prevents Rain World from resetting the shelter color!!!
+    private static void ShelterMarker_Draw(On.HUD.Map.ShelterMarker.orig_Draw orig, HUD.Map.ShelterMarker self, float timeStacker)
+    {
+        var origColor = self.symbolSprite.color;
+        orig(self, timeStacker);
+        self.symbolSprite.color = origColor;
+    }
+
+    //Colorize team shortcut entrances
+    //Has to be done here because Rain World keeps resetting its colors in Draw. Annoying and inefficient...
+    private static void ShortcutGraphics_Draw(On.ShortcutGraphics.orig_Draw orig, ShortcutGraphics self, float timeStacker, Vector2 camPos)
+    {
+        orig(self, timeStacker, camPos);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            for (int i = 0; i < self.entraceSpriteToRoomExitIndex.Length; i++)
+            {
+                //if (kvp.Value.element.name == "ShortcutShelter" || kvp.Value.element.name == "ShortcutAShelter")
+                int destNode = self.entraceSpriteToRoomExitIndex[i];
+                if (destNode >= 0) {
+                    var sprite = self.entranceSprites[i, 0];
+                    string shelterName = self.room.world.GetAbstractRoom(self.room.abstractRoom.connections[destNode])?.name;
+                    int idx = Array.IndexOf(gamemode.TeamShelters, shelterName);
+                    if (idx >= 0)
+                        sprite.color = CTPGameMode.LigherTeamColor(gamemode.GetTeamColor(idx));
+                }
+            }
+        }
+    }
+
+    //Set all parts of the map to discovered!
+    private static void Map_ctor(On.HUD.Map.orig_ctor orig, HUD.Map self, HUD.HUD hud, HUD.Map.MapData mapData)
+    {
+        hud.rainWorld.setup.revealMap = true;
+
+        orig(self, hud, mapData);
     }
 
     //Sets the pearl team colors; currently done automatically, but we'll probably want to change this later
     private static Color DataPearl_UniquePearlMainColor(On.DataPearl.orig_UniquePearlMainColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 1f, 0.9f);
+            return gamemode.GetTeamColor(CTPGameMode.PearlIdxToTeam(pearlType.index));
+            //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 1f, 0.9f);
         return orig(pearlType);
     }
     //Sets the highlight to the same color but with lower saturation
     private static Color? DataPearl_UniquePearlHighLightColor(On.DataPearl.orig_UniquePearlHighLightColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
     {
+        //if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
+        //return orig(pearlType);
+        return CTPGameMode.LigherTeamColor(DataPearl.UniquePearlMainColor(pearlType));
+    }
+
+    //Makes pearls buoyant; handy for Shoreline!
+    private static void DataPearl_ctor(On.DataPearl.orig_ctor orig, DataPearl self, AbstractPhysicalObject abstractPhysicalObject, World world)
+    {
+        orig(self, abstractPhysicalObject, world);
+
+        self.buoyancy = 1.5f; //hopefully this is enough...?
+    }
+
+    //Prevent arena overlay from trying to start a new game or something stupid like that!
+    private static void ArenaOverlay_PlayerPressedContinue(On.Menu.ArenaOverlay.orig_PlayerPressedContinue orig, ArenaOverlay self)
+    {
+        try
+        {
+            (self.manager.currentMainLoop as RainWorldGame).ExitGame(false, true);
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+        //DON'T process anything!!! Just try to go back to lobby!
+    }
+
+    //Colorize team results as a nice little bonus
+    private static void PlayerResultBox_GrafUpdate(On.Menu.PlayerResultBox.orig_GrafUpdate orig, PlayerResultBox self, float timeStacker)
+    {
+        orig(self, timeStacker);
+
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
-        return orig(pearlType);
+            self.playerNameLabel.label.color = gamemode.GetTeamColor(self.player.playerNumber);
+    }
+
+    //Shove iterators into wall, where they'll be out of sight (a stupid solution, but it seems to work pretty well)
+    public static void Oracle_Update(On.Oracle.orig_Update orig, Oracle self, bool eu)
+    {
+        orig(self, eu);
+
+        self.firstChunk.pos.x += 100f;
+    }
+
+    public delegate bool orig_Get_Oracle_Consious(Oracle self);
+    public static bool Oracle_Conscious_Get(orig_Get_Oracle_Consious orig, Oracle self)
+    {
+        return false;
+    }
+
+
+
+    //Remove connections to blocked rooms
+    private static void WorldLoader_CreatingWorld(On.WorldLoader.orig_CreatingWorld orig, WorldLoader self)
+    {
+        //add list of indices to block
+        List<int> blockedConnections = new();
+        foreach (var room in self.abstractRooms)
+        {
+            if (RandomShelterFilter.BLOCKED_ROOMS.Contains(room.name))
+                blockedConnections.Add(room.index);
+        }
+
+        foreach (var room in self.abstractRooms)
+        {
+            for (int i = 0; i < room.connections.Length; i++)
+            {
+                if (blockedConnections.Contains(room.connections[i]))
+                    room.connections[i] = -1;
+            }
+        }
+
+        orig(self);
     }
 }

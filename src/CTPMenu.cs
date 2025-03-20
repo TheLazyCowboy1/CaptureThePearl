@@ -34,6 +34,8 @@ public class CTPMenu : StoryOnlineMenu
 
     public CTPGameMode gameMode => storyGameMode as CTPGameMode;
 
+    private static string lastRegion = "SU";
+
     public CTPMenu(ProcessManager manager) : base(manager)
     {
         RainMeadow.RainMeadow.Debug("[CTP]: Setting up menu");
@@ -71,8 +73,8 @@ public class CTPMenu : StoryOnlineMenu
 
 
         //add region dropdowns
-        regionConfig = new(storyGameMode.region == null ? "SU" : storyGameMode.region);
-        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4));
+        regionConfig = new(storyGameMode.region == null ? lastRegion : storyGameMode.region);
+        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4)); //cap at 4 teams
         timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 30));
         creaturesConfig = new(gameMode.SpawnCreatures);
         SetupRegionDropdown();
@@ -220,6 +222,10 @@ public class CTPMenu : StoryOnlineMenu
     {
         base.ShutDownProcess();
 
+        lastRegion = gameMode.region; //so that if we end a round, it tries to keep the same region selected
+
+        //This is OBVIOUSLY not ideal: I want clients to be able to see the settings change AS the host changes them.
+        //But it just kept throwing errors. Very annoying. This works functionally, at least.
         gameMode.NumberOfTeams = (byte)TeamUpdown.GetValueInt();
         gameMode.TimerLength = TimerUpdown.GetValueInt();
         gameMode.SpawnCreatures = CreatureCheckbox.GetValueBool();
