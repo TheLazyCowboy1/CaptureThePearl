@@ -45,10 +45,6 @@ public class CTPMenu : StoryOnlineMenu
         RemoveMenuObject(clientWantsToOverwriteSave);
         RemoveMenuObject(restartCheckbox);
 
-        //NOTE: I personally don't agree with this. I think requiring campaign slugcat is a pretty important feature.
-        RemoveMenuObject(reqCampaignSlug);
-        storyGameMode.requireCampaignSlugcat = false;
-
 
         //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
         if (OnlineManager.lobby.isOwner) //messes up client menu
@@ -76,32 +72,33 @@ public class CTPMenu : StoryOnlineMenu
 
         //add region dropdowns
         regionConfig = new(storyGameMode.region == null ? "SU" : storyGameMode.region);
-        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 10));
+        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4));
         timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 30));
         creaturesConfig = new(gameMode.SpawnCreatures);
         SetupRegionDropdown();
 
 
         //Pocky's menu changes so far
-
-        var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
-        //host button stuff
         if (hostScugButton == null)
         {
             //change scugs on a rotor whenever clicked and set the player to that scug
-            var pos = new Vector2(restartCheckbox.pos.x /*+35f*/, restartCheckboxPos.y + 20f);
+            var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
+            var pos = new Vector2(startButton.pos.x - sameSpotOtherSide, restartCheckboxPos.y + 80f);
 
             hostSlugIndex = 0;
             hostScugButton = new SimpleButton(this, pages[0], SlugcatStats.getSlugcatName(slugcatColorOrder[hostSlugIndex]), "CTPHostScugButton", pos, new Vector2(110, 30));
             pages[0].subObjects.Add(hostScugButton);
         }
-        personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
-        storyGameMode.avatarSettings.playingAs = personaSettings.playingAs;
 
-        //move custom colours
-        colorsCheckbox.pos = new Vector2(friendlyFire.pos.x, friendlyFire.pos.y - 30f);
-        float textWidth = GetRestartTextWidth(base.CurrLang);
-        colorsCheckbox.label.pos = new Vector2(-textWidth * 1.5f, colorsCheckbox.pos.y + 3f - 30f);
+        if (storyGameMode.requireCampaignSlugcat)
+        {
+            personaSettings.playingAs = storyGameMode.currentCampaign;
+            hostSlugIndex = slugcatPageIndex;
+            hostScugButton.menuLabel.text = SlugcatStats.getSlugcatName(storyGameMode.currentCampaign);
+        }
+        else personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
+
+        storyGameMode.avatarSettings.playingAs = personaSettings.playingAs;
     }
 
     private int previousPageIdx;

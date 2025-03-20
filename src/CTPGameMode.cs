@@ -33,8 +33,6 @@ public class CTPGameMode : StoryGameMode
 
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
-        friendlyFire = true;//maybe not though,,, //yeah, this will change later
-        requireCampaignSlugcat = false;
         //figure out a way to make all players on the other team muted, but that should probably not be in the constructor
         //mutedPlayers.Add();
 
@@ -373,19 +371,26 @@ public class CTPGameMode : StoryGameMode
         return avatars.Find(c => c.isMine)?.apo;
     }
 
+    public string GetTeamProperName(int team)
+    {
+        if (team == 0) return "Red";
+        else if (team == 1) return "Blue";
+        else if (team == 2) return "Yellow";
+        else return "Green";
+    }
+
     public void TeamScoredMessage(int team)
     {
-        RainMeadow.RainMeadow.Debug($"[CTP] Sending team {team} scored message");
-        ChatLogManager.LogMessage("", $"Team {team} has scored!");
+        RainMeadow.RainMeadow.Debug($"[CTP] Sending team {GetTeamProperName(team)} scored message");
+        ChatLogManager.LogMessage("", $"Team {GetTeamProperName(team)} has scored!");
         string scoreString = "";
         for (byte i = 0; i < NumberOfTeams; i++)
         {
             if (i > 0) scoreString += ", ";
-            scoreString += "Team" + i + ": " + TeamPoints[i];
+            scoreString += $"{GetTeamProperName(i).Substring(0, 1)} : {TeamPoints[i]}";
         }
         ChatLogManager.LogMessage("", "  Scores: " + scoreString);
     }
-
 
     public override bool AllowedInMode(PlacedObject item)
     {

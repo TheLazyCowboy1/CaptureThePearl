@@ -1,5 +1,6 @@
 ﻿using CaptureThePearl.Helpers;
 using Menu;
+using MonoMod.RuntimeDetour;
 using RainMeadow;
 using System;
 using System.Collections.Generic;
@@ -49,6 +50,9 @@ public static class CTPGameHooks
         //pearl colors
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
+
+        //manual hook
+        new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.)), StoryMenu_Update);
 
         HooksApplied = true;
     }
@@ -117,7 +121,9 @@ public static class CTPGameHooks
     //Ensures the timer always ticks
     private static bool RainWorldGame_AllowRainCounterToTick(On.RainWorldGame.orig_AllowRainCounterToTick orig, RainWorldGame self)
     {
-        return true;
+        bool result = orig(self);
+        if (CTPGameMode.IsCTPGameMode(out var mode)) result = true;
+        return result;
     }
 
     //Ensures death rain happens
@@ -125,20 +131,23 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        //if death rain SHOULD hit (but has not because we're a region with no rain), force it to hit
-        if (!self.deathRainHasHit && self.timer >= self.cycleLength)
+        if (CTPGameMode.IsCTPGameMode(out var mode))
         {
-            self.RainHit();
-            self.deathRainHasHit = true;
-        }
+            //if death rain SHOULD hit (but has not because we're a region with no rain), force it to hit
+            if (!self.deathRainHasHit && self.timer >= self.cycleLength)
+            {
+                self.RainHit();
+                self.deathRainHasHit = true;
+            }
 
-        //if time is long enough, switch to total death rain
-        if (self.timer >= self.cycleLength + 40 * 60) //more than one minute of rain
-        {
-            var globRain = self.world.game.globalRain;
-            if (globRain.deathRain == null) globRain.InitDeathRain();
-            globRain.deathRain.deathRainMode = GlobalRain.DeathRain.DeathRainMode.Mayhem;
-            globRain.Intensity = 1f;
+            //if time is long enough, switch to total death rain
+            if (self.timer >= self.cycleLength + 40 * 60) //more than one minute of rain
+            {
+                var globRain = self.world.game.globalRain;
+                if (globRain.deathRain == null) globRain.InitDeathRain();
+                globRain.deathRain.deathRainMode = GlobalRain.DeathRain.DeathRainMode.Mayhem;
+                globRain.Intensity = 1f;
+            }
         }
     }
 
@@ -147,14 +156,13 @@ public static class CTPGameHooks
     private static void Player_Update(On.Player.orig_Update orig, Player self, bool eu)
     {
         orig(self, eu);
-
-        self.glowing = true;
+        if(CTPGameMode.IsCTPGameMode(out var mode)) self.glowing = true;
     }
 
     //Prevents players from swallowing pearls
     private static bool Player_CanBeSwallowed(On.Player.orig_CanBeSwallowed orig, Player self, PhysicalObject testObj)
     {
-        if (testObj is DataPearl) return false;
+        if (CTPGameMode.IsCTPGameMode(out var mode) && testObj is DataPearl) return false;
         return orig(self, testObj);
     }
 
@@ -204,10 +212,13 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
+        if (CTPGameMode.IsCTPGameMode(out var _))
         {
-            self.gameOverMode = true;
-            self.restartNotAllowed = 0; //let restarts be allowed!
+            if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
+            {
+                self.gameOverMode = true;
+                self.restartNotAllowed = 0; //let restarts be allowed!
+            }
         }
     }
 
@@ -250,7 +261,8 @@ public static class CTPGameHooks
     //Prevents the host from passaging; that'd be annoying
     private static void SleepAndDeathScreen_AddPassageButton(On.Menu.SleepAndDeathScreen.orig_AddPassageButton orig, SleepAndDeathScreen self, bool buttonBlack)
     {
-        return; //just absolutely do nothing; don't add it
+        if(CTPGameMode.IsCTPGameMode(out var _)) return; //just absolutely do nothing; don't add it
+        orig(self, buttonBlack);
     }
 
     //Sets the pearl team colors; currently done automatically, but we'll probably want to change this later
