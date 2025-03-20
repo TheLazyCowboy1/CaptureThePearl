@@ -207,7 +207,7 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver)
+        if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver && OnlineManager.players.Count > 1) //don't do this in single-player
         {
             if (self.hud.owner is Player player
                 && player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength)

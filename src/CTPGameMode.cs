@@ -11,7 +11,7 @@ namespace CaptureThePearl;
 public class CTPGameMode : StoryGameMode
 {
     public const string GameModeName = "Capture the Pearl";
-    public const string GameModeDescription = "Team up with other players to steal the opposing team's pearls and bring them back to your home shelter!";
+    public const string GameModeDescription = "Team up with other players to steal the opposing team's pearls and bring them\nback to your home shelter!";
 
     //Synced variables
     public Dictionary<OnlinePlayer, byte> PlayerTeams = new();
@@ -217,8 +217,8 @@ public class CTPGameMode : StoryGameMode
     public static Color LigherTeamColor(Color color)
     {
         Color.RGBToHSV(color, out float h, out float s, out float v);
-        s *= 0.7f;
-        v *= 1.05f;
+        s *= 0.8f;
+        v = 1f;
         return Color.HSVToRGB(h, s, v);
     }
 
@@ -359,7 +359,7 @@ public class CTPGameMode : StoryGameMode
                         continue; //don't reposition if it's in something's hand
 
                     var tile = pearl?.apo?.realizedObject?.room?.GetTile(pearl.apo.pos);
-                    if (pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid)
+                    if (pearl.apo.InDen || pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid)
                     //&& pearl.apo.Room.index == player.Room.index)
                     {
                         var player = GetMyPlayer();
