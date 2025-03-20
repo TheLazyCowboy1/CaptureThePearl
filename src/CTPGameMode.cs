@@ -563,7 +563,7 @@ public class CTPGameMode : StoryGameMode
     }
 
     //Not working well at the moment... trying to get players on other teams to have their team color
-    public override void Customize(Creature creature, OnlineCreature oc)
+    /*public override void Customize(Creature creature, OnlineCreature oc)
     {
         base.Customize(creature, oc);
 
@@ -585,7 +585,7 @@ public class CTPGameMode : StoryGameMode
         }
         else if (creature is Player)
             RainMeadow.RainMeadow.Error($"Couldn't find customization data for player {creature}");
-    }
+    }*/
 
     public override void PreGameStart()
     {

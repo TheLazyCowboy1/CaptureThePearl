@@ -1,5 +1,6 @@
 ﻿using CaptureThePearl.Helpers;
 using Menu;
+using MonoMod.RuntimeDetour;
 using RainMeadow;
 using System;
 using System.Collections.Generic;
@@ -59,8 +60,18 @@ public static class CTPGameHooks
         On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
 
+        On.Oracle.Update += Oracle_Update;
+        try
+        {
+            IteratorUnconsciousHook = new(
+                typeof(Oracle).GetProperty(nameof(Oracle.Consious)).GetGetMethod(),
+                Oracle_Conscious_Get
+                );
+        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+
         HooksApplied = true;
     }
+    private static Hook IteratorUnconsciousHook;
 
     public static void RemoveHooks()
     {
@@ -98,6 +109,9 @@ public static class CTPGameHooks
 
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
+
+        On.Oracle.Update -= Oracle_Update;
+        IteratorUnconsciousHook?.Undo();
 
         HooksApplied = false;
     }
@@ -411,5 +425,19 @@ public static class CTPGameHooks
 
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
             self.playerNameLabel.label.color = gamemode.GetTeamColor(self.player.playerNumber);
+    }
+
+    //Shove iterators into wall, where they'll be out of sight (a stupid solution, but it seems to work pretty well)
+    public static void Oracle_Update(On.Oracle.orig_Update orig, Oracle self, bool eu)
+    {
+        orig(self, eu);
+
+        self.firstChunk.pos.x += 100f;
+    }
+
+    public delegate bool orig_Get_Oracle_Consious(Oracle self);
+    public static bool Oracle_Conscious_Get(orig_Get_Oracle_Consious orig, Oracle self)
+    {
+        return false;
     }
 }
