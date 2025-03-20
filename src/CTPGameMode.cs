@@ -462,7 +462,7 @@ public class CTPGameMode : StoryGameMode
                         continue; //don't reposition if it's in something's hand
 
                     var tile = pearl?.apo?.realizedObject?.room?.GetTile(pearl.apo.pos);
-                    if (pearl.apo.InDen || pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid)
+                    if (pearl.apo.InDen || pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid || tile.wormGrass)
                     //&& pearl.apo.Room.index == player.Room.index)
                     {
                         var player = GetMyPlayer();
