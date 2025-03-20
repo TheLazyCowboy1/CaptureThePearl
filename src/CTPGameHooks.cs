@@ -56,7 +56,8 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
 
-        //On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
+        On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
+        On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
 
         HooksApplied = true;
     }
@@ -95,7 +96,8 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
 
-        //On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
+        On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
+        On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
 
         HooksApplied = false;
     }
@@ -138,6 +140,10 @@ public static class CTPGameHooks
                 if (shouldEnd)
                 {
                     gamemode.EndGame();
+                    foreach (var player in OnlineManager.players) //tell others the game is over
+                    {
+                        if (!player.isMe) player.InvokeOnceRPC(CTPRPCs.GameFinished);
+                    }
                 }
             }
         }
@@ -396,5 +402,14 @@ public static class CTPGameHooks
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
         //DON'T process anything!!! Just try to go back to lobby!
+    }
+
+    //Colorize team results as a nice little bonus
+    private static void PlayerResultBox_GrafUpdate(On.Menu.PlayerResultBox.orig_GrafUpdate orig, PlayerResultBox self, float timeStacker)
+    {
+        orig(self, timeStacker);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            self.playerNameLabel.label.color = gamemode.GetTeamColor(self.player.playerNumber);
     }
 }

@@ -239,21 +239,22 @@ public class CTPGameMode : StoryGameMode
                         fakePlayer.playerClass = new(SlugcatStats.Name.values.GetEntry(i >= 3 ? i + 1 : i)); //skip Nightcat!
                         fakePlayer.wins = TeamPoints[i];
                         fakePlayer.sandboxWin = TeamPoints[i];
+                        fakePlayer.score = TeamPoints[i];
                         fakePlayer.winner = true;
-                        for (int j = 0; j < NumberOfTeams; j++) { if (TeamPoints[j] >= TeamPoints[i]) { fakePlayer.winner = false; break; } }
+                        for (int j = 0; j < NumberOfTeams; j++) { if (i != j && TeamPoints[j] >= TeamPoints[i]) { fakePlayer.winner = false; break; } }
                         if (fakePlayer.winner)
                         {
                             winningTeam = i;
                             RainMeadow.RainMeadow.Debug($"[CTP]: Team {i} won!");
                         }
-                        fakePlayer.alive = TeamPoints.Any(t => t > TeamPoints[i]);
+                        fakePlayer.alive = !TeamPoints.Any(t => t > TeamPoints[i]);
                         fakePlayer.timeAlive = TimerLength * 60 * 40; //idk if this works
                         sitting.players.Add(fakePlayer);
                     }
 
                     game.arenaOverlay = new Menu.ArenaOverlay(game.manager, sitting, sitting.players);
                     game.arenaOverlay.countdownToNextRound = Int32.MaxValue;
-                    game.arenaOverlay.headingLabel.text = winningTeam >= 0 ? $"TEAM {winningTeam} WINS!" : "IT'S A DRAW!";
+                    game.arenaOverlay.headingLabel.text = winningTeam >= 0 ? $"TEAM {winningTeam+1} WINS!" : "IT'S A DRAW!";
                     foreach (var box in game.arenaOverlay.resultBoxes)
                     {
                         box.playerNameLabel.text = Regex.Replace(box.playerNameLabel.text, "Player", "Team");
