@@ -78,7 +78,7 @@ public class CTPMenu : StoryOnlineMenu
 
         //add region dropdowns
         regionConfig = new(storyGameMode.region == null ? lastRegion : storyGameMode.region);
-        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 10));
+        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 6)); //cap at 6 teams
         timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 30));
         creaturesConfig = new(gameMode.SpawnCreatures);
         SetupRegionDropdown();

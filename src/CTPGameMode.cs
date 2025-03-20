@@ -94,8 +94,20 @@ public class CTPGameMode : StoryGameMode
 
         //get team shelters
         List<string> tempShelters = new(NumberOfTeams);
-        for (int i = 0; i < NumberOfTeams; i++)
-            tempShelters.Add(Helpers.RandomShelterChooser.GetRespawnShelter(region, currentCampaign, tempShelters.ToArray(), Plugin.Options.TeamShelterCloseness.Value));
+        for (byte i = 0; i < NumberOfTeams; i++)
+        {
+            try
+            {
+                tempShelters.Add(Helpers.RandomShelterChooser.GetRespawnShelter(region, currentCampaign, tempShelters.ToArray(), Plugin.Options.TeamShelterCloseness.Value));
+            }
+            catch (Exception ex) //if there aren't enough shelters in the region for all the teams
+            {
+                RainMeadow.RainMeadow.Error(ex);
+                RainMeadow.RainMeadow.Debug($"[CTP]: Capping team count to {i}");
+                NumberOfTeams = i;
+                break;
+            }
+        }
         TeamShelters = tempShelters.ToArray();
 
         TeamPoints = new int[NumberOfTeams];
@@ -593,9 +605,9 @@ public class CTPGameMode : StoryGameMode
 
         if (!gameSetup)
         {
-            ClientSetup();
             if (lobby.isOwner)
                 SetupTeams();
+            ClientSetup();
         }
     }
 
