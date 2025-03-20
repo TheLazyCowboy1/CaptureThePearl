@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using RainMeadow;
 using UnityEngine;
@@ -23,6 +24,7 @@ public class CTPGameMode : StoryGameMode
     public byte NumberOfTeams = 2; //for now, make it always 2
     public int TimerLength = 10; //length in minutes
     public bool SpawnCreatures = true;
+    public bool ShouldMuteOtherTeams = false; //should probably be true by default; synced among everyone
 
     //Non-synced variables
     public OnlinePhysicalObject[] teamPearls = new OnlinePhysicalObject[0];
@@ -30,6 +32,8 @@ public class CTPGameMode : StoryGameMode
 
     public bool gameSetup = false;
     public bool hasSpawnedIn = false; //this applies only to "myself", to decide whether to spawn in the team shelter or somewhere random
+
+    public bool otherTeamsMuted = false; //whether players on other teams should be CURRENTLY muted
 
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
@@ -46,6 +50,9 @@ public class CTPGameMode : StoryGameMode
     public void SanitizeCTP()
     {
         RainMeadow.RainMeadow.Debug("[CTP]: Sanitizing gamemode");
+
+        UnmutePlayers();
+
         PlayerTeams.Clear();
         TeamShelters = new string[0];
         TeamPoints = new int[0];
@@ -55,6 +62,18 @@ public class CTPGameMode : StoryGameMode
         gameSetup = false;
         hasSpawnedIn = false;
     }
+    public void UnmutePlayers()
+    {
+        //Unmute players that were muted previously due to their team
+        if (ShouldMuteOtherTeams)
+        {
+            foreach (var player in PlayerTeams.Keys)
+            {
+                if (!OnMyTeam(player))
+                    mutedPlayers.Remove(player.id.name); //unmute people on other teams
+            }
+        }
+    }
 
     public void ClientSetup()
     {
@@ -63,6 +82,8 @@ public class CTPGameMode : StoryGameMode
 
         teamPearls = new OnlinePhysicalObject[NumberOfTeams];
         pearlIndicators = new PearlIndicator[NumberOfTeams];
+
+        otherTeamsMuted = true;
 
         gameSetup = true;
     }
@@ -175,6 +196,79 @@ public class CTPGameMode : StoryGameMode
             if (teamPearls[i] != null && pearlIndicators[i] == null)
                 AddIndicator(teamPearls[i], i);
         }
+
+        //mute players
+        if (otherTeamsMuted && ShouldMuteOtherTeams)
+        {
+            foreach (var player in PlayerTeams.Keys)
+            {
+                if (!mutedPlayers.Contains(player.id.name) && !OnMyTeam(player))
+                    mutedPlayers.Add(player.id.name);
+            }
+        }
+    }
+
+    public void EndGame()
+    {
+        RainMeadow.RainMeadow.Debug("[CTP]: Ending the game!");
+        RainMeadow.RainMeadow.Debug("[CTP]: Points: " + string.Join(", ", TeamPoints.Select(p => p.ToString()).ToArray()));
+
+        if (gameSetup)
+        {
+            //kill myself, like a good slugcat!
+            var me = GetMyPlayer();
+            if (me?.realizedObject is Player mePlayer && !mePlayer.dead)
+                mePlayer.Die();
+
+            //attempt to make an arena-style overlay... this probably won't go well...
+            try
+            {
+                if (me?.world != null)
+                {
+                    var game = me.world.game;
+
+                    //create phony arena sitting
+                    var setup = new ArenaSetup.GameTypeSetup();
+                    setup.InitAsGameType(ArenaSetup.GameTypeID.Sandbox);
+                    var sitting = new ArenaSitting(setup, new MultiplayerUnlocks(game.rainWorld.progression, new()));
+                    game.manager.arenaSitting = sitting; //...this might not go well...
+                    int winningTeam = -1;
+                    for (int i = 0; i < NumberOfTeams; i++)
+                    {
+                        var fakePlayer = new ArenaSitting.ArenaPlayer(i);
+                        fakePlayer.playerClass = new(SlugcatStats.Name.values.GetEntry(i >= 3 ? i + 1 : i)); //skip Nightcat!
+                        fakePlayer.wins = TeamPoints[i];
+                        fakePlayer.sandboxWin = TeamPoints[i];
+                        fakePlayer.winner = true;
+                        for (int j = 0; j < NumberOfTeams; j++) { if (TeamPoints[j] >= TeamPoints[i]) { fakePlayer.winner = false; break; } }
+                        if (fakePlayer.winner)
+                        {
+                            winningTeam = i;
+                            RainMeadow.RainMeadow.Debug($"[CTP]: Team {i} won!");
+                        }
+                        fakePlayer.alive = TeamPoints.Any(t => t > TeamPoints[i]);
+                        fakePlayer.timeAlive = TimerLength * 60 * 40; //idk if this works
+                        sitting.players.Add(fakePlayer);
+                    }
+
+                    game.arenaOverlay = new Menu.ArenaOverlay(game.manager, sitting, sitting.players);
+                    game.arenaOverlay.countdownToNextRound = Int32.MaxValue;
+                    game.arenaOverlay.headingLabel.text = winningTeam >= 0 ? $"TEAM {winningTeam} WINS!" : "IT'S A DRAW!";
+                    foreach (var box in game.arenaOverlay.resultBoxes)
+                    {
+                        box.playerNameLabel.text = Regex.Replace(box.playerNameLabel.text, "Player", "Team");
+                    }
+                    game.manager.sideProcesses.Add(game.arenaOverlay);
+                }
+            }
+            catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+        }
+
+        gameSetup = false;
+        otherTeamsMuted = false;
+        UnmutePlayers();
+
+        //SanitizeCTP();
     }
 
     public void AddIndicator(OnlinePhysicalObject opo, int team)
@@ -220,6 +314,14 @@ public class CTPGameMode : StoryGameMode
         s *= 0.8f;
         v = 1f;
         return Color.HSVToRGB(h, s, v);
+    }
+
+    public byte MyTeam() => PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte ret) ? ret : (byte)0;
+    public bool OnMyTeam(OnlinePlayer player)
+    {
+        if (PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte mine) && PlayerTeams.TryGetValue(player, out byte his))
+            return mine == his;
+        return false;
     }
 
     public void SearchForPearls()

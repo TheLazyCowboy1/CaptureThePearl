@@ -56,6 +56,8 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
 
+        //On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
+
         HooksApplied = true;
     }
 
@@ -93,16 +95,52 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
 
+        //On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
+
         HooksApplied = false;
     }
 
 
     //Update gamemode for clients
+    //ALSO check if the game should end as the host
     private static void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
     {
         orig(self);
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
             gamemode.ClientGameTick();
+
+            //should game end?
+            if (gamemode.gameSetup && self.world != null && self.world.rainCycle != null
+                && self.world.rainCycle.timer >= self.world.rainCycle.cycleLength)
+            {
+                //display no respawns message
+                if (self.world.rainCycle.timer == self.world.rainCycle.cycleLength)
+                {
+                    ChatLogManager.LogMessage("", "The game is ending! Respawns are now disabled.");
+                }
+
+                bool shouldEnd = self.world.rainCycle.timer >= self.world.rainCycle.cycleLength + 40 * 60; //1 minute hard limit
+                if (!shouldEnd)
+                {
+                    shouldEnd = true;
+                    foreach (var kvp in gamemode.lobby.playerAvatars) //search if any player is still alive
+                    {
+                        var oc = kvp.Value.FindEntity(true) as OnlineCreature;
+                        if (oc != null && oc.abstractCreature.state.alive)
+                        {
+                            shouldEnd = false;
+                            break;
+                        }
+                    }
+                    if (shouldEnd) RainMeadow.RainMeadow.Debug("[CTP]: Ending game because no more players are still alive!");
+                }
+                if (shouldEnd)
+                {
+                    gamemode.EndGame();
+                }
+            }
+        }
     }
 
     //Sets game timer, basically
@@ -347,5 +385,16 @@ public static class CTPGameHooks
         //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
         //return orig(pearlType);
         return CTPGameMode.LigherTeamColor(DataPearl.UniquePearlMainColor(pearlType));
+    }
+
+    //Prevent arena overlay from trying to start a new game or something stupid like that!
+    private static void ArenaOverlay_PlayerPressedContinue(On.Menu.ArenaOverlay.orig_PlayerPressedContinue orig, ArenaOverlay self)
+    {
+        try
+        {
+            (self.manager.currentMainLoop as RainWorldGame).ExitGame(false, true);
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+        //DON'T process anything!!! Just try to go back to lobby!
     }
 }

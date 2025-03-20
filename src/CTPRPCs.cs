@@ -15,4 +15,11 @@ public static class CTPRPCs
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
             gamemode.TeamScored(team);
     }
+
+    [RPCMethod]
+    public static void GameFinished()
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            gamemode.EndGame();
+    }
 }

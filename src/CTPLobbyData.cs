@@ -61,6 +61,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
         public override void ReadTo(OnlineResource.ResourceData data, OnlineResource resource)
         {
             if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
+            if (gamemode.lobby.isOwner) return; //don't apply this for host!
 
             //gamemode.PlayerTeams = teamPlayers.list.Select((id, idx) => new KeyValuePair<OnlinePlayer, byte>(lobby.participants.Find(player => player.id == id), (byte)idx)).ToDictionary();
             gamemode.PlayerTeams = new(teamPlayers.list.Count);
