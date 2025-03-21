@@ -93,7 +93,7 @@ public static class RandomShelterFilter
         "SL_S15", //MS gate; extremely hard to access
         "SL_S13", //precipice
         "MS_S01", //Submerged Superstructure blocked; only Bitter Aerie allowed
-        "MS_LAB05", //^^^
+        "MS_LAB5", //^^^
         "MS_S03",
         "MS_S04",
         "MS_S05",
