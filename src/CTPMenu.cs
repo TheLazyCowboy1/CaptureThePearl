@@ -81,7 +81,7 @@ public class CTPMenu : StoryOnlineMenu
 
 
         //Pocky's menu changes so far
-        if (hostScugButton == null)
+        if (hostScugButton == null && OnlineManager.lobby.isOwner)
         {
             //change scugs on a rotor whenever clicked and set the player to that scug
             var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
@@ -223,6 +223,7 @@ public class CTPMenu : StoryOnlineMenu
         base.ShutDownProcess();
 
         lastRegion = gameMode.region; //so that if we end a round, it tries to keep the same region selected
+        return;
 
         //This is OBVIOUSLY not ideal: I want clients to be able to see the settings change AS the host changes them.
         //But it just kept throwing errors. Very annoying. This works functionally, at least.
