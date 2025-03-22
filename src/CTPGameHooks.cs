@@ -69,6 +69,7 @@ public static class CTPGameHooks
         On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
 
         On.Oracle.Update += Oracle_Update;
+        On.SSOracleBehavior.UnconciousUpdate += SSOracleBehavior_UnconciousUpdate;
         try
         {
             IteratorUnconsciousHook = new(
@@ -123,6 +124,7 @@ public static class CTPGameHooks
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
 
         On.Oracle.Update -= Oracle_Update;
+        On.SSOracleBehavior.UnconciousUpdate -= SSOracleBehavior_UnconciousUpdate;
         IteratorUnconsciousHook?.Undo();
 
         On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;//Changed from a += to a -= since it may be a mistake -Pocky
@@ -537,13 +539,19 @@ public static class CTPGameHooks
         self.firstChunk.pos.x += 100f;
     }
 
+    //Make iterators unconscious
     public delegate bool orig_Get_Oracle_Consious(Oracle self);
     public static bool Oracle_Conscious_Get(orig_Get_Oracle_Consious orig, Oracle self)
     {
         return false;
     }
 
-
+    //Stop unconscious iterators from disabling gravity
+    private static void SSOracleBehavior_UnconciousUpdate(On.SSOracleBehavior.orig_UnconciousUpdate orig, SSOracleBehavior self)
+    {
+        orig(self);
+        self.oracle.room.gravity = 0f;
+    }
 
     //Remove connections to blocked rooms
     private static void WorldLoader_CreatingWorld(On.WorldLoader.orig_CreatingWorld orig, WorldLoader self)
