@@ -182,7 +182,7 @@ public static class CTPGameHooks
     }
     private static void Player_ReleaseGrasp(On.Player.orig_ReleaseGrasp orig, Player self, int grasp)
     {
-        var grabbed = self.grasps[grasp].grabbed;
+        var grabbed = (grasp >= 0 && grasp < self.grasps.Length) ? self.grasps[grasp]?.grabbed : null;
         orig(self, grasp);
         if (grabbed is DataPearl porl && CTPGameMode.IsCTPGameMode(out var mode))
         {
