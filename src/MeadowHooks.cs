@@ -28,11 +28,19 @@ public static class MeadowHooks
             typeof(OnlineManager).GetMethod(nameof(OnlineManager.LeaveLobby)),
             OnlineManager_LeaveLobby
             );
+        chatMessageHook = new Hook(
+            typeof(ChatHud).GetMethod(nameof(ChatHud.AddMessage)),
+            ChatHud_AddMessage
+            );
+        chatTutorialHook = new Hook(
+            typeof(ChatHud).GetConstructors()[0],
+            ChatHud_ctor
+            );
 
         RainMeadow.RainMeadow.Debug("[CTP]: Applied Rain Meadow hooks");
     }
 
-    private static Hook lobbySelectHook, deathScreenRPCHook, leaveLobbyHook;
+    private static Hook lobbySelectHook, deathScreenRPCHook, leaveLobbyHook, chatMessageHook, chatTutorialHook;
 
     public static void RemoveHooks()
     {
@@ -42,6 +50,7 @@ public static class MeadowHooks
     }
 
 
+    //Add Capture the Pearl to lobby filter
     private delegate void LobbySelectMenu_ctor_orig(LobbySelectMenu self, ProcessManager manager);
     private static void LobbySelectMenu_ctor(LobbySelectMenu_ctor_orig orig, LobbySelectMenu self, ProcessManager manager)
     {
@@ -64,6 +73,45 @@ public static class MeadowHooks
         orig();
 
         CTPGameHooks.RemoveHooks();
+    }
+
+    //Filter messages from other teams, unless they start with '+'
+    private delegate void ChatHud_AddMessage_orig(ChatHud self, string user, string message);
+    private static void ChatHud_AddMessage(ChatHud_AddMessage_orig orig, ChatHud self, string user, string message)
+    {
+        if (!message.StartsWith("+"))
+        {
+            //don't add message if sent by other team
+            if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            {
+                byte myTeam = gamemode.MyTeam();
+                foreach (var kvp in gamemode.PlayerTeams)
+                {
+                    if (kvp.Key.id.name == user)
+                    {
+                        if (kvp.Value != myTeam)
+                            return; //he's not on my team! Don't send message
+                        break; //he's on my team; no problem
+                    }
+                }
+            }
+        }
+
+        orig(self, user, message);
+    }
+
+    //update chat tutorial message
+    private delegate void ChatHud_ctor_orig(ChatHud self, HUD.HUD hud, RoomCamera camera);
+    private static void ChatHud_ctor(ChatHud_ctor_orig orig, ChatHud self, HUD.HUD hud, RoomCamera camera)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var _) && !ChatLogManager.shownChatTutorial)
+        {
+            //show custom chat tutorial message
+            hud.textPrompt.AddMessage(hud.rainWorld.inGameTranslator.Translate("Press '") + (RainMeadow.RainMeadow.rainMeadowOptions.ChatButtonKey.Value) + hud.rainWorld.inGameTranslator.Translate("' to chat, press '") + (RainMeadow.RainMeadow.rainMeadowOptions.ChatLogKey.Value) + hud.rainWorld.inGameTranslator.Translate("' to toggle the chat log") + ", prefix messages with + to send to all teams", 60, 320, true, true);
+            ChatLogManager.shownChatTutorial = true;
+        }
+
+        orig(self, hud, camera);
     }
 
 }

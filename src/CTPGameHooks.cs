@@ -546,7 +546,7 @@ public static class CTPGameHooks
         return false;
     }
 
-    //Stop unconscious iterators from disabling gravity
+    //Stop unconscious iterators from disabling anti-gravity
     private static void SSOracleBehavior_UnconciousUpdate(On.SSOracleBehavior.orig_UnconciousUpdate orig, SSOracleBehavior self)
     {
         orig(self);

@@ -38,12 +38,6 @@ public class CTPGameMode : StoryGameMode
 
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
-        //figure out a way to make all players on the other team muted, but that should probably not be in the constructor
-        //mutedPlayers.Add();
-
-        //plan:
-        //defaultDenPos will be a string that contains the two team den positions
-        //myLastDenPos will be used to set the actual den position used for spawns/respawns
     }
 
     public void SanitizeCTP()
@@ -63,6 +57,7 @@ public class CTPGameMode : StoryGameMode
     }
     public void UnmutePlayers()
     {
+        return; //currently disabled
         //Unmute players that were muted previously due to their team
         if (ShouldMuteOtherTeams)
         {
@@ -209,14 +204,14 @@ public class CTPGameMode : StoryGameMode
         }
 
         //mute players
-        if (otherTeamsMuted && ShouldMuteOtherTeams)
+        /*if (otherTeamsMuted && ShouldMuteOtherTeams)
         {
             foreach (var player in PlayerTeams.Keys)
             {
                 if (!mutedPlayers.Contains(player.id.name) && !OnMyTeam(player))
                     mutedPlayers.Add(player.id.name);
             }
-        }
+        }*/
     }
 
     public void EndGame()
@@ -308,7 +303,7 @@ public class CTPGameMode : StoryGameMode
     private static int TeamToPearlIdx(byte team) => team + 2;
     public static byte PearlIdxToTeam(int idx) => (byte)(idx - 2);
 
-    //This is a poor place to have this function; or at least pearls should use it to decide their color!
+    
     public Color GetTeamColor(int team)
     {
         if(team == 0) return Custom.hexToColor("FF0000");//red
@@ -478,29 +473,38 @@ public class CTPGameMode : StoryGameMode
                     if (pearl.apo.InDen || pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid || tile.wormGrass)
                     //&& pearl.apo.Room.index == player.Room.index)
                     {
+                        pearl.apo.InDen = false; //if a creature took it, move it out of the den
+
                         var player = GetMyPlayer();
-                        if (player?.realizedObject == null || pearl.apo.Room.index != player.Room.index)
+                        if (player == null || player.realizedObject == null || player.state.dead)
+                        {
+                            //I am no longer responsible to manage this pearl; give management of it to someone else
+                            pearl.Release();
+                            continue;
+                        }
+                        if (pearl.apo.Room.index != player.Room.index)
                             continue; //don't try repositioning it if I'm not there to grab it
 
                         RainMeadow.RainMeadow.Debug($"[CTP]: Attempting to reposition pearl!");
+
                         //respawn the pearl at my location; it belongs to me!!
                         pearl.apo.pos = player.pos;
-                        pearl.apo.InDen = false; //if a creature took it, move it out of the den
                         if (pearl.apo.realizedObject == null)
                             pearl.apo.RealizeInRoom();
-                        else
-                            pearl.apo.realizedObject.AllGraspsLetGoOfThisObject(true);
+
+                        pearl.apo.realizedObject.AllGraspsLetGoOfThisObject(true);
                         pearl.apo.realizedObject.firstChunk.pos = player.realizedObject.firstChunk.pos; //set it to my location
+                        pearl.apo.realizedObject.firstChunk.vel = new(0, 0);
                     }
                 }
             }
             catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
         }
     }
-    private AbstractPhysicalObject GetMyPlayer()
+    private AbstractCreature GetMyPlayer()
     {
         //return (lobby.playerAvatars.Find(kvp => kvp.Key == OnlineManager.mePlayer).Value.FindEntity() as OnlinePhysicalObject).apo;
-        return avatars.Find(c => c.isMine)?.apo;
+        return avatars.Find(c => c.isMine)?.apo as AbstractCreature;
     }
 
     public string GetTeamProperName(int team)
