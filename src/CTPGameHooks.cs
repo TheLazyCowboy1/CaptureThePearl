@@ -158,12 +158,13 @@ public static class CTPGameHooks
         {
             if (OnlinePhysicalObject.map.TryGetValue(pl.abstractCreature, out var opo))
             {
+                //get the OnlinePlayer potentially hit by the spear
                 var opposingOnlPl = opo.owner;
-                //get my team
                 if (self.thrownBy is Player slug)
                 {
                     if (OnlinePhysicalObject.map.TryGetValue(slug.abstractCreature, out var opo2))
                     {
+                        //get the OnlinePlayer that threw the spear
                         var throwingOnlPl = opo2.owner;
 
                         if (mode.PlayerTeams[opposingOnlPl] != mode.PlayerTeams[throwingOnlPl])
@@ -296,9 +297,12 @@ public static class CTPGameHooks
         }
         else orig(self);
     }
-    public static void OnlinePlayerDisplay_Draw(Action<OnlinePlayerDisplay> orig, OnlinePlayerDisplay self)
+
+
+    public delegate void OnlinePlayerDisplay_Draw_orig(OnlinePlayerDisplay self, float tStacker);
+    public static void OnlinePlayerDisplay_Draw(OnlinePlayerDisplay_Draw_orig orig, OnlinePlayerDisplay self, float tStacker)
     {
-        orig(self);
+        orig(self, tStacker);
 
         if (!CTPGameMode.IsCTPGameMode(out var mode)) return;
         self.color = mode.GetTeamColor(mode.PlayerTeams[self.player]);
