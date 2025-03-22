@@ -1,16 +1,23 @@
 ﻿using CaptureThePearl.Helpers;
 using HUD;
 using Menu;
+using Menu.Remix.MixedUI;
+using Mono.WebBrowser;
+using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using RainMeadow;
+using RWCustom;
 using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Runtime.CompilerServices;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
 using Color = UnityEngine.Color;
+using Exception = System.Exception;
 
 namespace CaptureThePearl;
 
@@ -22,6 +29,7 @@ public static class CTPGameHooks
 {
     public static bool HooksApplied = false;
     public static Hook playerDisplayHook;
+    public static Hook chatColourHook;
     public static void ApplyHooks()
     {
         if (HooksApplied) return;
@@ -81,7 +89,12 @@ public static class CTPGameHooks
         On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
         On.HUD.Map.ResetNotRevealedMarkers += Map_ResetNotRevealedMarkers;
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
-        playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetConstructors()[0], OnlinePlayerDisplay_ctor);
+        chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
+
+        playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.Draw)), OnlinePlayerDisplay_Draw);
+        On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
+        On.Player.ReleaseGrasp += Player_ReleaseGrasp;
+        On.Weapon.HitThisObject += Weapon_HitThisObject;
         HooksApplied = true;
     }
     public static void RemoveHooks()
@@ -132,27 +145,172 @@ public static class CTPGameHooks
         On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
         if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
         playerDisplayHook?.Undo();
+        chatColourHook?.Undo();
+        On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
+        On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
+        On.Weapon.HitThisObject -= Weapon_HitThisObject;
         HooksApplied = false;
     }
-
-    private delegate void OnlinePlayerDisplay_ctor_orig(OnlinePlayerDisplay self, PlayerSpecificOnlineHud owner, SlugcatCustomization customization, OnlinePlayer player);
-    private static void OnlinePlayerDisplay_ctor(OnlinePlayerDisplay_ctor_orig orig, OnlinePlayerDisplay self, PlayerSpecificOnlineHud owner, SlugcatCustomization customization, OnlinePlayer player)
+    #region Hooks, a lot of them
+    private static bool Weapon_HitThisObject(On.Weapon.orig_HitThisObject orig, Weapon self, PhysicalObject obj)
     {
-        orig(self, owner, customization, player);
+        if (CTPGameMode.IsCTPGameMode(out var mode) && obj is Player pl)
+        {
+            if (OnlinePhysicalObject.map.TryGetValue(pl.abstractCreature, out var opo))
+            {
+                var opposingOnlPl = opo.owner;
+                //get my team
+                if (self.thrownBy is Player slug)
+                {
+                    if (OnlinePhysicalObject.map.TryGetValue(slug.abstractCreature, out var opo2))
+                    {
+                        var throwingOnlPl = opo2.owner;
+
+                        if (mode.PlayerTeams[opposingOnlPl] != mode.PlayerTeams[throwingOnlPl])
+                        {
+                            return true;
+                        }
+                        else return mode.friendlyFire;
+                    }
+                }
+            }
+
+        }
+
+        return orig(self, obj);
+    }
+    private static void Player_ReleaseGrasp(On.Player.orig_ReleaseGrasp orig, Player self, int grasp)
+    {
+        var grabbed = self.grasps[grasp].grabbed;
+        orig(self, grasp);
+        if (grabbed is DataPearl porl && CTPGameMode.IsCTPGameMode(out var mode))
+        {
+            var porlIdx = CTPGameMode.PearlIdxToTeam(porl.AbstractPearl.dataPearlType.index);
+            mode.TeamLostAPearl(porlIdx);
+        }
+    }
+    private static void PhysicalObject_Grabbed(On.PhysicalObject.orig_Grabbed orig, PhysicalObject self, Creature.Grasp grasp)
+    {
+        orig(self, grasp);
+        if (self is DataPearl porl && grasp.grabber is Player pl && CTPGameMode.IsCTPGameMode(out var mode))
+        {
+            if (OnlinePhysicalObject.map.TryGetValue(pl.abstractCreature, out var opo))
+            {
+                var onPl = opo.owner;
+                var porlIdx = CTPGameMode.PearlIdxToTeam(porl.AbstractPearl.dataPearlType.index);
+                mode.TeamHasAPearl(mode.PlayerTeams[onPl], porlIdx);
+            }
+        }
+    }
+    //bad coding practice, will fix later
+    public static void ChatLogOverlay_UpdateLogDisplay(Action<ChatLogOverlay> orig, ChatLogOverlay self)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var mode))
+        {
+            if (self.chatHud.chatLog.Count > 0)
+            {
+                var logsToRemove = new List<MenuObject>();
+
+                // First, collect all the logs to remove
+                foreach (var log in self.pages[0].subObjects)
+                {
+                    log.RemoveSprites();
+                    logsToRemove.Add(log);
+                }
+
+                // Now remove the logs from the original collection
+                foreach (var log in logsToRemove)
+                {
+                    self.pages[0].RemoveSubObject(log);
+                }
+
+                // username:color
+                foreach (var playerAvatar in OnlineManager.lobby.playerAvatars.Select(kv => kv.Value))
+                {
+                    if (playerAvatar.FindEntity(true) is OnlinePhysicalObject opo)
+                    {
+                        if (!self.colorDictionary.ContainsKey(opo.owner.id.name) && opo.TryGetData<SlugcatCustomization>(out var customization))
+                        {
+                            self.colorDictionary.Add(opo.owner.id.name, customization.bodyColor);
+                        }
+                    }
+                }
+
+                float yOffSet = 0;
+                foreach (var (username, message) in self.chatHud.chatLog)
+                {
+                    if (username is null or "")
+                    {
+                        // system message
+                        var messageLabel = new MenuLabel(self, self.pages[0], message,
+                            new Vector2((1366f - self.manager.rainWorld.options.ScreenSize.x) / 2f - 660f, 330f - yOffSet),
+                            new Vector2(self.manager.rainWorld.options.ScreenSize.x, 30f), false);
+                        messageLabel.label.alignment = FLabelAlignment.Left;
+                        messageLabel.label.color = self.SYSTEM_COLOR;
+                        self.pages[0].subObjects.Add(messageLabel);
+                    }
+                    else
+                    {
+                        float H = 0f;
+                        float S = 0f;
+                        float V = 0f;
+
+                        var color = self.colorDictionary.TryGetValue(username, out var colorOrig) ? colorOrig : Color.white;
+                        var colorNew = color;
+
+                        Color.RGBToHSV(color, out H, out S, out V);
+                        if (V < 0.8f) { colorNew = Color.HSVToRGB(H, S, 0.8f); }
+
+                        var usernameLabel = new MenuLabel(self, self.pages[0], username,
+                            new Vector2((1366f - self.manager.rainWorld.options.ScreenSize.x) / 2f - 660f, 330f - yOffSet),
+                            new Vector2(self.manager.rainWorld.options.ScreenSize.x, 30f), false);
+                        usernameLabel.label.alignment = FLabelAlignment.Left;
+                        usernameLabel.label.color = colorNew;
+                        self.pages[0].subObjects.Add(usernameLabel);
+
+                        var usernameWidth = LabelTest.GetWidth(usernameLabel.label.text);
+                        var messageLabel = new MenuLabel(self, self.pages[0], $": {message}",
+                            new Vector2((1366f - self.manager.rainWorld.options.ScreenSize.x) / 2f - 660f + usernameWidth + 2f, 330f - yOffSet),
+                            new Vector2(self.manager.rainWorld.options.ScreenSize.x, 30f), false);
+                        messageLabel.label.alignment = FLabelAlignment.Left;
+
+                        foreach (var onPl in OnlineManager.players)
+                        {
+                            if (onPl.id.name == username)
+                            {
+                                //find myself in playerteams
+                                var teamNum = -1;
+                                if (mode.PlayerTeams.ContainsKey(onPl)) teamNum = mode.PlayerTeams[onPl];
+
+                                messageLabel.label.color = Color.Lerp(Color.white, mode.GetTeamColor(teamNum), 0.5f);
+                                break;
+                            }
+                        }
+
+                        self.pages[0].subObjects.Add(messageLabel);
+                    }
+
+                    yOffSet += 20f;
+                }
+            }
+        }
+        else orig(self);
+    }
+    public static void OnlinePlayerDisplay_Draw(Action<OnlinePlayerDisplay> orig, OnlinePlayerDisplay self)
+    {
+        orig(self);
 
         if (!CTPGameMode.IsCTPGameMode(out var mode)) return;
-        self.color = mode.GetTeamColor(mode.PlayerTeams[player]);
+        self.color = mode.GetTeamColor(mode.PlayerTeams[self.player]);
+        self.lighter_color = self.color;
 
-        Color.RGBToHSV(self.color, out var H, out var S, out var V);
 
-        if (V < 0.8f)
-        {
-            self.lighter_color = Color.HSVToRGB(H, S, 0.8f);
-        }
-        else
-        {
-            self.lighter_color = self.color;
-        }
+        //recolour everything ahhhhhhhhhh
+        self.arrowSprite.color = self.color;
+        self.gradient.color = self.color;
+        foreach (var msgLbl in self.messageLabels) msgLbl.color = Color.Lerp(Color.white, self.color, 0.5f);
+        self.slugIcon.color = self.color;
+        self.username.color = self.color;
     }
     private static void MSCRoomSpecificScript_AddRoomSpecificScript(On.MoreSlugcats.MSCRoomSpecificScript.orig_AddRoomSpecificScript orig, Room room)
     {
@@ -575,4 +733,22 @@ public static class CTPGameHooks
 
         orig(self);
     }
+    #endregion
+    #region conditional weak tables
+    private static readonly ConditionalWeakTable<DataPearl, PorlData> PorlCWT = new ConditionalWeakTable<DataPearl, PorlData>();
+    public static PorlData GetData(this DataPearl Porl)
+    {
+        return PorlCWT.GetValue(Porl, (DataPearl _) => new PorlData(Porl));
+    }
+    public class PorlData
+    {
+        public PorlData(DataPearl Porl)
+        {
+            self = Porl;
+        }
+        public DataPearl self;
+
+        public string LastTeamGrasp = "";
+    }
+    #endregion
 }
