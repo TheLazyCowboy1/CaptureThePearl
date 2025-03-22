@@ -35,9 +35,9 @@ public class CTPLobbyData : OnlineResource.ResourceData
             teamShelters = gamemode.TeamShelters;
             //teamPearls = new(gamemode.TeamPearls.Select(p => p == null ? new OnlineEntity.EntityId(0, OnlineEntity.EntityId.IdType.none, -1) : p.id).ToList());
             teamPoints = gamemode.TeamPoints;
-            numberOfTeams = gamemode.NumberOfTeams;
-            timerLength = gamemode.TimerLength;
-            spawnCreatures = gamemode.SpawnCreatures;
+            numberOfTeams = 2;//gamemode.NumberOfTeams;
+            timerLength = 10;// gamemode.TimerLength;
+            spawnCreatures = true;//gamemode.SpawnCreatures;
         }
 
         [OnlineField]

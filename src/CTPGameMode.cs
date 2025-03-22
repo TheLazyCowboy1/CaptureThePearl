@@ -112,6 +112,8 @@ public class CTPGameMode : StoryGameMode
 
     public void AssignPlayerTeams()
     {
+        if (!lobby.isOwner) return;
+
         //remove players that have quit
         var playerKeys = PlayerTeams.Keys;
         foreach (var player in playerKeys)
@@ -308,8 +310,8 @@ public class CTPGameMode : StoryGameMode
     {
         if(team == 0) return Custom.hexToColor("FF0000");//red
         else if(team == 1) return Custom.hexToColor("0000FF");//blue
-        else if(team == 2) return Custom.hexToColor("FFFF00");//yellow
-        else if(team == 3) return Custom.hexToColor("00FF00");//green
+        else if(team == 2) return Custom.hexToColor("00FF00");//green
+        else if(team == 3) return Custom.hexToColor("FFFF00");//yellow
         return Custom.hexToColor("FFFFFF");//white fallback if things go wrong
     }
     /// <summary>
@@ -317,7 +319,7 @@ public class CTPGameMode : StoryGameMode
     /// </summary>
     /// <param name="color">The team color; accessible through gamemode.GetTeamColor().</param>
     /// <returns>The lightened team color.</returns>
-    public static Color LigherTeamColor(Color color)
+    public static Color LighterTeamColor(Color color)
     {
         Color.RGBToHSV(color, out float h, out float s, out float v);
         s *= 0.8f;
@@ -511,8 +513,8 @@ public class CTPGameMode : StoryGameMode
     {
         if (team == 0) return "Red";
         else if (team == 1) return "Blue";
-        else if (team == 2) return "Yellow";
-        else return "Green";
+        else if (team == 2) return "Green";
+        else return "Yellow";
     }
 
     public void TeamScoredMessage(int team)

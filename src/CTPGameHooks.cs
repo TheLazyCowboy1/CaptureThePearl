@@ -606,7 +606,7 @@ public static class CTPGameHooks
             string name = map.mapData.NameOfRoom(room);
             int idx = Array.IndexOf(gamemode.TeamShelters, name);
             if (idx >= 0)
-                self.symbolSprite.color = CTPGameMode.LigherTeamColor(gamemode.GetTeamColor(idx));
+                self.symbolSprite.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(idx));
         }
     }
 
@@ -635,7 +635,7 @@ public static class CTPGameHooks
                     string shelterName = self.room.world.GetAbstractRoom(self.room.abstractRoom.connections[destNode])?.name;
                     int idx = Array.IndexOf(gamemode.TeamShelters, shelterName);
                     if (idx >= 0)
-                        sprite.color = CTPGameMode.LigherTeamColor(gamemode.GetTeamColor(idx));
+                        sprite.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(idx));
                 }
             }
         }
@@ -662,7 +662,7 @@ public static class CTPGameHooks
         //if (CTPGameMode.IsCTPGameMode(out var gamemode))
         //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 0.7f, 0.95f);
         //return orig(pearlType);
-        return CTPGameMode.LigherTeamColor(DataPearl.UniquePearlMainColor(pearlType));
+        return CTPGameMode.LighterTeamColor(DataPearl.UniquePearlMainColor(pearlType));
     }
 
     //Makes pearls buoyant; handy for Shoreline!
