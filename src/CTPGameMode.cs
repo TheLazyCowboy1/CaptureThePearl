@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using RainMeadow;
+using RWCustom;
 using UnityEngine;
 
 namespace CaptureThePearl;
@@ -310,9 +311,11 @@ public class CTPGameMode : StoryGameMode
     //This is a poor place to have this function; or at least pearls should use it to decide their color!
     public Color GetTeamColor(int team)
     {
-        float h = (float)team / (float)NumberOfTeams;
-        if (NumberOfTeams == 2 && team == 1) h = 2f / 3f; //set it to fully blue; cyan doesn't look as nice
-        return Color.HSVToRGB(h, 1f, 0.9f);
+        if(team == 0) return Custom.hexToColor("FF0000");//red
+        else if(team == 1) return Custom.hexToColor("0000FF");//blue
+        else if(team == 2) return Custom.hexToColor("FFFF00");//yellow
+        else if(team == 3) return Custom.hexToColor("00FF00");//green
+        return Custom.hexToColor("FFFFFF");//white fallback if things go wrong
     }
     /// <summary>
     /// Lightens the color given in a standardized manner.
@@ -519,6 +522,18 @@ public class CTPGameMode : StoryGameMode
             scoreString += $"{GetTeamProperName(i).Substring(0, 1)} : {TeamPoints[i]}";
         }
         ChatLogManager.LogMessage("", "  Scores: " + scoreString);
+    }
+    public void TeamHasAPearl(int team, int pearlIndex)
+    {
+        RainMeadow.RainMeadow.Debug($"[CTP] Sending team {GetTeamProperName(team)} has team {GetTeamProperName(pearlIndex)}'s pearl");
+
+        if(team == pearlIndex) ChatLogManager.LogMessage("", $"Team {GetTeamProperName(team)} recovered their pearl!");
+        else ChatLogManager.LogMessage("", $"Team {GetTeamProperName(team)} has team {GetTeamProperName(pearlIndex)}'s pearl!");
+    }
+    public void TeamLostAPearl(int pearlIndex)
+    {
+        RainMeadow.RainMeadow.Debug($"[CTP] Sending team {GetTeamProperName(pearlIndex)}'s pearl is alone");
+        ChatLogManager.LogMessage("", $"Team {GetTeamProperName(pearlIndex)}'s pearl is unoccupied!");
     }
 
     public override bool AllowedInMode(PlacedObject item)

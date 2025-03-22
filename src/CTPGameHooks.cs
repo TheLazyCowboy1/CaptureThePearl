@@ -1,13 +1,16 @@
 ﻿using CaptureThePearl.Helpers;
+using HUD;
 using Menu;
 using MonoMod.RuntimeDetour;
 using RainMeadow;
 using System;
 using System.Collections.Generic;
+using System.Drawing;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using UnityEngine;
+using Color = UnityEngine.Color;
 
 namespace CaptureThePearl;
 
@@ -18,6 +21,7 @@ namespace CaptureThePearl;
 public static class CTPGameHooks
 {
     public static bool HooksApplied = false;
+    public static Hook playerDisplayHook;
     public static void ApplyHooks()
     {
         if (HooksApplied) return;
@@ -73,11 +77,12 @@ public static class CTPGameHooks
                 );
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
+        On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
+        On.HUD.Map.ResetNotRevealedMarkers += Map_ResetNotRevealedMarkers;
+        if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
+        playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetConstructors()[0], OnlinePlayerDisplay_ctor);
         HooksApplied = true;
     }
-
-    private static Hook IteratorUnconsciousHook;
-
     public static void RemoveHooks()
     {
         if (!HooksApplied) return;
@@ -120,11 +125,85 @@ public static class CTPGameHooks
         On.Oracle.Update -= Oracle_Update;
         IteratorUnconsciousHook?.Undo();
 
-        On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
-
+        On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;//Changed from a += to a -= since it may be a mistake -Pocky
+        On.GhostWorldPresence.SpawnGhost -= GhostWorldPresence_SpawnGhost;
+        On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
+        if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
+        playerDisplayHook?.Undo();
         HooksApplied = false;
     }
 
+    private delegate void OnlinePlayerDisplay_ctor_orig(OnlinePlayerDisplay self, PlayerSpecificOnlineHud owner, SlugcatCustomization customization, OnlinePlayer player);
+    private static void OnlinePlayerDisplay_ctor(OnlinePlayerDisplay_ctor_orig orig, OnlinePlayerDisplay self, PlayerSpecificOnlineHud owner, SlugcatCustomization customization, OnlinePlayer player)
+    {
+        orig(self, owner, customization, player);
+
+        if (!CTPGameMode.IsCTPGameMode(out var mode)) return;
+        self.color = mode.GetTeamColor(mode.PlayerTeams[player]);
+
+        Color.RGBToHSV(self.color, out var H, out var S, out var V);
+
+        if (V < 0.8f)
+        {
+            self.lighter_color = Color.HSVToRGB(H, S, 0.8f);
+        }
+        else
+        {
+            self.lighter_color = self.color;
+        }
+    }
+    private static void MSCRoomSpecificScript_AddRoomSpecificScript(On.MoreSlugcats.MSCRoomSpecificScript.orig_AddRoomSpecificScript orig, Room room)
+    {
+        string name = room.abstractRoom.name;
+        if (name == "SU_PMPSTATION01" && room.game.IsStorySession)
+        {
+            room.AddObject(new MoreSlugcats.MSCRoomSpecificScript.SU_PMPSTATION01_safety());
+        }
+        if (name == "HR_LAYERS_OF_REALITY")
+        {
+            room.AddObject(new MoreSlugcats.MSCRoomSpecificScript.InterlinkControl(room));
+        }
+        if (name == "DM_ROOF04")
+        {
+            room.AddObject(new MoreSlugcats.MSCRoomSpecificScript.randomGodsSoundSource(0.45f, new Vector2(460f, 70f), 3000f, room));
+        }
+        if (name == "DM_ROOF03")
+        {
+            room.AddObject(new MoreSlugcats.MSCRoomSpecificScript.DM_ROOF03GradientGravity(room));
+        }
+        if (name == "DM_C13")
+        {
+            room.AddObject(new MoreSlugcats.MSCRoomSpecificScript.randomGodsSoundSource(0.45f, new Vector2(0f, 380f), 2800f, room));
+        }
+    }
+
+    private static Hook IteratorUnconsciousHook;
+    private static void Map_ResetNotRevealedMarkers(On.HUD.Map.orig_ResetNotRevealedMarkers orig, HUD.Map self)
+    {
+        orig(self);
+        //allows players to see shelters on map
+        if (self.hud != null && self.hud.owner is Player pl)
+        {
+            for (int i = 0; i < self.notRevealedFadeMarkers.Count; i++)
+            {
+                if (self.notRevealedFadeMarkers[i] is Map.ShelterMarker shelterMarker)
+                {
+                    shelterMarker.FadeIn((float)(30 + self.notRevealedFadeMarkers.Count));
+                    self.notRevealedFadeMarkers.RemoveAt(i);
+                }
+                if (self.notRevealedFadeMarkers[i] is Map.ItemMarker marker && marker.obj.type == AbstractPhysicalObject.AbstractObjectType.DataPearl)
+                {
+                    marker.FadeIn((float)(30 + self.notRevealedFadeMarkers.Count));
+                    self.notRevealedFadeMarkers.RemoveAt(i);
+                }
+            }
+        }
+    }
+
+    private static bool GhostWorldPresence_SpawnGhost(On.GhostWorldPresence.orig_SpawnGhost orig, GhostWorldPresence.GhostID ghostID, int karma, int karmaCap, int ghostPreviouslyEncountered, bool playingAsRed)
+    {
+        return false;//No ghosts, not even ghost hunches
+    }
 
     //Update gamemode for clients
     //ALSO check if the game should end as the host
@@ -402,7 +481,6 @@ public static class CTPGameHooks
     private static void Map_ctor(On.HUD.Map.orig_ctor orig, HUD.Map self, HUD.HUD hud, HUD.Map.MapData mapData)
     {
         hud.rainWorld.setup.revealMap = true;
-
         orig(self, hud, mapData);
     }
 
