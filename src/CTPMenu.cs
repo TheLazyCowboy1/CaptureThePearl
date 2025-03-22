@@ -92,7 +92,7 @@ public class CTPMenu : StoryOnlineMenu
             pages[0].subObjects.Add(hostScugButton);
         }
 
-        if (storyGameMode.requireCampaignSlugcat)
+        if (gameMode.requireCampaignSlugcat)
         {
             personaSettings.playingAs = storyGameMode.currentCampaign;
             hostSlugIndex = slugcatPageIndex;
