@@ -466,8 +466,8 @@ public class CTPGameMode : StoryGameMode
                 //If the pearl is mine, yet destroyed //and in the same room
                 if (pearl != null && pearl.isMine)
                 {
-                    if (pearl.apo?.realizedObject?.grabbedBy?.Count > 0 && !pearl.apo.realizedObject.grabbedBy[0].grabber.dead)
-                        continue; //don't reposition if it's in something's hand
+                    if (pearl.apo?.realizedObject?.grabbedBy?.Count > 0 && !pearl.apo.realizedObject.grabbedBy[0].grabber.dead && pearl.apo.realizedObject.grabbedBy[0].grabber is Player)
+                        continue; //don't reposition if it's in a PLAYER's hand
 
                     var tile = pearl?.apo?.realizedObject?.room?.GetTile(pearl.apo.pos);
                     if (pearl.apo.InDen || pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid || tile.wormGrass)

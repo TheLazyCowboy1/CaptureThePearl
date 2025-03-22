@@ -28,6 +28,7 @@ public static class MeadowHooks
             typeof(OnlineManager).GetMethod(nameof(OnlineManager.LeaveLobby)),
             OnlineManager_LeaveLobby
             );
+        //should these be in CTPGameHooks?
         chatMessageHook = new Hook(
             typeof(ChatHud).GetMethod(nameof(ChatHud.AddMessage)),
             ChatHud_AddMessage
@@ -47,6 +48,8 @@ public static class MeadowHooks
         lobbySelectHook?.Undo();
         deathScreenRPCHook?.Undo();
         leaveLobbyHook?.Undo();
+        chatMessageHook?.Undo();
+        chatTutorialHook?.Undo();
     }
 
 
@@ -82,7 +85,7 @@ public static class MeadowHooks
         if (!message.StartsWith("+"))
         {
             //don't add message if sent by other team
-            if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.otherTeamsMuted)
             {
                 byte myTeam = gamemode.MyTeam();
                 foreach (var kvp in gamemode.PlayerTeams)
@@ -96,6 +99,8 @@ public static class MeadowHooks
                 }
             }
         }
+        else if (message.Length > 1)
+            message = message.Substring(1); //remove the +
 
         orig(self, user, message);
     }
