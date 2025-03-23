@@ -13,6 +13,7 @@
 		<ItemGroup>
 			<BuildFiles Include="$(Outdir)\CaptureThePearl.*" />
 		</ItemGroup>
+		<Copy SourceFiles="@(BuildFiles)" DestinationFolder="..\mod\plugins" />
 		<Copy SourceFiles="@(BuildFiles)" DestinationFolder="C:\Program Files (x86)\Steam\steamapps\common\Rain World\RainWorld_Data\StreamingAssets\mods\Capture the Pearl\plugins" />
 	</Target>
 
