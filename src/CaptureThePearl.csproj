@@ -6,7 +6,7 @@
 	</PropertyGroup>
 
 	<ItemGroup>
-		<Reference Include="..\REFERENCES\*.dll" />
+		<Reference Include="..\..\REFERENCES\*.dll" />
 	</ItemGroup>
 
 	<Target Name="PostBuild" AfterTargets="PostBuildEvent">

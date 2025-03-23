@@ -1,0 +1,10 @@
+{
+    "id": "LazyCowboy.CaptureThePearl",
+    "name": "Capture the Pearl",
+    "version": "0.0.1",
+    "authors": "TheLazyCowboy1, Pocky-raisin",
+    "description": "add desc",
+    "requirements": [ "henpemaz_rainmeadow", "pocky-raisin.meadowtweaks" ],
+    "requirements_names": [ "Rain Meadow", "Pocky's Meadow Tweaks And Features" ],
+    "tags": [ "Game Modes" ]
+}

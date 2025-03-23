@@ -685,22 +685,26 @@ public static class CTPGameHooks
     private static void ShortcutGraphics_Draw(On.ShortcutGraphics.orig_Draw orig, ShortcutGraphics self, float timeStacker, Vector2 camPos)
     {
         orig(self, timeStacker, camPos);
-
-        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        try
         {
-            for (int i = 0; i < self.entraceSpriteToRoomExitIndex.Length; i++)
+            if (CTPGameMode.IsCTPGameMode(out var gamemode))
             {
-                //if (kvp.Value.element.name == "ShortcutShelter" || kvp.Value.element.name == "ShortcutAShelter")
-                int destNode = self.entraceSpriteToRoomExitIndex[i];
-                if (destNode >= 0) {
-                    var sprite = self.entranceSprites[i, 0];
-                    string shelterName = self.room.world.GetAbstractRoom(self.room.abstractRoom.connections[destNode])?.name;
-                    int idx = Array.IndexOf(gamemode.TeamShelters, shelterName);
-                    if (idx >= 0)
-                        sprite.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(idx));
+                for (int i = 0; i < self.entraceSpriteToRoomExitIndex.Length; i++)
+                {
+                    //if (kvp.Value.element.name == "ShortcutShelter" || kvp.Value.element.name == "ShortcutAShelter")
+                    int destNode = self.entraceSpriteToRoomExitIndex[i];
+                    if (destNode >= 0 && destNode < self.room.abstractRoom.connections.Length)
+                    {
+                        var sprite = self.entranceSprites[i, 0];
+                        string shelterName = self.room.world.GetAbstractRoom(self.room.abstractRoom.connections[destNode])?.name;
+                        int idx = Array.IndexOf(gamemode.TeamShelters, shelterName);
+                        if (idx >= 0)
+                            sprite.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(idx));
+                    }
                 }
             }
         }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
 
     //Set all parts of the map to discovered and revealed
