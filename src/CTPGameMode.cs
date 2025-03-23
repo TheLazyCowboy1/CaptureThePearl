@@ -100,7 +100,7 @@ public class CTPGameMode : StoryGameMode
         if (!lobby.isOwner) return;
 
         //remove players that have quit
-        var playerKeys = PlayerTeams.Keys;
+        var playerKeys = PlayerTeams.Keys.ToArray(); //make it a separate array
         foreach (var player in playerKeys)
         {
             if (!OnlineManager.players.Contains(player))
