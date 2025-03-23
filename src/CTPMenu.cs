@@ -29,9 +29,6 @@ public class CTPMenu : StoryOnlineMenu
 
     private MenuTabWrapper tabWrapper; //what on earth is this mess...
 
-    public SimpleButton hostScugButton;
-    public int hostSlugIndex;
-
     public CTPGameMode gameMode => storyGameMode as CTPGameMode;
 
     private static string lastRegion = "SU";
@@ -80,27 +77,7 @@ public class CTPMenu : StoryOnlineMenu
         SetupRegionDropdown();
 
 
-        //Pocky's menu changes so far
-        if (hostScugButton == null && OnlineManager.lobby.isOwner)
-        {
-            //change scugs on a rotor whenever clicked and set the player to that scug
-            var sameSpotOtherSide = restartCheckboxPos.x - startButton.pos.x;
-            var pos = new Vector2(startButton.pos.x - sameSpotOtherSide, restartCheckboxPos.y + 80f);
-
-            hostSlugIndex = 0;
-            hostScugButton = new SimpleButton(this, pages[0], SlugcatStats.getSlugcatName(slugcatColorOrder[hostSlugIndex]), "CTPHostScugButton", pos, new Vector2(110, 30));
-            pages[0].subObjects.Add(hostScugButton);
-        }
-
-        if (gameMode.requireCampaignSlugcat)
-        {
-            personaSettings.playingAs = storyGameMode.currentCampaign;
-            hostSlugIndex = slugcatPageIndex;
-            hostScugButton.menuLabel.text = SlugcatStats.getSlugcatName(storyGameMode.currentCampaign);
-        }
-        else personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
-
-        storyGameMode.avatarSettings.playingAs = personaSettings.playingAs;
+        //To-do: Dropdown for slugcats for host
     }
 
     private int previousPageIdx;
@@ -310,7 +287,7 @@ public class CTPMenu : StoryOnlineMenu
             RainMeadow.RainMeadow.Error(ex); 
         }
     }
-
+    /*
     //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
     public new void StartGame(SlugcatStats.Name storyGameCharacter)
     {
@@ -349,7 +326,7 @@ public class CTPMenu : StoryOnlineMenu
 
         manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
     }
-
+    */
     private static void RemoveMenuObject(MenuObject obj)
     {
         if (obj != null)
