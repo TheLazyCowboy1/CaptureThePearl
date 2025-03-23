@@ -159,6 +159,10 @@ public static class CTPGameHooks
         On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
 
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
+        On.Player.Collide -= Player_Collide;
+        On.Player.SlugSlamConditions -= Player_SlugSlamConditions;
+        On.Player.ClassMechanicsArtificer -= Player_ClassMechanicsArtificer;
+        On.Player.CanMaulCreature -= Player_CanMaulCreature;
 
         HooksApplied = false;
     }
@@ -186,48 +190,54 @@ public static class CTPGameHooks
             }
 
             //step 4: draw those avatars!
-            foreach (var player in gamemode.avatars)
+            foreach (var onlinePlayer in gamemode.PlayerTeams.Keys)
             {
-                //var player = gamemode.avatars[i];
-                //if (player == owner.abstractCreature) continue; //redundant check
-
-                //if (player.realizedCreature is not Player realPlayer) continue;
-                if (!player.abstractCreature.pos.TileDefined) //player doesn't even have a tile location???
+                if (onlinePlayer.isMe) continue; //don't add myself
+                try
                 {
-                    //Logger.LogWarning("No tile position for player!!! " + player.ToString());
-                    continue;
+                    var player = gamemode.lobby.playerAvatars.Find(kvp => kvp.Key == onlinePlayer).Value.FindEntity(true) as OnlineCreature;
+                    //var player = gamemode.avatars[i];
+                    //if (player == owner.abstractCreature) continue; //redundant check
+
+                    //if (player.realizedCreature is not Player realPlayer) continue;
+                    if (!player.abstractCreature.pos.TileDefined) //player doesn't even have a tile location???
+                    {
+                        //Logger.LogWarning("No tile position for player!!! " + player.ToString());
+                        continue;
+                    }
+
+                    //create symbol
+                    var symbol = new CreatureSymbol(CreatureSymbol.SymbolDataFromCreature(player.abstractCreature), self.inFrontContainer);
+                    symbol.Show(true);
+                    symbol.lastShowFlash = 0f;
+                    symbol.showFlash = 0f;
+
+                    //set player colors here???
+                    //symbol.myColor = player.GetData<SlugcatCustomization>().bodyColor;
+                    symbol.myColor = gamemode.GetTeamColor(gamemode.PlayerTeams.TryGetValue(player.owner, out byte team) ? team : 0);
+                    symbol.symbolSprite.alpha = 0.9f;
+
+                    //shrink dead or indeterminate players (probably distant ones)
+                    if (player.realizedCreature is null || player.realizedCreature.dead)
+                    {
+                        symbol.symbolSprite.scale = 0.8f;
+                        symbol.symbolSprite.alpha = 0.7f;
+                    }
+
+                    //modify shadows
+                    symbol.shadowSprite1.alpha = symbol.symbolSprite.alpha;
+                    symbol.shadowSprite2.alpha = symbol.symbolSprite.alpha;
+                    symbol.shadowSprite1.scale = symbol.symbolSprite.scale;
+                    symbol.shadowSprite2.scale = symbol.symbolSprite.scale;
+
+                    //draw in correct position
+                    Vector2 drawPos = self.RoomToMapPos((player.realizedCreature is null) ? player.abstractCreature.pos.Tile.ToVector2() * 20f : player.realizedCreature.mainBodyChunk.pos, player.abstractCreature.Room.index, timeStacker);
+                    symbol.Draw(timeStacker, drawPos);
+
+                    //add to creatureSymbol list to get cleared!
+                    self.creatureSymbols.Add(symbol);
                 }
-
-                //create symbol
-                var symbol = new CreatureSymbol(CreatureSymbol.SymbolDataFromCreature(player.abstractCreature), self.inFrontContainer);
-                symbol.Show(true);
-                symbol.lastShowFlash = 0f;
-                symbol.showFlash = 0f;
-
-                //set player colors here???
-                //symbol.myColor = player.GetData<SlugcatCustomization>().bodyColor;
-                symbol.myColor = gamemode.GetTeamColor(gamemode.PlayerTeams.TryGetValue(player.owner, out byte team) ? team : 0);
-                symbol.symbolSprite.alpha = 0.9f;
-
-                //shrink dead or indeterminate players (probably distant ones)
-                if (player.realizedCreature is null || player.realizedCreature.dead)
-                {
-                    symbol.symbolSprite.scale = 0.8f;
-                    symbol.symbolSprite.alpha = 0.7f;
-                }
-
-                //modify shadows
-                symbol.shadowSprite1.alpha = symbol.symbolSprite.alpha;
-                symbol.shadowSprite2.alpha = symbol.symbolSprite.alpha;
-                symbol.shadowSprite1.scale = symbol.symbolSprite.scale;
-                symbol.shadowSprite2.scale = symbol.symbolSprite.scale;
-
-                //draw in correct position
-                Vector2 drawPos = self.RoomToMapPos((player.realizedCreature is null) ? player.abstractCreature.pos.Tile.ToVector2() * 20f : player.realizedCreature.mainBodyChunk.pos, player.abstractCreature.Room.index, timeStacker);
-                symbol.Draw(timeStacker, drawPos);
-
-                //add to creatureSymbol list to get cleared!
-                self.creatureSymbols.Add(symbol);
+                catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
         }
     }

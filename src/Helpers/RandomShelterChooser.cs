@@ -105,6 +105,7 @@ public static class RandomShelterFilter
     public static string[] PENALIZED_SHELTERS = new string[] //shelters that should be used ONLY as a last resort
     {
         "DS_S03", //in SB gate; a long linear path to get to it; easy to guard, hard to escape
+        "UG_S03", //^^^
         "LF_S04", //in SB gate; just really far away
         "SS_S04", //near SS_UW gate; again: long, linear path
         "GW_S09", //near SH gate; again: far removed; guarded by a scav toll
