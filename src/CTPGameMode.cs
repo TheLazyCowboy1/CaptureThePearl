@@ -44,8 +44,6 @@ public class CTPGameMode : StoryGameMode
     {
         RainMeadow.RainMeadow.Debug("[CTP]: Sanitizing gamemode");
 
-        UnmutePlayers();
-
         PlayerTeams.Clear();
         TeamShelters = new string[0];
         TeamPoints = new int[0];
@@ -54,19 +52,6 @@ public class CTPGameMode : StoryGameMode
         pearlIndicators = new PearlIndicator[0];
         gameSetup = false;
         hasSpawnedIn = false;
-    }
-    public void UnmutePlayers()
-    {
-        return; //currently disabled
-        //Unmute players that were muted previously due to their team
-        if (ShouldMuteOtherTeams)
-        {
-            foreach (var player in PlayerTeams.Keys)
-            {
-                if (!OnMyTeam(player))
-                    mutedPlayers.Remove(player.id.name); //unmute people on other teams
-            }
-        }
     }
 
     public void ClientSetup()
@@ -185,8 +170,10 @@ public class CTPGameMode : StoryGameMode
         if (gameSetup && lobby.isOwner) //isOwner should always be true
         {
             AssignPlayerTeams(); //add other players to the team if they join in; ensures team list is up to date
-            
+
             //ScorePoints(); //instead handled by SearchForPearls
+            if (teamPearls.All(p => p == null))
+                SpawnPearls(true);
         }
     }
 
@@ -204,16 +191,6 @@ public class CTPGameMode : StoryGameMode
             if (teamPearls[i] != null && pearlIndicators[i] == null)
                 AddIndicator(teamPearls[i], i);
         }
-
-        //mute players
-        /*if (otherTeamsMuted && ShouldMuteOtherTeams)
-        {
-            foreach (var player in PlayerTeams.Keys)
-            {
-                if (!mutedPlayers.Contains(player.id.name) && !OnMyTeam(player))
-                    mutedPlayers.Add(player.id.name);
-            }
-        }*/
     }
 
     public void EndGame()
@@ -275,7 +252,6 @@ public class CTPGameMode : StoryGameMode
 
         gameSetup = false;
         otherTeamsMuted = false;
-        UnmutePlayers();
 
         //SanitizeCTP();
     }
@@ -367,6 +343,9 @@ public class CTPGameMode : StoryGameMode
                             {
                                 if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx);
                             }
+
+                            //respawn the pearl
+                            SpawnPearls(true);
                         }
                     }
                 }
@@ -424,7 +403,7 @@ public class CTPGameMode : StoryGameMode
         opo = null;
     }
 
-    public void SpawnPearls()
+    public void SpawnPearls(bool spawnInOnlineRooms = false)
     {
         //spawn pearls if they don't exist
         for (byte i = 0; i < NumberOfTeams; i++)
@@ -441,7 +420,7 @@ public class CTPGameMode : StoryGameMode
                         continue; //don't spawn it in if I'm not spawned in yet
 
                     var room = player.world.GetAbstractRoom(TeamShelters[i]);
-                    if (room.GetResource().owner != OnlineManager.mePlayer)
+                    if (!spawnInOnlineRooms && room.GetResource().owner != OnlineManager.mePlayer)
                         continue; //don't add the pearl if I don't own it!!
 
                     RainMeadow.RainMeadow.Debug($"[CTP]: Adding pearl for team {i}");
@@ -604,31 +583,6 @@ public class CTPGameMode : StoryGameMode
 
         if (gameSetup) AssignPlayerTeams(); //immediately give the player a team if the game is already in progress
     }
-
-    //Not working well at the moment... trying to get players on other teams to have their team color
-    /*public override void Customize(Creature creature, OnlineCreature oc)
-    {
-        base.Customize(creature, oc);
-
-        //Set players team colors, if on other team
-        if (oc.TryGetData<SlugcatCustomization>(out var data))
-        {
-            if (PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte myTeam) && PlayerTeams.TryGetValue(oc.owner, out byte hisTeam))
-            {
-                if (myTeam != hisTeam)
-                {
-                    RainMeadow.RainMeadow.Debug($"[CTP]: Customizing team color for player {oc.owner}");
-                    (RainMeadow.RainMeadow.creatureCustomizations.GetValue(creature, (c) => data) as SlugcatCustomization)
-                        .bodyColor = GetTeamColor(PlayerTeams[oc.owner]);
-                }
-                else RainMeadow.RainMeadow.Debug($"[CTP]: Player on same team: {oc.owner}");
-            }
-            else
-                RainMeadow.RainMeadow.Error($"[CTP]: Could not find player {oc.owner} in team list!!");
-        }
-        else if (creature is Player)
-            RainMeadow.RainMeadow.Error($"Couldn't find customization data for player {creature}");
-    }*/
 
     public override void PreGameStart()
     {
