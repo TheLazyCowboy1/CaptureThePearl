@@ -19,13 +19,32 @@ namespace CaptureThePearl
             On.Menu.SlugcatSelectMenu.AddColorButtons -= SlugcatSelectMenu_AddColorButtons;
             On.Menu.SimpleButton.Clicked -= SimpleButton_Clicked;
             On.Menu.SlugcatSelectMenu.StartGame -= SlugcatSelectMenu_StartGame;
+
+            On.PlayerProgression.IsThereASavedGame -= PlayerProgression_IsThereASavedGame;
+            On.PlayerProgression.WipeSaveState -= PlayerProgression_WipeSaveState;
         }
+
         public static void ApplyHooks()
         {
             On.ProcessManager.PostSwitchMainProcess += ProcessManager_PostSwitchMainProcess;
             On.Menu.SlugcatSelectMenu.AddColorButtons += SlugcatSelectMenu_AddColorButtons;
             On.Menu.SimpleButton.Clicked += SimpleButton_Clicked;
             On.Menu.SlugcatSelectMenu.StartGame += SlugcatSelectMenu_StartGame;
+
+            On.PlayerProgression.IsThereASavedGame += PlayerProgression_IsThereASavedGame;
+            On.PlayerProgression.WipeSaveState += PlayerProgression_WipeSaveState;
+        }
+
+        private static bool PlayerProgression_IsThereASavedGame(On.PlayerProgression.orig_IsThereASavedGame orig, PlayerProgression self, SlugcatStats.Name saveStateNumber)
+        {
+            if (CTPGameMode.IsCTPGameMode(out var _)) return true; //act like there's always a saved game
+            return orig(self, saveStateNumber);
+        }
+
+        private static void PlayerProgression_WipeSaveState(On.PlayerProgression.orig_WipeSaveState orig, PlayerProgression self, SlugcatStats.Name saveStateNumber)
+        {
+            if (CTPGameMode.IsCTPGameMode(out var _)) return; //don't wipe save state for CTP
+            orig(self, saveStateNumber);
         }
 
         private static void SlugcatSelectMenu_StartGame(On.Menu.SlugcatSelectMenu.orig_StartGame orig, SlugcatSelectMenu self, SlugcatStats.Name storyGameCharacter)
