@@ -33,6 +33,10 @@ public static class MeadowHooks
             typeof(ChatHud).GetMethod(nameof(ChatHud.AddMessage)),
             ChatHud_AddMessage
             );
+        playerNameMessageHook = new Hook(
+            typeof(RPCs).GetMethod(nameof(RPCs.UpdateUsernameTemporarily)),
+            RPCs_UpdateUsernameTemporarily
+            );
         chatTutorialHook = new Hook(
             typeof(ChatHud).GetConstructors()[0],
             ChatHud_ctor
@@ -41,7 +45,7 @@ public static class MeadowHooks
         RainMeadow.RainMeadow.Debug("[CTP]: Applied Rain Meadow hooks");
     }
 
-    private static Hook lobbySelectHook, deathScreenRPCHook, leaveLobbyHook, chatMessageHook, chatTutorialHook;
+    private static Hook lobbySelectHook, deathScreenRPCHook, leaveLobbyHook, chatMessageHook, playerNameMessageHook, chatTutorialHook;
 
     public static void RemoveHooks()
     {
@@ -103,6 +107,33 @@ public static class MeadowHooks
             message = message.Substring(1); //remove the +
 
         orig(self, user, message);
+    }
+
+    //Filter messages from other teams.... why is this in two separate places???
+    private delegate void RPCs_UpdateUsernameTemporarily_orig(RPCEvent rpc, string lastSentMessage);
+    private static void RPCs_UpdateUsernameTemporarily(RPCs_UpdateUsernameTemporarily_orig orig, RPCEvent rpc, string lastSentMessage)
+    {
+        if (!lastSentMessage.StartsWith("+"))
+        {
+            //don't add message if sent by other team
+            if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.otherTeamsMuted)
+            {
+                byte myTeam = gamemode.MyTeam();
+                foreach (var kvp in gamemode.PlayerTeams)
+                {
+                    if (kvp.Key.id == rpc.from.id)
+                    {
+                        if (kvp.Value != myTeam)
+                            return; //he's not on my team! Don't send message
+                        break; //he's on my team; no problem
+                    }
+                }
+            }
+        }
+        else if (lastSentMessage.Length > 1)
+            lastSentMessage = lastSentMessage.Substring(1); //remove the +
+
+        orig(rpc, lastSentMessage);
     }
 
     //update chat tutorial message

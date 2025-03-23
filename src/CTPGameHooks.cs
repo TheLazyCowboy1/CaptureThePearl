@@ -54,7 +54,7 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
-        On.GhostWorldPresence.ctor += GhostWorldPresence_ctor;
+        //On.GhostWorldPresence.ctor += GhostWorldPresence_ctor; //obselete
         On.ShelterDoor.Close += ShelterDoor_Close;
         On.World.LoadMapConfig += World_LoadMapConfig;
         On.HUD.Map.ShelterMarker.ctor += ShelterMarker_ctor;
@@ -87,7 +87,7 @@ public static class CTPGameHooks
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
-        On.HUD.Map.ResetNotRevealedMarkers += Map_ResetNotRevealedMarkers;
+        //On.HUD.Map.ResetNotRevealedMarkers += Map_ResetNotRevealedMarkers; //I just set the whole map to revealed instead, and this was throwing errors
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
         chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
 
@@ -119,7 +119,7 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
-        On.GhostWorldPresence.ctor -= GhostWorldPresence_ctor;
+        //On.GhostWorldPresence.ctor -= GhostWorldPresence_ctor;
         On.ShelterDoor.Close -= ShelterDoor_Close;
         On.World.LoadMapConfig -= World_LoadMapConfig;
         On.HUD.Map.ShelterMarker.ctor -= ShelterMarker_ctor;
@@ -140,9 +140,9 @@ public static class CTPGameHooks
         On.SSOracleBehavior.UnconciousUpdate -= SSOracleBehavior_UnconciousUpdate;
         IteratorUnconsciousHook?.Undo();
 
-        On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;//Changed from a += to a -= since it may be a mistake -Pocky
+        On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;//Changed from a += to a -= since it may be a mistake -Pocky -thx
         On.GhostWorldPresence.SpawnGhost -= GhostWorldPresence_SpawnGhost;
-        On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
+        //On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
         if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
         playerDisplayHook?.Undo();
         chatColourHook?.Undo();
@@ -641,11 +641,12 @@ public static class CTPGameHooks
         }
     }
 
-    //Set all parts of the map to discovered!
+    //Set all parts of the map to discovered and revealed
     private static void Map_ctor(On.HUD.Map.orig_ctor orig, HUD.Map self, HUD.HUD hud, HUD.Map.MapData mapData)
     {
-        hud.rainWorld.setup.revealMap = true;
+        hud.rainWorld.setup.revealMap = true; //causes everything to be discovered
         orig(self, hud, mapData);
+        self.revealAllDiscovered = true; //causes everything to be revealed
     }
 
     //Sets the pearl team colors; currently done automatically, but we'll probably want to change this later

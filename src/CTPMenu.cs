@@ -198,6 +198,17 @@ public class CTPMenu : StoryOnlineMenu
     {
         storyGameMode.region = RegionDropdownBox.value;
 
+        try
+        {
+            //gameMode.NumberOfTeams = (byte)TeamUpdown.GetValueInt();
+            if (Int32.TryParse(TeamUpdown.value, out int teams)) gameMode.NumberOfTeams = (byte)teams;
+            //gameMode.TimerLength = TimerUpdown.GetValueInt();
+            if (Int32.TryParse(TimerUpdown.value, out int timer)) gameMode.TimerLength = timer;
+            //gameMode.SpawnCreatures = CreatureCheckbox.GetValueBool();
+            gameMode.SpawnCreatures = CreatureCheckbox.value == "true";
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+
         //these configs have been giving me no end to trouble
         /*byte teams = (byte)TeamUpdown.valueInt;
         if (teams != null) gameMode.NumberOfTeams = teams;
