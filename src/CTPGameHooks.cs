@@ -61,6 +61,7 @@ public static class CTPGameHooks
         On.HUD.Map.ShelterMarker.Draw += ShelterMarker_Draw;
         On.ShortcutGraphics.Draw += ShortcutGraphics_Draw;
         On.HUD.Map.ctor += Map_ctor;
+        On.HUD.Map.Draw += Map_Draw;
         try
         { //Remove Meadow preventing restarts
             On.Menu.KarmaLadderScreen.Update -= RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
@@ -133,6 +134,7 @@ public static class CTPGameHooks
         On.HUD.Map.ShelterMarker.Draw -= ShelterMarker_Draw;
         On.ShortcutGraphics.Draw -= ShortcutGraphics_Draw;
         On.HUD.Map.ctor -= Map_ctor;
+        On.HUD.Map.Draw -= Map_Draw;
 
         On.Menu.KarmaLadderScreen.Update += RainMeadow.RainMeadow.instance.KarmaLadderScreen_Update;
 
@@ -161,7 +163,75 @@ public static class CTPGameHooks
         HooksApplied = false;
     }
     #region Hooks, a lot of them
-    
+
+    //Show Players Everywhere randomly thrown in here 'cuz why not lol
+    private static void Map_Draw(On.HUD.Map.orig_Draw orig, HUD.Map self, float timeStacker)
+    {
+        orig(self, timeStacker);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            if (self.fade <= 0)
+                return; //if the map isn't being drawn, don't draw its symbols!
+            if (self.hud.owner is not Player owner)
+                return;
+            if (owner?.room?.game is null)
+                return;
+
+            //step 3: remove all player sprites already added
+            foreach (var symbol in self.creatureSymbols)
+            {
+                if (symbol.iconData.critType == CreatureTemplate.Type.Slugcat)
+                    symbol.RemoveSprites();
+            }
+
+            //step 4: draw those avatars!
+            foreach (var player in gamemode.avatars)
+            {
+                //var player = gamemode.avatars[i];
+                //if (player == owner.abstractCreature) continue; //redundant check
+
+                //if (player.realizedCreature is not Player realPlayer) continue;
+                if (!player.abstractCreature.pos.TileDefined) //player doesn't even have a tile location???
+                {
+                    //Logger.LogWarning("No tile position for player!!! " + player.ToString());
+                    continue;
+                }
+
+                //create symbol
+                var symbol = new CreatureSymbol(CreatureSymbol.SymbolDataFromCreature(player.abstractCreature), self.inFrontContainer);
+                symbol.Show(true);
+                symbol.lastShowFlash = 0f;
+                symbol.showFlash = 0f;
+
+                //set player colors here???
+                //symbol.myColor = player.GetData<SlugcatCustomization>().bodyColor;
+                symbol.myColor = gamemode.GetTeamColor(gamemode.PlayerTeams.TryGetValue(player.owner, out byte team) ? team : 0);
+                symbol.symbolSprite.alpha = 0.9f;
+
+                //shrink dead or indeterminate players (probably distant ones)
+                if (player.realizedCreature is null || player.realizedCreature.dead)
+                {
+                    symbol.symbolSprite.scale = 0.8f;
+                    symbol.symbolSprite.alpha = 0.7f;
+                }
+
+                //modify shadows
+                symbol.shadowSprite1.alpha = symbol.symbolSprite.alpha;
+                symbol.shadowSprite2.alpha = symbol.symbolSprite.alpha;
+                symbol.shadowSprite1.scale = symbol.symbolSprite.scale;
+                symbol.shadowSprite2.scale = symbol.symbolSprite.scale;
+
+                //draw in correct position
+                Vector2 drawPos = self.RoomToMapPos((player.realizedCreature is null) ? player.abstractCreature.pos.Tile.ToVector2() * 20f : player.realizedCreature.mainBodyChunk.pos, player.abstractCreature.Room.index, timeStacker);
+                symbol.Draw(timeStacker, drawPos);
+
+                //add to creatureSymbol list to get cleared!
+                self.creatureSymbols.Add(symbol);
+            }
+        }
+    }
+
     private static void Player_ReleaseGrasp(On.Player.orig_ReleaseGrasp orig, Player self, int grasp)
     {
         var grabbed = (grasp >= 0 && grasp < self.grasps.Length) ? self.grasps[grasp]?.grabbed : null;
