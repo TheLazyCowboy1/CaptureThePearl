@@ -462,7 +462,8 @@ public class CTPGameMode : StoryGameMode
                         if (player == null || player.realizedObject == null || player.state.dead)
                         {
                             //I am no longer responsible to manage this pearl; give management of it to someone else
-                            pearl.Release();
+                            //pearl.Release();
+                            pearl.apo.world.game.GoToDeathScreen(); //just force the player to go to the death screen. Cheap solution, but works
                             continue;
                         }
                         if (pearl.apo.Room.index != player.Room.index)
