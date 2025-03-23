@@ -68,7 +68,7 @@ public class CTPMenu : StoryOnlineMenu
         storyGameMode = (CTPGameMode)OnlineManager.lobby.gameMode;
 
         storyGameMode.Sanitize();
-        (storyGameMode as CTPGameMode).SanitizeCTP();
+        gameMode.SanitizeCTP();
         storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
 
 

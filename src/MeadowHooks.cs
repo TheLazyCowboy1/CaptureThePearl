@@ -91,7 +91,7 @@ public static class MeadowHooks
             //don't add message if sent by other team
             if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.otherTeamsMuted)
             {
-                byte myTeam = gamemode.MyTeam();
+                byte myTeam = gamemode.GetMyTeam();
                 foreach (var kvp in gamemode.PlayerTeams)
                 {
                     if (kvp.Key.id.name == user)
@@ -118,7 +118,7 @@ public static class MeadowHooks
             //don't add message if sent by other team
             if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.otherTeamsMuted)
             {
-                byte myTeam = gamemode.MyTeam();
+                byte myTeam = gamemode.GetMyTeam();
                 foreach (var kvp in gamemode.PlayerTeams)
                 {
                     if (kvp.Key.id == rpc.from.id)

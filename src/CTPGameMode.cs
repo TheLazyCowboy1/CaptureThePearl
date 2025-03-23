@@ -308,11 +308,13 @@ public class CTPGameMode : StoryGameMode
     
     public Color GetTeamColor(int team)
     {
-        if(team == 0) return Custom.hexToColor("FF0000");//red
-        else if(team == 1) return Custom.hexToColor("0000FF");//blue
-        else if(team == 2) return Custom.hexToColor("00FF00");//green
-        else if(team == 3) return Custom.hexToColor("FFFF00");//yellow
-        return Custom.hexToColor("FFFFFF");//white fallback if things go wrong
+        if (team == 0) return Custom.hexToColor("EE0000");//red
+        else if (team == 1) return Custom.hexToColor("0000EE");//blue
+        else if (team == 2) return Custom.hexToColor("00EE00");//green
+        else if (team == 3) return Custom.hexToColor("EEEE00");//yellow
+        else if (team == 4) return Custom.hexToColor("DD00DD"); //purple //currently unused
+        else if (team == 5) return Custom.hexToColor("00EEEE"); //cyan
+        return Custom.hexToColor("EEEEEE");//white fallback if things go wrong
     }
     /// <summary>
     /// Lightens the color given in a standardized manner.
@@ -327,7 +329,7 @@ public class CTPGameMode : StoryGameMode
         return Color.HSVToRGB(h, s, v);
     }
 
-    public byte MyTeam() => PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte ret) ? ret : (byte)0;
+    public byte GetMyTeam() => PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte ret) ? ret : (byte)0;
     public bool OnMyTeam(OnlinePlayer player)
     {
         if (PlayerTeams.TryGetValue(OnlineManager.mePlayer, out byte mine) && PlayerTeams.TryGetValue(player, out byte his))
@@ -514,7 +516,10 @@ public class CTPGameMode : StoryGameMode
         if (team == 0) return "Red";
         else if (team == 1) return "Blue";
         else if (team == 2) return "Green";
-        else return "Yellow";
+        else if (team == 3) return "Yellow";
+        else if (team == 4) return "Purple"; //currently unused
+        else if (team == 5) return "Cyan";
+        else return "Unknown";
     }
 
     public void TeamScoredMessage(int team)

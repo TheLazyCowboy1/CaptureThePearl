@@ -52,7 +52,7 @@ public static class RandomShelterChooser
         List<(string, float)> orderedShelters = new(unorderedShelters.Count);
         foreach (var s in unorderedShelters)
         {
-            float score = MIN_DISTANCE(s.Item2, otherShelterLocs); //higher score = better
+            float score = MIN_DISTANCE(s.Item2, otherShelterLocs) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
             int idx = orderedShelters.FindIndex(s => s.Item2 < score); //index of first shelter with a worse score
             if (idx < 0) orderedShelters.Add((s.n, score)); //this is the worst; add to the end
             else orderedShelters.Insert(idx, (s.n, score)); //insert in front of worse shelter
@@ -155,13 +155,6 @@ public static class RandomShelterFilter
         string mapPath = FindMapFile(region, slugcat.value);
         if (!File.Exists(mapPath)) throw new FileNotFoundException($"Failed to find map file for {region}");
         shelterPositions = FindShelterPositions(shelters, mapPath);
-
-        //penalize shelters
-        for (int i = 0; i < shelterNames.Length; i++)
-        {
-            if (PENALIZED_SHELTERS.Contains(shelterNames[i]))
-                shelterPositions[i] += new Vector2(100000f, 100000f); //move it far away, basically
-        }
 
         lastSearchedRegion = region;
         lastSearchedSlugcat = slugcat;
