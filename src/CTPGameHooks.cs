@@ -367,16 +367,20 @@ public static class CTPGameHooks
         orig(self, tStacker);
 
         if (!CTPGameMode.IsCTPGameMode(out var mode)) return;
-        self.color = mode.GetTeamColor(mode.PlayerTeams[self.player]);
-        self.lighter_color = self.color;
+
+        if (mode.PlayerTeams.ContainsKey(self.player))
+        {
+            self.color = mode.GetTeamColor(mode.PlayerTeams[self.player]);
+            self.lighter_color = self.color;
 
 
-        //recolour everything ahhhhhhhhhh
-        self.arrowSprite.color = self.color;
-        self.gradient.color = self.color;
-        foreach (var msgLbl in self.messageLabels) msgLbl.color = Color.Lerp(Color.white, self.color, 0.5f);
-        self.slugIcon.color = self.color;
-        self.username.color = self.color;
+            //recolour everything ahhhhhhhhhh
+            self.arrowSprite.color = self.color;
+            self.gradient.color = self.color;
+            foreach (var msgLbl in self.messageLabels) msgLbl.color = Color.Lerp(Color.white, self.color, 0.5f);
+            self.slugIcon.color = self.color;
+            self.username.color = self.color;
+        }
     }
     private static void MSCRoomSpecificScript_AddRoomSpecificScript(On.MoreSlugcats.MSCRoomSpecificScript.orig_AddRoomSpecificScript orig, Room room)
     {
