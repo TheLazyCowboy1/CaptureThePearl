@@ -94,9 +94,16 @@ public static class CTPGameHooks
         playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.Draw)), OnlinePlayerDisplay_Draw);
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp += Player_ReleaseGrasp;
+
         On.Weapon.HitThisObject += Weapon_HitThisObject;
+        On.Player.Collide += Player_Collide;
+        On.Player.SlugSlamConditions += Player_SlugSlamConditions;
+        On.Player.ClassMechanicsArtificer += Player_ClassMechanicsArtificer;
+        On.Player.CanMaulCreature += Player_CanMaulCreature;
+
         HooksApplied = true;
     }
+
     public static void RemoveHooks()
     {
         if (!HooksApplied) return;
@@ -148,38 +155,13 @@ public static class CTPGameHooks
         chatColourHook?.Undo();
         On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
+
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
+
         HooksApplied = false;
     }
     #region Hooks, a lot of them
-    private static bool Weapon_HitThisObject(On.Weapon.orig_HitThisObject orig, Weapon self, PhysicalObject obj)
-    {
-        if (CTPGameMode.IsCTPGameMode(out var mode) && obj is Player pl)
-        {
-            if (OnlinePhysicalObject.map.TryGetValue(pl.abstractCreature, out var opo))
-            {
-                //get the OnlinePlayer potentially hit by the spear
-                var opposingOnlPl = opo.owner;
-                if (self.thrownBy is Player slug)
-                {
-                    if (OnlinePhysicalObject.map.TryGetValue(slug.abstractCreature, out var opo2))
-                    {
-                        //get the OnlinePlayer that threw the spear
-                        var throwingOnlPl = opo2.owner;
-
-                        if (mode.PlayerTeams[opposingOnlPl] != mode.PlayerTeams[throwingOnlPl])
-                        {
-                            return true;
-                        }
-                        else return mode.friendlyFire;
-                    }
-                }
-            }
-
-        }
-
-        return orig(self, obj);
-    }
+    
     private static void Player_ReleaseGrasp(On.Player.orig_ReleaseGrasp orig, Player self, int grasp)
     {
         var grabbed = (grasp >= 0 && grasp < self.grasps.Length) ? self.grasps[grasp]?.grabbed : null;
@@ -754,6 +736,74 @@ public static class CTPGameHooks
         public DataPearl self;
 
         public string LastTeamGrasp = "";
+    }
+    #endregion
+
+    #region Friendly Fire hooks
+    //Used for all of these, just to simplify the process and reduce duplicate code
+    private static T FFTrick<T>(CTPGameMode mode, OnlinePlayer p1, OnlinePlayer p2, Func<T> orig)
+    {
+        if (mode.PlayerTeams.TryGetValue(p1, out byte t1) && mode.PlayerTeams.TryGetValue(p2, out byte t2) && t1 != t2)
+        {
+            mode.friendlyFire = true; //just trick the game into thinking FF is true for a second
+            var ret = orig();
+            mode.friendlyFire = false;
+            return ret;
+        }
+        return orig();
+    }
+
+    private static bool Weapon_HitThisObject(On.Weapon.orig_HitThisObject orig, Weapon self, PhysicalObject obj)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var mode) && !mode.friendlyFire && obj is Player pl)
+        {
+            if (self.thrownBy is Player slug)
+            {
+                return FFTrick(mode, pl.abstractCreature.GetOnlineCreature().owner, slug.abstractCreature.GetOnlineCreature().owner, () => orig(self, obj));
+            }
+        }
+        return orig(self, obj);
+    }
+
+    private static bool Player_CanMaulCreature(On.Player.orig_CanMaulCreature orig, Player self, Creature crit)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var mode) && !mode.friendlyFire && crit is Player pl)
+        {
+            return FFTrick(mode, pl.abstractCreature.GetOnlineCreature().owner, self.abstractCreature.GetOnlineCreature().owner, () => orig(self, crit));
+        }
+        return orig(self, crit);
+    }
+
+    //This one is a bit different... no friendly fire generally just disables Arti's stun as a whole; this re-enables it
+    private static void Player_ClassMechanicsArtificer(On.Player.orig_ClassMechanicsArtificer orig, Player self)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var mode) && !mode.friendlyFire)
+        {
+            mode.friendlyFire = true;
+            orig(self);
+            mode.friendlyFire = false;
+            return;
+        }
+        orig(self);
+    }
+
+    private static bool Player_SlugSlamConditions(On.Player.orig_SlugSlamConditions orig, Player self, PhysicalObject otherObject)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var mode) && !mode.friendlyFire && otherObject is Player pl)
+        {
+            return FFTrick(mode, pl.abstractCreature.GetOnlineCreature().owner, self.abstractCreature.GetOnlineCreature().owner, () => orig(self, otherObject));
+        }
+        return orig(self, otherObject);
+    }
+
+    private static void Player_Collide(On.Player.orig_Collide orig, Player self, PhysicalObject otherObject, int myChunk, int otherChunk)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var mode) && !mode.friendlyFire && otherObject is Player pl)
+        {
+            FFTrick(mode, pl.abstractCreature.GetOnlineCreature().owner, self.abstractCreature.GetOnlineCreature().owner, () => { orig(self, otherObject, myChunk, otherChunk); return true; }); //give it a phony return type
+            return;
+        }
+        orig(self, otherObject, myChunk, otherChunk);
     }
     #endregion
 }
