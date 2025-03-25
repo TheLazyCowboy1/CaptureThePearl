@@ -10,10 +10,10 @@ namespace CaptureThePearl;
 public static class CTPRPCs
 {
     [RPCMethod]
-    public static void PointScored(byte team)
+    public static void PointScored(byte team, byte loser)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            gamemode.TeamScored(team);
+            gamemode.TeamScored(team, loser);
     }
 
     [RPCMethod]

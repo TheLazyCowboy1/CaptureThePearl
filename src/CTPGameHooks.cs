@@ -11,10 +11,12 @@ using System;
 using System.Collections.Generic;
 using System.Drawing;
 using System.Linq;
+using System.Reflection;
 using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using Unity.Services.Analytics.Platform;
 using UnityEngine;
 using Color = UnityEngine.Color;
 using Exception = System.Exception;
@@ -171,6 +173,20 @@ public static class CTPGameHooks
     //Show Players Everywhere randomly thrown in here 'cuz why not lol
     private static void Map_Draw(On.HUD.Map.orig_Draw orig, HUD.Map self, float timeStacker)
     {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode1))
+        {
+            //ensure pearl icons show up, even in other rooms
+            foreach (var pearl in gamemode1.teamPearls)
+            {
+                if (pearl == null) continue; //don't add myself
+                try
+                {
+                    pearl.apo.world.game.GetStorySession.AddNewPersistentTracker(pearl.apo); //this automatically checks if it's already added
+                }
+                catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+            }
+        }
+
         orig(self, timeStacker);
 
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
@@ -261,7 +277,8 @@ public static class CTPGameHooks
             {
                 var onPl = opo.owner;
                 var porlIdx = CTPGameMode.PearlIdxToTeam(porl.AbstractPearl.dataPearlType.index);
-                mode.TeamHasAPearl(mode.PlayerTeams[onPl], porlIdx);
+                if (porl.GetData().ShouldSendMessage(mode.PlayerTeams[onPl]))
+                    mode.TeamHasAPearl(mode.PlayerTeams[onPl], porlIdx);
             }
         }
     }
@@ -742,6 +759,23 @@ public static class CTPGameHooks
         orig(self, abstractPhysicalObject, world);
 
         self.buoyancy = 1.5f; //hopefully this is enough...?
+
+        //ALSO destroy if there's already a team pearl of this color, or if it can't be a team pearl
+        if (CTPGameMode.IsCTPGameMode(out var gamemode)) {
+            int team = CTPGameMode.PearlIdxToTeam(self.AbstractPearl.dataPearlType.index);
+            var opo = abstractPhysicalObject.GetOnlineObject();
+            if (team < 0 || team >= gamemode.NumberOfTeams || (gamemode.teamPearls[team] != null && gamemode.teamPearls[team] != opo))
+            {
+                //destroy the pearl
+                try { CTPGameMode.DestroyPearl(ref opo); } catch { }
+                try
+                {
+                    self?.AllGraspsLetGoOfThisObject(true);
+                    abstractPhysicalObject.Abstractize(abstractPhysicalObject.pos);
+                    abstractPhysicalObject.Destroy();
+                } catch { }
+            }
+        }
     }
 
     //Prevent arena overlay from trying to start a new game or something stupid like that!
@@ -823,7 +857,21 @@ public static class CTPGameHooks
         }
         public DataPearl self;
 
-        public string LastTeamGrasp = "";
+        public bool ShouldSendMessage(int team)
+        {
+            if (team == LastTeamGrasp) return false; //don't send messages unless it actually changes hands...
+            LastTeamGrasp = team;
+            long newTime = DateTime.Now.Ticks / 1000L; //in milliseconds
+            bool send = newTime - LastMsgTime > 1000; //> 1 second delay
+            if (send)
+                LastMsgTime = newTime;
+            return send;
+        }
+
+        public int LastTeamGrasp = -1; // no team
+        public long LastMsgTime = -1;
+
+        //public string LastTeamGrasp = "";
     }
     #endregion
 

@@ -172,8 +172,8 @@ public class CTPGameMode : StoryGameMode
             AssignPlayerTeams(); //add other players to the team if they join in; ensures team list is up to date
 
             //ScorePoints(); //instead handled by SearchForPearls
-            if (teamPearls.All(p => p == null))
-                SpawnPearls(true);
+            //if (teamPearls.All(p => p == null))
+                //SpawnPearls(true); //can cause desyncs
         }
     }
 
@@ -337,15 +337,15 @@ public class CTPGameMode : StoryGameMode
                         {
                             DestroyPearl(ref teamPearls[i]); //if it's in someone else's shelter... bye-bye!
                             RemoveIndicator(i);
-                            TeamScored(idx);
+                            TeamScored(idx, i);
                             //tell everyone that a point was scored!
                             foreach (var p in OnlineManager.players)
                             {
-                                if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx);
+                                if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx, (byte)i);
                             }
 
                             //respawn the pearl
-                            SpawnPearls(true);
+                            //SpawnPearls(true);
                         }
                     }
                 }
@@ -377,10 +377,15 @@ public class CTPGameMode : StoryGameMode
         }
     }
 
-    public void TeamScored(int team)
+    public void TeamScored(int team, int loser)
     {
         //grant points
         TeamPoints[team]++;
+        if (NumberOfTeams > 2)
+        {
+            TeamPoints[team]++; //+2 points
+            TeamPoints[loser]--; //-1 point penalty
+        }
         RainMeadow.RainMeadow.Debug($"[CTP]: Team {team} scored a point! Points: {TeamPoints[team]}");
         TeamScoredMessage(team);
     }
@@ -392,7 +397,7 @@ public class CTPGameMode : StoryGameMode
             return idx;
         return -1;
     }
-    private static void DestroyPearl(ref OnlinePhysicalObject opo)
+    public static void DestroyPearl(ref OnlinePhysicalObject opo)
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Destroying pearl {opo}");
         opo.apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
@@ -430,9 +435,11 @@ public class CTPGameMode : StoryGameMode
 
                     room.AddEntity(abPearl);
                     abPearl.RealizeInRoom();
+                    if (abPearl?.realizedObject == null) continue; //it was prevented from realizing, apparently!
                     abPearl.realizedObject.firstChunk.pos = realPlayer.firstChunk.pos; //spawn at my location, just to be safe
 
                     teamPearls[i] = abPearl.GetOnlineObject();
+
                     AddIndicator(teamPearls[i], i);
                 }
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
@@ -453,7 +460,10 @@ public class CTPGameMode : StoryGameMode
                         continue; //don't reposition if it's in a PLAYER's hand
 
                     var tile = pearl?.apo?.realizedObject?.room?.GetTile(pearl.apo.pos);
-                    if (pearl.apo.InDen || pearl.apo.realizedObject == null || pearl.apo.realizedObject.firstChunk.pos.y < 0 || tile == null || tile.Solid || tile.wormGrass)
+                    if (pearl.apo.InDen || pearl.apo.realizedObject == null //null checks
+                        || pearl.apo.pos.Tile.y < 0 || pearl.apo.pos.Tile.x < 0 //min bounds checks
+                        || pearl.apo.pos.Tile.y > pearl.apo.Room.size.y || pearl.apo.pos.Tile.x > pearl.apo.Room.size.x //max bounds checks
+                        || tile == null || tile.Solid || tile.wormGrass) //tile type checks
                     //&& pearl.apo.Room.index == player.Room.index)
                     {
                         pearl.apo.InDen = false; //if a creature took it, move it out of the den
@@ -524,6 +534,7 @@ public class CTPGameMode : StoryGameMode
     public void TeamLostAPearl(int pearlIndex)
     {
         RainMeadow.RainMeadow.Debug($"[CTP] Sending team {GetTeamProperName(pearlIndex)}'s pearl is alone");
+        return; //temporarily disabled
         ChatLogManager.LogMessage("", $"Team {GetTeamProperName(pearlIndex)}'s pearl is unoccupied!");
     }
 
@@ -542,7 +553,24 @@ public class CTPGameMode : StoryGameMode
     //can be used to prevent spawning creatures
     public override bool ShouldLoadCreatures(RainWorldGame game, WorldSession worldSession)
     {
-        return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
+        //return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
+        return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
+    }
+    public override bool ShouldSyncAPOInWorld(WorldSession ws, AbstractPhysicalObject apo)
+    {
+        return apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl //sync if pearl
+            || (apo is AbstractCreature ac && ac.creatureTemplate.type == CreatureTemplate.Type.Slugcat); //or player
+    }
+    public override bool ShouldRegisterAPO(OnlineResource resource, AbstractPhysicalObject apo)
+    {
+        if (apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl
+            && apo is DataPearl.AbstractDataPearl ap)
+        {
+            int idx = PearlIdxToTeam(ap.dataPearlType.index);
+            if (idx < 0 || idx >= teamPearls.Length || (teamPearls[idx] != null && teamPearls[idx].apo != apo)) //this team pearl has already been registered!
+                return false;
+        }
+        return base.ShouldRegisterAPO(resource, apo);
     }
 
     public override void FilterItems(Room room)
