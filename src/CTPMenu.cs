@@ -231,7 +231,7 @@ public class CTPMenu : StoryOnlineMenu
             .ToArray();
         for (int i = 0; i < regions.Length; i++)
         {
-            string reg = Region.GetProperRegionAcronym(slugcat, regions[i]);
+            string reg = Region.GetProperRegionAcronym(SlugcatStats.SlugcatToTimeline(slugcat), regions[i]);
             list.Add(new(reg, Region.GetRegionFullName(reg, slugcat), i));
         }
         return list;
