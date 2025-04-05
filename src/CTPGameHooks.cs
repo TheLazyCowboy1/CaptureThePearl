@@ -16,7 +16,6 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
-using Unity.Services.Analytics.Platform;
 using UnityEngine;
 using Color = UnityEngine.Color;
 using Exception = System.Exception;
@@ -56,9 +55,8 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen += RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton += SleepAndDeathScreen_AddPassageButton;
-        //On.GhostWorldPresence.ctor += GhostWorldPresence_ctor; //obselete
         On.ShelterDoor.Close += ShelterDoor_Close;
-        On.World.LoadMapConfig += World_LoadMapConfig;
+        On.World.LoadMapConfig_Timeline += World_LoadMapConfig;
         On.HUD.Map.ShelterMarker.ctor += ShelterMarker_ctor;
         On.HUD.Map.ShelterMarker.Draw += ShelterMarker_Draw;
         On.ShortcutGraphics.Draw += ShortcutGraphics_Draw;
@@ -90,7 +88,6 @@ public static class CTPGameHooks
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
-        //On.HUD.Map.ResetNotRevealedMarkers += Map_ResetNotRevealedMarkers; //I just set the whole map to revealed instead, and this was throwing errors
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
         chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
 
@@ -116,7 +113,6 @@ public static class CTPGameHooks
 
         On.RainWorldGame.Update -= RainWorldGame_Update;
 
-        //On.Player.Update -= Player_Update;
         On.RainCycle.GetDesiredCycleLength -= RainCycle_GetDesiredCycleLength;
         On.RainWorldGame.BlizzardHardEndTimer -= RainWorldGame_BlizzardHardEndTimer;
         On.RainWorldGame.AllowRainCounterToTick -= RainWorldGame_AllowRainCounterToTick;
@@ -131,9 +127,8 @@ public static class CTPGameHooks
 
         On.RainWorldGame.GoToDeathScreen -= RainWorldGame_GoToDeathScreen;
         On.Menu.SleepAndDeathScreen.AddPassageButton -= SleepAndDeathScreen_AddPassageButton;
-        //On.GhostWorldPresence.ctor -= GhostWorldPresence_ctor;
         On.ShelterDoor.Close -= ShelterDoor_Close;
-        On.World.LoadMapConfig -= World_LoadMapConfig;
+        On.World.LoadMapConfig_Timeline -= World_LoadMapConfig;
         On.HUD.Map.ShelterMarker.ctor -= ShelterMarker_ctor;
         On.HUD.Map.ShelterMarker.Draw -= ShelterMarker_Draw;
         On.ShortcutGraphics.Draw -= ShortcutGraphics_Draw;
@@ -689,25 +684,15 @@ public static class CTPGameHooks
     {
         return; //just absolutely do nothing; don't add it
     }
-
-    //Prevents echoes from spawning
-    private static void GhostWorldPresence_ctor(On.GhostWorldPresence.orig_ctor orig, GhostWorldPresence self, World world, GhostWorldPresence.GhostID ghostID)
-    {
-        orig(self, world, ghostID);
-        self.ghostRoom = new AbstractRoom("FAKE_GHOST_ROOM", new int[] {-1}, -1, -1, -1, -1); //nope; don't spawn ghosts, please; they're scary!
-    }
-
     //Prevents shelter doors from closing and triggering the win screen
     private static void ShelterDoor_Close(On.ShelterDoor.orig_Close orig, ShelterDoor self)
     {
         return;
     }
-
     //Ensures ALL shelters are marked on the map!
-    private static void World_LoadMapConfig(On.World.orig_LoadMapConfig orig, World self, SlugcatStats.Name slugcatNumber)
+    private static void World_LoadMapConfig(On.World.orig_LoadMapConfig_Timeline orig, World self, SlugcatStats.Timeline timelinePosition)
     {
-        orig(self, slugcatNumber);
-
+        orig(self, timelinePosition);
         for (int i = 0; i < self.brokenShelters.Length; i++) self.brokenShelters[i] = false;
     }
 
