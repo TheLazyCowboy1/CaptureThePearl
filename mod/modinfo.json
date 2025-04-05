@@ -1,10 +1,10 @@
 {
     "id": "LazyCowboy.CaptureThePearl",
-    "name": "Capture the Pearl",
-    "version": "0.0.1",
+    "name": "Capture the Pearl (BETA)",
+    "version": "0.0.2",
     "authors": "TheLazyCowboy1, Pocky-raisin",
-    "description": "add desc",
+    "description": "A new team PvP gamemode for Rain Meadow! Coordinate with your team to steal the other team's pearl and run it back to your home shelter to score!<LINE><LINE>Features:<LINE>* Play in ANY region!<LINE>* Play with up to 4 teams (although 2 is recommended).<LINE>* Configurable creature spawns and game length.<LINE>* Players and pearls have clearly colorized indicators and are shown on the map.<LINE>* Chat is automatically hidden from other teams. Start your messages with + to send them to everyone.<LINE>* Friendly fire does not apply to players on other teams.<LINE>* Distant creatures are not synced, reducing lag, especially for the host.<LINE>* Players are slightly slowed when carrying pearls (configurable in the remix menu).<LINE>* A lot more; I'm too tired to write this.<LINE><LINE>Note: This is a BETA release, made public early in order to be playable before Watcher releases. We have a lot of improvements and polish planned for this mod. Please give feedback and bug reports to help us make it the best possible!",
     "requirements": [ "henpemaz_rainmeadow", "pocky-raisin.meadowtweaks" ],
     "requirements_names": [ "Rain Meadow", "Pocky's Meadow Tweaks And Features" ],
-    "tags": [ "Game Modes" ]
+    "tags": [ "Game Modes", "Rain Meadow mod" ]
 }

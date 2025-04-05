@@ -136,7 +136,7 @@ public class CTPGameMode : StoryGameMode
                 int minCount = Int32.MaxValue;
                 for (byte i = 0; i < NumberOfTeams; i++)
                 {
-                    teamCounts[i] = PlayerTeams.Count(kvp => kvp.Value == i);
+                    teamCounts[i] = PlayerTeams.Count(kvp => kvp.Value == i) + TeamPoints[i]; //add TeamPoints, to favor losing teams with new players
                     minCount = Math.Min(minCount, teamCounts[i]);
                 }
                 //get the list of teams that are valid options (team has the least number of players)
@@ -556,11 +556,15 @@ public class CTPGameMode : StoryGameMode
         //return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
         return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
     }
-    public override bool ShouldSyncAPOInWorld(WorldSession ws, AbstractPhysicalObject apo)
+    /*public override bool ShouldSyncAPOInWorld(WorldSession ws, AbstractPhysicalObject apo)
     {
-        return apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl //sync if pearl
-            || (apo is AbstractCreature ac && ac.creatureTemplate.type == CreatureTemplate.Type.Slugcat); //or player
-    }
+        //return apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl //sync if pearl
+        //|| (apo is AbstractCreature ac && ac.creatureTemplate.type == CreatureTemplate.Type.Slugcat); //or player
+        if (apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl) return true; //sync pearls
+        if (apo is AbstractCreature ac && ac.state is not PlayerState) return false; //don't sync creatures that aren't players
+
+        return base.ShouldSyncAPOInWorld(ws, apo);
+    }*/
     public override bool ShouldRegisterAPO(OnlineResource resource, AbstractPhysicalObject apo)
     {
         if (apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl

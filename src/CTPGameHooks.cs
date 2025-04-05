@@ -98,6 +98,8 @@ public static class CTPGameHooks
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp += Player_ReleaseGrasp;
 
+        //On.AbstractCreature.Realize += AbstractCreature_Realize;
+
         On.Weapon.HitThisObject += Weapon_HitThisObject;
         On.Player.Collide += Player_Collide;
         On.Player.SlugSlamConditions += Player_SlugSlamConditions;
@@ -160,6 +162,8 @@ public static class CTPGameHooks
         On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
 
+        //On.AbstractCreature.Realize -= AbstractCreature_Realize;
+
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
         On.Player.Collide -= Player_Collide;
         On.Player.SlugSlamConditions -= Player_SlugSlamConditions;
@@ -169,6 +173,20 @@ public static class CTPGameHooks
         HooksApplied = false;
     }
     #region Hooks, a lot of them
+
+
+    private static void AbstractCreature_Realize(On.AbstractCreature.orig_Realize orig, AbstractCreature self)
+    {
+        if (self.Room.creatures.Exists(cr => cr.pos == self.pos && cr != self))
+        {
+            //this creature already exists; don't realize it
+            self.Abstractize(self.pos);
+            self.Destroy();
+            return; //don't realize
+        }
+
+        orig(self);
+    }
 
     //Show Players Everywhere randomly thrown in here 'cuz why not lol
     private static void Map_Draw(On.HUD.Map.orig_Draw orig, HUD.Map self, float timeStacker)
@@ -193,7 +211,7 @@ public static class CTPGameHooks
         {
             if (self.fade <= 0)
                 return; //if the map isn't being drawn, don't draw its symbols!
-            if (self.hud.owner is not Player owner)
+            if (self?.hud?.owner is not Player owner)
                 return;
             if (owner?.room?.game is null)
                 return;
@@ -266,6 +284,11 @@ public static class CTPGameHooks
         {
             var porlIdx = CTPGameMode.PearlIdxToTeam(porl.AbstractPearl.dataPearlType.index);
             mode.TeamLostAPearl(porlIdx);
+
+            //modify speed
+            self.slugcatStats.runspeedFac /= Plugin.Options.PearlHeldSpeed.Value;
+            self.slugcatStats.poleClimbSpeedFac /= Plugin.Options.PearlHeldSpeed.Value;
+            self.slugcatStats.corridorClimbSpeedFac /= Plugin.Options.PearlHeldSpeed.Value;
         }
     }
     private static void PhysicalObject_Grabbed(On.PhysicalObject.orig_Grabbed orig, PhysicalObject self, Creature.Grasp grasp)
@@ -280,6 +303,11 @@ public static class CTPGameHooks
                 if (porl.GetData().ShouldSendMessage(mode.PlayerTeams[onPl]))
                     mode.TeamHasAPearl(mode.PlayerTeams[onPl], porlIdx);
             }
+
+            //modify speed
+            pl.slugcatStats.runspeedFac *= Plugin.Options.PearlHeldSpeed.Value;
+            pl.slugcatStats.poleClimbSpeedFac *= Plugin.Options.PearlHeldSpeed.Value;
+            pl.slugcatStats.corridorClimbSpeedFac *= Plugin.Options.PearlHeldSpeed.Value;
         }
     }
     //bad coding practice, will fix later
@@ -580,15 +608,19 @@ public static class CTPGameHooks
             /*string denPos = gamemode.lobby.isOwner
                 ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, new string[0])
                 : gamemode.defaultDenPos;*/
-            byte myTeam = gamemode.PlayerTeams[OnlineManager.mePlayer];
-            string denPos = gamemode.hasSpawnedIn
-                ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte) i != myTeam).ToArray(), Plugin.Options.RespawnCloseness.Value)
-                : gamemode.TeamShelters[myTeam];
-            gamemode.hasSpawnedIn = true;
+            try
+            {
+                byte myTeam = gamemode.PlayerTeams[OnlineManager.mePlayer];
+                string denPos = gamemode.hasSpawnedIn
+                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), Plugin.Options.RespawnCloseness.Value)
+                    : gamemode.TeamShelters[myTeam];
+                gamemode.hasSpawnedIn = true;
 
-            save.denPosition = denPos;
-            gamemode.defaultDenPos = denPos; //hopefully unnecessary
-            gamemode.myLastDenPos = denPos;
+                save.denPosition = denPos;
+                gamemode.defaultDenPos = denPos; //hopefully unnecessary
+                gamemode.myLastDenPos = denPos;
+            }
+            catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
             return save;
         }
