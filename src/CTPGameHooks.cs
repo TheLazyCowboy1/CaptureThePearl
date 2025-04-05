@@ -31,6 +31,7 @@ public static class CTPGameHooks
     public static bool HooksApplied = false;
     public static Hook playerDisplayHook;
     public static Hook chatColourHook;
+    public static Hook spectateButtonHook;
     public static void ApplyHooks()
     {
         if (HooksApplied) return;
@@ -91,11 +92,14 @@ public static class CTPGameHooks
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
         chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
 
+        spectateButtonHook = new Hook(typeof(SpectatorOverlay.PlayerButton).GetConstructors()[0], PlayerButton_ctor);
+
         playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.Draw)), OnlinePlayerDisplay_Draw);
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp += Player_ReleaseGrasp;
 
-        //On.AbstractCreature.Realize += AbstractCreature_Realize;
+        On.AbstractCreature.Realize += AbstractCreature_Realize;
+        On.AbstractCreature.RealizeInRoom += AbstractCreature_RealizeInRoom;
 
         On.Weapon.HitThisObject += Weapon_HitThisObject;
         On.Player.Collide += Player_Collide;
@@ -153,11 +157,13 @@ public static class CTPGameHooks
         //On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
         if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
         playerDisplayHook?.Undo();
+        spectateButtonHook?.Undo();
         chatColourHook?.Undo();
         On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
 
-        //On.AbstractCreature.Realize -= AbstractCreature_Realize;
+        On.AbstractCreature.Realize -= AbstractCreature_Realize;
+        On.AbstractCreature.RealizeInRoom -= AbstractCreature_RealizeInRoom;
 
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
         On.Player.Collide -= Player_Collide;
@@ -169,15 +175,41 @@ public static class CTPGameHooks
     }
     #region Hooks, a lot of them
 
+    private delegate void PlayerButton_ctor_orig(SpectatorOverlay.PlayerButton self, SpectatorOverlay menu, OnlinePlayer player, OnlinePhysicalObject opo, Vector2 pos, bool canKick);
+    private static void PlayerButton_ctor(PlayerButton_ctor_orig orig, SpectatorOverlay.PlayerButton self, SpectatorOverlay menu, OnlinePlayer player, OnlinePhysicalObject opo, Vector2 pos, bool canKick)
+    {
+        orig(self, menu, player, opo, pos, canKick);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.OnMyTeam(player))
+            self.button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
+    }
+
 
     private static void AbstractCreature_Realize(On.AbstractCreature.orig_Realize orig, AbstractCreature self)
     {
-        if (self.Room.creatures.Exists(cr => cr.pos == self.pos && cr != self))
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.ShouldRealizeCreature(self))
+            return; //don't realize it
+
+        //Ensure that the creature gets registered if it gets realized
+        if (self.GetOnlineCreature() == null)
         {
-            //this creature already exists; don't realize it
-            self.Abstractize(self.pos);
-            self.Destroy();
-            return; //don't realize
+            var rs = self.Room.GetResource();
+            rs?.ApoEnteringRoom(self, self.pos);
+        }
+
+        orig(self);
+    }
+
+    private static void AbstractCreature_RealizeInRoom(On.AbstractCreature.orig_RealizeInRoom orig, AbstractCreature self)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.ShouldRealizeCreature(self))
+            return; //don't realize it
+
+        //Ensure that the creature gets registered if it gets realized
+        if (self.GetOnlineCreature() == null)
+        {
+            var rs = self.Room.GetResource();
+            rs?.ApoEnteringRoom(self, self.pos);
         }
 
         orig(self);
@@ -281,9 +313,9 @@ public static class CTPGameHooks
             mode.TeamLostAPearl(porlIdx);
 
             //modify speed
-            self.slugcatStats.runspeedFac /= Plugin.Options.PearlHeldSpeed.Value;
-            self.slugcatStats.poleClimbSpeedFac /= Plugin.Options.PearlHeldSpeed.Value;
-            self.slugcatStats.corridorClimbSpeedFac /= Plugin.Options.PearlHeldSpeed.Value;
+            self.slugcatStats.runspeedFac /= mode.PearlHeldSpeed;
+            self.slugcatStats.poleClimbSpeedFac /= mode.PearlHeldSpeed;
+            self.slugcatStats.corridorClimbSpeedFac /= mode.PearlHeldSpeed;
         }
     }
     private static void PhysicalObject_Grabbed(On.PhysicalObject.orig_Grabbed orig, PhysicalObject self, Creature.Grasp grasp)
@@ -300,9 +332,9 @@ public static class CTPGameHooks
             }
 
             //modify speed
-            pl.slugcatStats.runspeedFac *= Plugin.Options.PearlHeldSpeed.Value;
-            pl.slugcatStats.poleClimbSpeedFac *= Plugin.Options.PearlHeldSpeed.Value;
-            pl.slugcatStats.corridorClimbSpeedFac *= Plugin.Options.PearlHeldSpeed.Value;
+            pl.slugcatStats.runspeedFac *= mode.PearlHeldSpeed;
+            pl.slugcatStats.poleClimbSpeedFac *= mode.PearlHeldSpeed;
+            pl.slugcatStats.corridorClimbSpeedFac *= mode.PearlHeldSpeed;
         }
     }
     //bad coding practice, will fix later
@@ -607,7 +639,7 @@ public static class CTPGameHooks
             {
                 byte myTeam = gamemode.PlayerTeams[OnlineManager.mePlayer];
                 string denPos = gamemode.hasSpawnedIn
-                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), Plugin.Options.RespawnCloseness.Value)
+                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), gamemode.ShelterRespawnCloseness)
                     : gamemode.TeamShelters[myTeam];
                 gamemode.hasSpawnedIn = true;
 
