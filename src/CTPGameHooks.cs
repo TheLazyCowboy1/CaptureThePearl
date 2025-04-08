@@ -99,7 +99,7 @@ public static class CTPGameHooks
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
         chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
 
-        spectateButtonHook = new Hook(typeof(SpectatorOverlay.PlayerButton).GetConstructors()[0], PlayerButton_ctor);
+        spectateButtonHook = new Hook(typeof(SpectatorOverlay).GetMethod(nameof(SpectatorOverlay.Update)), SpectatorOverlay_Update);
 
         playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.Draw)), OnlinePlayerDisplay_Draw);
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
@@ -267,13 +267,16 @@ public static class CTPGameHooks
         return opo;
     }
 
-    private delegate void PlayerButton_ctor_orig(SpectatorOverlay.PlayerButton self, SpectatorOverlay menu, OnlinePlayer player, OnlinePhysicalObject opo, Vector2 pos, bool canKick);
-    private static void PlayerButton_ctor(PlayerButton_ctor_orig orig, SpectatorOverlay.PlayerButton self, SpectatorOverlay menu, OnlinePlayer player, OnlinePhysicalObject opo, Vector2 pos, bool canKick)
+    private delegate void SpectatorOverlay_Update_orig(SpectatorOverlay self);
+    private static void SpectatorOverlay_Update(SpectatorOverlay_Update_orig orig, SpectatorOverlay self)
     {
-        orig(self, menu, player, opo, pos, canKick);
+        orig(self);
 
-        if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.OnMyTeam(player))
-            self.button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
+        foreach (var button in self.playerButtons)
+        {
+            if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.OnMyTeam(button.player))
+                button.button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
+        }
     }
 
     private static List<AbstractCreature> CreaturesToAbstractize = new();
