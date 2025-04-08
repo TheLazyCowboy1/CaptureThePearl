@@ -128,7 +128,7 @@ public static class RandomShelterFilter
 
     public static string[] ALTERNATIVE_SHELTERS = new string[] //used if there aren't enough shelters for every team
     {
-        "WSKB_C07", //extra Sunlit Port rooms to act as shelters
+        "WSKB_C06", //extra Sunlit Port rooms to act as shelters
         "WSKB_C15"
     };
 

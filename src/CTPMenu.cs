@@ -34,6 +34,7 @@ public class CTPMenu : StoryOnlineMenu
 
     private static string lastRegion = "SU";
     private string newSessionText = "NEW SESSION";
+    private string clientDescription = "ERROR LOADING LOBBY: PLEASE WAIT";
 
     public CTPMenu(ProcessManager manager) : base(manager)
     {
@@ -50,7 +51,12 @@ public class CTPMenu : StoryOnlineMenu
         //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
         if (OnlineManager.lobby.isOwner) //messes up client menu
         {
-            for (int k = 0; k < slugcatPages.Count; k++) this.pages.Remove(this.slugcatPages[k]);
+            for (int k = 0; k < slugcatPages.Count; k++)
+            {
+                slugcatPages[k]?.RemoveSprites(); //otherwise can leave annoying remnants
+                this.pages.Remove(this.slugcatPages[k]);
+                slugcatPages[k] = null;
+            }
             slugcatPages.Clear();
             redIsDead = false;
             artificerIsDead = false;
@@ -90,9 +96,6 @@ public class CTPMenu : StoryOnlineMenu
 
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
-            if (RegionDropdownBox == null)
-                SetupRegionDropdown();
-
             UpdateConfigs();
 
             //Update region dropdown list
@@ -112,11 +115,15 @@ public class CTPMenu : StoryOnlineMenu
         else //client update stuff
         {
             //Change background if host changes region or client changes slugcat
-            if ((storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex) && onlineDifficultyLabel != null)
+            if ((storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex))
             {
                 ChangePageBackground();
-                onlineDifficultyLabel.text = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+                clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+                if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
+                    RegionDropdownBox.AddItems(true, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
+            if (onlineDifficultyLabel != null)
+                onlineDifficultyLabel.text = clientDescription;
 
             //set custom settings
             RegionDropdownBox.value = storyGameMode.region;
@@ -129,6 +136,7 @@ public class CTPMenu : StoryOnlineMenu
     public void SetupRegionDropdown()
     {
         //if (!OnlineManager.lobby.isOwner) return;
+        RainMeadow.RainMeadow.Debug("[CTP]: Setting up custom UI elements.");
 
         RegionDropdownBox = new(
                 regionConfig,
@@ -172,12 +180,11 @@ public class CTPMenu : StoryOnlineMenu
 
     public void UpdateConfigs()
     {
-        storyGameMode.region = RegionDropdownBox.value;
-
         try
         {
-            if (Int32.TryParse(TeamUpdown.value, out int teams)) gameMode.NumberOfTeams = (byte)teams;
-            if (Int32.TryParse(TimerUpdown.value, out int timer)) gameMode.TimerLength = timer;
+            storyGameMode.region = RegionDropdownBox.value;
+            if (TeamUpdown.value != gameMode.NumberOfTeams.ToString() && Int32.TryParse(TeamUpdown.value, out int teams)) gameMode.NumberOfTeams = (byte)teams;
+            if (TimerUpdown.value != gameMode.TimerLength.ToString() && Int32.TryParse(TimerUpdown.value, out int timer)) gameMode.TimerLength = timer;
             gameMode.SpawnCreatures = CreatureCheckbox.value == "true";
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
@@ -185,10 +192,10 @@ public class CTPMenu : StoryOnlineMenu
 
     public override void ShutDownProcess()
     {
-        base.ShutDownProcess();
-
         lastRegion = gameMode.region; //so that if we end a round, it tries to keep the same region selected
-        return;
+        UpdateConfigs();
+
+        base.ShutDownProcess();
     }
 
     private List<ListItem> GetRegionList(SlugcatStats.Name slugcat)

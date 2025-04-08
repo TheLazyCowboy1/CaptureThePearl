@@ -34,6 +34,7 @@ public static class CTPGameHooks
     public static Hook chatColourHook;
     public static Hook spectateButtonHook;
     public static Hook newOPOHook;
+    public static Hook resourceFeedHook;
     public static void ApplyHooks()
     {
         if (HooksApplied) return;
@@ -81,6 +82,7 @@ public static class CTPGameHooks
         On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
         On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
 
+        On.Player.ctor += Player_ctor;
         On.Oracle.Update += Oracle_Update;
         On.SSOracleBehavior.UnconciousUpdate += SSOracleBehavior_UnconciousUpdate;
         try
@@ -104,6 +106,7 @@ public static class CTPGameHooks
         //On.AbstractCreature.Realize += AbstractCreature_Realize;
         //On.AbstractCreature.RealizeInRoom += AbstractCreature_RealizeInRoom;
         //On.Creature.Update += Creature_Update;
+        resourceFeedHook = new(typeof(ResourceSubscription).GetConstructors()[0], ResourceSubscription_ctor);
 
         On.Weapon.HitThisObject += Weapon_HitThisObject;
         On.Player.Collide += Player_Collide;
@@ -154,6 +157,7 @@ public static class CTPGameHooks
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
 
+        On.Player.ctor -= Player_ctor;
         On.Oracle.Update -= Oracle_Update;
         On.SSOracleBehavior.UnconciousUpdate -= SSOracleBehavior_UnconciousUpdate;
         IteratorUnconsciousHook?.Undo();
@@ -172,6 +176,7 @@ public static class CTPGameHooks
         //On.AbstractCreature.Realize -= AbstractCreature_Realize;
         //On.AbstractCreature.RealizeInRoom -= AbstractCreature_RealizeInRoom;
         //On.Creature.Update -= Creature_Update;
+        resourceFeedHook?.Undo();
 
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
         On.Player.Collide -= Player_Collide;
@@ -191,6 +196,42 @@ public static class CTPGameHooks
         return null;
     }
 
+    //give each player a spear and a rock
+    private static void Player_ctor(On.Player.orig_ctor orig, Player self, AbstractCreature abstractCreature, World world)
+    {
+        orig(self, abstractCreature, world);
+
+        try
+        {
+            if (self.IsLocal())
+            {
+                //spawn a spear
+                var abSpear = new AbstractSpear(world, null, abstractCreature.pos, world.game.GetNewID(), false);
+                abstractCreature.Room.AddEntity(abSpear);
+                abSpear.RealizeInRoom();
+
+                //spawn a rock
+                var abRock = new AbstractPhysicalObject(world, AbstractPhysicalObject.AbstractObjectType.Rock, null, abstractCreature.pos, world.game.GetNewID());
+                abstractCreature.Room.AddEntity(abRock);
+                abRock.RealizeInRoom();
+
+                //attempt to grab them
+                self.Grab(abSpear.realizedObject, 0, 0, Creature.Grasp.Shareability.CanNotShare, 0, false, true);
+                self.Grab(abRock.realizedObject, 1, 0, Creature.Grasp.Shareability.CanNotShare, 0, false, true);
+            }
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+    }
+
+    //sync world state less often
+    private delegate void ResourceSubscription_ctor_orig(ResourceSubscription self, OnlineResource resource, OnlinePlayer player);
+    private static void ResourceSubscription_ctor(ResourceSubscription_ctor_orig orig, ResourceSubscription self, OnlineResource resource, OnlinePlayer player)
+    {
+        orig(self, resource, player);
+
+        if (self.basecooldown > 0 && resource is WorldSession)
+            self.basecooldown = 11; //sync WorldSession half as often as normal, to slightly reduce lag
+    }
 
     private delegate OnlinePhysicalObject OnlinePhysicalObject_NewFromApo_ctor(AbstractPhysicalObject apo);
     private static OnlinePhysicalObject OnlinePhysicalObject_NewFromApo(OnlinePhysicalObject_NewFromApo_ctor orig, AbstractPhysicalObject apo)

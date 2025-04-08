@@ -164,10 +164,9 @@ public static class MeadowHooks
         if (ret != null || OnlineManager.lobby == null)
             return ret;
 
-        //if (rid.Contains('_') && )
-        if (rid.Contains("_")
-            && OnlineManager.lobby.worldSessions.TryGetValue(rid.Substring(0, rid.IndexOf('_')), out var ws)
-            && ws.roomSessions.TryGetValue(rid.Substring(rid.IndexOf('_') + 1), out var room))
+        if (rid.Contains('_')
+            && OnlineManager.lobby.worldSessions.TryGetValue(rid.Substring(0, rid.IndexOf('_')/2), out var ws)
+            && ws.roomSessions.TryGetValue(rid.Substring(rid.IndexOf('_')/2), out var room))
             return room;
         if (OnlineManager.lobby.worldSessions.TryGetValue(rid, out var r)) return r;
 
