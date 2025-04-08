@@ -555,22 +555,21 @@ public class CTPGameMode : StoryGameMode
     //can be used to prevent spawning creatures
     public override bool ShouldLoadCreatures(RainWorldGame game, WorldSession worldSession)
     {
-        //return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
-        return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
+        return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
+        //return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
     }
     public override bool ShouldSyncAPOInWorld(WorldSession ws, AbstractPhysicalObject apo)
     {
-        if (apo is AbstractCreature ac)
-            return ac.state is PlayerState; //the only creature to sync in world is PLAYERS
+        //if (apo is AbstractCreature ac)
+            //return ac.state is PlayerState; //the only creature to sync in world is PLAYERS
 
         return base.ShouldSyncAPOInWorld(ws, apo);
     }
     public override bool ShouldSyncAPOInRoom(RoomSession rs, AbstractPhysicalObject apo)
     {
-        if (apo is AbstractCreature ac)
-        {
-            return ShouldRealizeCreature(ac) && base.ShouldSyncAPOInRoom(rs, apo);
-        }
+        //if (apo is AbstractCreature ac)
+            //return ShouldRealizeCreature(ac) && base.ShouldSyncAPOInRoom(rs, apo);
+
         return base.ShouldSyncAPOInRoom(rs, apo);
     }
     //don't sync pearls that aren't team pearls
@@ -589,8 +588,14 @@ public class CTPGameMode : StoryGameMode
     //Check if someone else has already realized this creature. If so, skip realizing/registering it for now.
     public bool ShouldRealizeCreature(AbstractCreature ac)
     {
+        return true;
         if (ac.state is PlayerState) return true; //realize players, duh
-        return !OnlineManager.recentEntities.Any(kvp => kvp.Key.id == ac.ID.number && kvp.Value is OnlineCreature oc && oc.realized && !oc.isMine);
+        return !OnlineManager.recentEntities.Values.Any(
+            ent => ent is OnlineCreature oc && oc.realized //find a realized creature
+            && (oc.abstractCreature.spawnDen == ac.spawnDen || oc.abstractCreature.ID.spawner == ac.ID.spawner)
+            //&& oc.TryGetData(out CreatureSpawnData data) && (data.spawner == ac.ID.spawner || data.spawnDen == ac.spawnDen) //that already occupies this spawner
+            //&& oc.TryGetData(out CreatureSpawnData data) && (data.spawner == ac.ID.spawner) //that already occupies this spawner
+            );
     }
 
     public override void FilterItems(Room room)

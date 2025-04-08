@@ -9,6 +9,7 @@ using Menu;
 using System.Globalization;
 using RWCustom;
 using Menu.Remix.MixedUI.ValueTypes;
+using System.IO;
 
 namespace CaptureThePearl;
 
@@ -32,6 +33,7 @@ public class CTPMenu : StoryOnlineMenu
     public CTPGameMode gameMode => storyGameMode as CTPGameMode;
 
     private static string lastRegion = "SU";
+    private string newSessionText = "NEW SESSION";
 
     public CTPMenu(ProcessManager manager) : base(manager)
     {
@@ -43,7 +45,7 @@ public class CTPMenu : StoryOnlineMenu
         //remove "match save" option
         RemoveMenuObject(clientWantsToOverwriteSave);
         RemoveMenuObject(restartCheckbox);
-
+        newSessionText = Translate("NEW SESSION");
 
         //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
         if (OnlineManager.lobby.isOwner) //messes up client menu
@@ -104,18 +106,15 @@ public class CTPMenu : StoryOnlineMenu
             }
 
             //Set start text to always be "NEW SESSION"
-            startButton.menuLabel.text = Translate("NEW SESSION");
+            startButton.menuLabel.text = newSessionText;
 
         }
         else //client update stuff
         {
             //Change background if host changes region or client changes slugcat
-            if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex)
+            if ((storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex) && onlineDifficultyLabel != null)
             {
                 ChangePageBackground();
-            }
-            if (onlineDifficultyLabel != null)
-            {
                 onlineDifficultyLabel.text = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
 
@@ -177,33 +176,11 @@ public class CTPMenu : StoryOnlineMenu
 
         try
         {
-            //gameMode.NumberOfTeams = (byte)TeamUpdown.GetValueInt();
             if (Int32.TryParse(TeamUpdown.value, out int teams)) gameMode.NumberOfTeams = (byte)teams;
-            //gameMode.TimerLength = TimerUpdown.GetValueInt();
             if (Int32.TryParse(TimerUpdown.value, out int timer)) gameMode.TimerLength = timer;
-            //gameMode.SpawnCreatures = CreatureCheckbox.GetValueBool();
             gameMode.SpawnCreatures = CreatureCheckbox.value == "true";
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
-
-        //these configs have been giving me no end to trouble
-        /*byte teams = (byte)TeamUpdown.valueInt;
-        if (teams != null) gameMode.NumberOfTeams = teams;
-        int timer = TimerUpdown.valueInt;
-        if (timer != null) gameMode.TimerLength = timer;
-        bool creatures = CreatureCheckbox.GetValueBool();
-        if (creatures != null) gameMode.SpawnCreatures = creatures;*/
-
-        //teamConfig.BoxedValue = ValueConverter.ConvertToValue(TeamUpdown.value, teamConfig.settingType);
-        //gameMode.NumberOfTeams = (byte)teamConfig.Value;//(byte)TeamUpdown.GetValueInt();
-        //if (gameMode.NumberOfTeams < 2) gameMode.NumberOfTeams = 2;
-        //if (gameMode.NumberOfTeams > 10) gameMode.NumberOfTeams = 10;
-        //timerConfig.BoxedValue = ValueConverter.ConvertToValue(TimerUpdown.value, timerConfig.settingType);
-        //gameMode.TimerLength = timerConfig.Value;//TimerUpdown.GetValueInt();
-        //if (gameMode.TimerLength < 1) gameMode.TimerLength = 1;
-        //if (gameMode.TimerLength > 30) gameMode.TimerLength = 30;
-        //gameMode.SpawnCreatures = CreatureCheckbox.Checked;
-        //if (gameMode.SpawnCreatures) gameMode.SpawnCreatures = true;
     }
 
     public override void ShutDownProcess()
@@ -212,13 +189,6 @@ public class CTPMenu : StoryOnlineMenu
 
         lastRegion = gameMode.region; //so that if we end a round, it tries to keep the same region selected
         return;
-
-        //This is OBVIOUSLY not ideal: I want clients to be able to see the settings change AS the host changes them.
-        //But it just kept throwing errors. Very annoying. This works functionally, at least.
-        gameMode.NumberOfTeams = (byte)TeamUpdown.GetValueInt();
-        gameMode.TimerLength = TimerUpdown.GetValueInt();
-        gameMode.SpawnCreatures = CreatureCheckbox.GetValueBool();
-        RainMeadow.RainMeadow.Debug("[CTP]: Menu set configs!");
     }
 
     private List<ListItem> GetRegionList(SlugcatStats.Name slugcat)
@@ -228,6 +198,7 @@ public class CTPMenu : StoryOnlineMenu
         //var regions = Region.LoadAllRegions(slugcat);
         var regions = SlugcatStats.SlugcatStoryRegions(slugcat)
             .Union(SlugcatStats.SlugcatOptionalRegions(slugcat))
+            .Union(SpecialIncludedRegions(slugcat))
             .ToArray();
         for (int i = 0; i < regions.Length; i++)
         {
@@ -235,6 +206,36 @@ public class CTPMenu : StoryOnlineMenu
             list.Add(new(reg, Region.GetRegionFullName(reg, slugcat), i));
         }
         return list;
+    }
+    private string[] SpecialIncludedRegions(SlugcatStats.Name slugcat)
+    {
+        if (slugcat == Watcher.WatcherEnums.SlugcatStatsName.Watcher)
+            return new string[]
+            {
+                "WARB", //Salination
+                "WARC", //Fetid Glen
+                "WARD", //Cold Storage
+                "WARE", //Heat Ducts
+                "WARF", //Aether Ridge
+                //"WARG", //I haven't gone to WARG yet, but it might be promising...?
+                "WBLA", //Badlands
+                //"WDSR", //Drainage System - bad warp //probably too small and annoying
+                "WGWR", //bad Garbage Wastes
+                "WHIR", //bad Industrial Complex
+                //"WPTA" //Signal Spires //as cool as this would be... too spoilery, and it probably wouldn't be fun in practice
+                "WRFA", //Coral Caves
+                "WRFB", //Turbulent Pump
+                "WRRA", //Rusted Wrecks
+                "WSKA", //Torrential Railways
+                "WSKB", //Sunlit Port //NEEDS SPECIAL SHELTERS
+                "WSKC", //Stormy Coast
+                "WSKD", //Shrouded Coast
+                "WSUR", //bad Outskirts warp
+                "WTDA", //Torrid Desert
+                "WTDB", //Desolate Tract
+                "WVWA" //Verdant Waterways
+            };
+        return new string[0];
     }
 
     private FSprite backgroundSprite;
@@ -253,40 +254,66 @@ public class CTPMenu : StoryOnlineMenu
                 page.slugcatImage.RemoveSprites();
             }
 
-            var scene = new InteractiveMenuScene(this, page, Region.GetRegionLandscapeScene(storyGameMode.region));
-            scene.flatMode = true;
-            scene.BuildScene(); //rebuild, but flat this time!!!!!
-            if (ModManager.MSC) scene.BuildMSCScene();
-
-            if (scene.flatIllustrations.Count < 1)
-            {
-                RainMeadow.RainMeadow.Debug("Couldn't find flat illustration!!!");
-                return;
-            }
-
             backgroundSprite?.RemoveFromContainer(); //remove its old self from its container
 
-            backgroundSprite = scene.flatIllustrations[0].sprite;
-            scene.flatIllustrations.Clear(); //remove its references to my stuff!!!!
+            backgroundSprite = GetRegionSprite();
 
-            backgroundSprite.alpha = 0.5f;
-            backgroundSprite.scale = 0.7f;
-            backgroundSprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
-            backgroundSprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
+            if (backgroundSprite != null)
+            {
+                backgroundSprite.alpha = 0.5f;
+                backgroundSprite.scale *= 0.7f;
+                backgroundSprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
+                backgroundSprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
 
-            //page.Container.AddChild(backgroundSprite);
-            page.Container.AddChildAtIndex(backgroundSprite, 0);
+                //page.Container.AddChild(backgroundSprite);
+                page.Container.AddChildAtIndex(backgroundSprite, 0);
+
+                RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {storyGameMode.region}.");
+            }
+            else
+                RainMeadow.RainMeadow.Debug($"[CTP]: Failed to load background for {storyGameMode.region}.");
 
             previousRegion = storyGameMode.region;
             previousPageIdx = slugcatPageIndex;
-
-            RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {previousRegion}.");
         } 
         catch (Exception ex) 
         {
             RainMeadow.RainMeadow.Error(ex); 
         }
     }
+    private FSprite GetRegionSprite()
+    {
+        var scene = new InteractiveMenuScene(this, slugcatPages[slugcatPageIndex], Region.GetRegionLandscapeScene(storyGameMode.region));
+        scene.flatMode = true;
+        scene.BuildScene(); //rebuild, but flat this time!!!!!
+        if (ModManager.MSC) scene.BuildMSCScene();
+
+        FSprite sprite;
+        if (scene.flatIllustrations.Count < 1)
+        {
+            RainMeadow.RainMeadow.Debug("Couldn't find flat illustration for " + storyGameMode.region);
+
+            //mostly copied from WarpRegionIcon.AddGraphics
+            string reg = "warp-" + storyGameMode.region.ToLowerInvariant();
+            if (!Futile.atlasManager.DoesContainElementWithName(reg))
+            {
+                Texture2D tex = new Texture2D(0, 0);
+                string path = AssetManager.ResolveFilePath("illustrations/" + reg + ".png");
+                if (File.Exists(path))
+                {
+                    ImageConversion.LoadImage(tex, File.ReadAllBytes(path));
+                }
+                tex.filterMode = 0;
+                Futile.atlasManager.LoadAtlasFromTexture(reg, tex, false);
+            }
+            sprite = new FSprite(reg, true);
+            sprite.scale = 5f; //default size = 100x100; this makes it 500x500; then turns into 350x350
+            return sprite;
+        }
+        sprite = scene.flatIllustrations[0].sprite;
+        scene.flatIllustrations.Clear(); //remove its references to my stuff!!!!
+        return sprite;
+    } 
     /*
     //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
     public new void StartGame(SlugcatStats.Name storyGameCharacter)
@@ -327,6 +354,7 @@ public class CTPMenu : StoryOnlineMenu
         manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
     }
     */
+
     private static void RemoveMenuObject(MenuObject obj)
     {
         if (obj != null)

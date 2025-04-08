@@ -32,7 +32,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
             {
                 if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
 
-                var tempKeys = gamemode.PlayerTeams.Keys.ToArray();
+                /*var tempKeys = gamemode.PlayerTeams.Keys.ToArray();
                 foreach (var key in tempKeys)
                 {
                     if (key == null || gamemode.PlayerTeams[key] == null)
@@ -40,14 +40,10 @@ public class CTPLobbyData : OnlineResource.ResourceData
                         gamemode.PlayerTeams.Remove(key);
                         RainMeadow.RainMeadow.Debug($"[CTP]: Glitched player??? {key}");
                     }
-                }
-
-                //teamPlayers = new(gamemode.PlayerTeams.Keys.Select(p => p.inLobbyId).ToList());
+                }*/
                 teamPlayers = gamemode.PlayerTeams.Keys.Select(p => p.inLobbyId).ToArray();
-                //playerTeams = new(gamemode.PlayerTeams.Values.Select(p => (ushort)p).ToList());
                 playerTeams = gamemode.PlayerTeams.Values.ToArray();
                 teamShelters = gamemode.TeamShelters;
-                //teamPearls = new(gamemode.TeamPearls.Select(p => p == null ? new OnlineEntity.EntityId(0, OnlineEntity.EntityId.IdType.none, -1) : p.id).ToList());
                 teamPoints = gamemode.TeamPoints;
                 numberOfTeams = gamemode.NumberOfTeams;
                 timerLength = gamemode.TimerLength;

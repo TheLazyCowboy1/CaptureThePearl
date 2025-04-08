@@ -16,6 +16,7 @@ using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using UnityEngine;
 using Color = UnityEngine.Color;
 using Exception = System.Exception;
@@ -32,6 +33,7 @@ public static class CTPGameHooks
     public static Hook playerDisplayHook;
     public static Hook chatColourHook;
     public static Hook spectateButtonHook;
+    public static Hook newOPOHook;
     public static void ApplyHooks()
     {
         if (HooksApplied) return;
@@ -77,6 +79,7 @@ public static class CTPGameHooks
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
 
         On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
+        On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
 
         On.Oracle.Update += Oracle_Update;
         On.SSOracleBehavior.UnconciousUpdate += SSOracleBehavior_UnconciousUpdate;
@@ -98,14 +101,17 @@ public static class CTPGameHooks
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp += Player_ReleaseGrasp;
 
-        On.AbstractCreature.Realize += AbstractCreature_Realize;
-        On.AbstractCreature.RealizeInRoom += AbstractCreature_RealizeInRoom;
+        //On.AbstractCreature.Realize += AbstractCreature_Realize;
+        //On.AbstractCreature.RealizeInRoom += AbstractCreature_RealizeInRoom;
+        //On.Creature.Update += Creature_Update;
 
         On.Weapon.HitThisObject += Weapon_HitThisObject;
         On.Player.Collide += Player_Collide;
         On.Player.SlugSlamConditions += Player_SlugSlamConditions;
         On.Player.ClassMechanicsArtificer += Player_ClassMechanicsArtificer;
         On.Player.CanMaulCreature += Player_CanMaulCreature;
+
+        //newOPOHook = new(typeof(OnlinePhysicalObject).GetMethod(nameof(OnlinePhysicalObject.NewFromApo)), OnlinePhysicalObject_NewFromApo);
 
         HooksApplied = true;
     }
@@ -152,7 +158,8 @@ public static class CTPGameHooks
         On.SSOracleBehavior.UnconciousUpdate -= SSOracleBehavior_UnconciousUpdate;
         IteratorUnconsciousHook?.Undo();
 
-        On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;//Changed from a += to a -= since it may be a mistake -Pocky -thx
+        On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;
+        On.Room.TrySpawnWarpPoint -= Room_TrySpawnWarpPoint;
         On.GhostWorldPresence.SpawnGhost -= GhostWorldPresence_SpawnGhost;
         //On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
         if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
@@ -162,8 +169,9 @@ public static class CTPGameHooks
         On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
 
-        On.AbstractCreature.Realize -= AbstractCreature_Realize;
-        On.AbstractCreature.RealizeInRoom -= AbstractCreature_RealizeInRoom;
+        //On.AbstractCreature.Realize -= AbstractCreature_Realize;
+        //On.AbstractCreature.RealizeInRoom -= AbstractCreature_RealizeInRoom;
+        //On.Creature.Update -= Creature_Update;
 
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
         On.Player.Collide -= Player_Collide;
@@ -171,9 +179,29 @@ public static class CTPGameHooks
         On.Player.ClassMechanicsArtificer -= Player_ClassMechanicsArtificer;
         On.Player.CanMaulCreature -= Player_CanMaulCreature;
 
+        //newOPOHook?.Undo();
+
         HooksApplied = false;
     }
     #region Hooks, a lot of them
+
+    //Don't spawn Watcher warp points
+    private static Watcher.WarpPoint Room_TrySpawnWarpPoint(On.Room.orig_TrySpawnWarpPoint orig, Room self, PlacedObject po, bool saveInRegionState, bool skipIfInRegionState, bool deathPersistent)
+    {
+        return null;
+    }
+
+
+    private delegate OnlinePhysicalObject OnlinePhysicalObject_NewFromApo_ctor(AbstractPhysicalObject apo);
+    private static OnlinePhysicalObject OnlinePhysicalObject_NewFromApo(OnlinePhysicalObject_NewFromApo_ctor orig, AbstractPhysicalObject apo)
+    {
+        if (!(apo is AbstractCreature ac))
+            return orig(apo);
+
+        var opo = orig(apo);
+        opo.AddData(new CreatureSpawnData(ac));
+        return opo;
+    }
 
     private delegate void PlayerButton_ctor_orig(SpectatorOverlay.PlayerButton self, SpectatorOverlay menu, OnlinePlayer player, OnlinePhysicalObject opo, Vector2 pos, bool canKick);
     private static void PlayerButton_ctor(PlayerButton_ctor_orig orig, SpectatorOverlay.PlayerButton self, SpectatorOverlay menu, OnlinePlayer player, OnlinePhysicalObject opo, Vector2 pos, bool canKick)
@@ -184,20 +212,39 @@ public static class CTPGameHooks
             self.button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
     }
 
-
+    private static List<AbstractCreature> CreaturesToAbstractize = new();
     private static void AbstractCreature_Realize(On.AbstractCreature.orig_Realize orig, AbstractCreature self)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.ShouldRealizeCreature(self))
-            return; //don't realize it
-
-        //Ensure that the creature gets registered if it gets realized
-        if (self.GetOnlineCreature() == null)
-        {
-            var rs = self.Room.GetResource();
-            rs?.ApoEnteringRoom(self, self.pos);
-        }
+            //return; //don't realize it
+            CreaturesToAbstractize.Add(self);
 
         orig(self);
+    }
+
+    private static void Creature_Update(On.Creature.orig_Update orig, Creature self, bool eu)
+    {
+        orig(self, eu);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            var abCrit = self.abstractCreature;
+            bool hasOPO = self.abstractPhysicalObject.GetOnlineObject() != null;
+            bool shouldSync = gamemode.ShouldSyncAPOInRoom(null, abCrit);
+            if (hasOPO && !shouldSync)
+            {
+                RainMeadow.RainMeadow.Debug($"[CTP]: Abstracting unsynced realized creature: {abCrit}");
+                //self.abstractPhysicalObject.destroyOnAbstraction = true;
+                if (abCrit.abstractAI != null) abCrit.abstractAI.RealAI = null; //stupid creature controllers!!!!!
+                abCrit.Abstractize(self.abstractPhysicalObject.pos);
+                abCrit.realizedCreature = null;
+            }
+            else if (!hasOPO && shouldSync)
+            {
+                RainMeadow.RainMeadow.Debug($"[CTP]: Syncing unsynced realized creature: {self.abstractCreature}");
+                self.room.abstractRoom.GetResource()?.ApoEnteringRoom(self.abstractPhysicalObject, self.abstractPhysicalObject.pos);
+            }
+        }
     }
 
     private static void AbstractCreature_RealizeInRoom(On.AbstractCreature.orig_RealizeInRoom orig, AbstractCreature self)
@@ -551,6 +598,27 @@ public static class CTPGameHooks
                 }
             }
         }
+
+        //abstractize the necessary creatures
+        if (self.world != null)
+        {
+            foreach (var crit in CreaturesToAbstractize)
+            {
+                if (crit != null && crit.IsLocal())
+                {
+                    if (crit.abstractAI != null) crit.abstractAI.RealAI = null; //stupid creature controllers!!!!!
+                    crit.Abstractize(crit.pos);
+                    crit.realizedCreature = null;
+                    try
+                    {
+                        var opo = crit.GetOnlineObject();
+                        opo?.Deactivated(opo.primaryResource); //bye-bye creature!
+                    } catch { }
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Abstractized duplicate creature {crit}");
+                }
+            }
+        }
+        CreaturesToAbstractize.Clear();
     }
 
     //Sets game timer, basically
@@ -659,10 +727,11 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        if (self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver && OnlineManager.players.Count > 1) //don't do this in single-player
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && self.currentlyShowing == HUD.TextPrompt.InfoID.GameOver && OnlineManager.players.Count > 1) //don't do this in single-player
         {
             if (self.hud.owner is Player player
-                && player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength)
+                && (player.abstractPhysicalObject.world.rainCycle.timer >= player.abstractPhysicalObject.world.rainCycle.cycleLength
+                || !gamemode.lobby.clientSettings.Values.Any(cs => cs.inGame && !cs.isMine)))
             { //if respawns are not allowed, hide the game over screen
                 self.gameOverMode = false;
                 self.restartNotAllowed = 1; //and prevent restarts; use Rain Meadow's exit menu thingy instead
