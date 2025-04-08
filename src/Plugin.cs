@@ -21,7 +21,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.CaptureThePearl";
     public const string MOD_NAME = "Capture the Pearl";
-    public const string MOD_VERSION = "0.0.3";
+    public const string MOD_VERSION = "0.0.4";
 
     //made static for easy access. Hopefully this mod should never be initiated twice anyway...
     public static CTPConfigOptions Options;

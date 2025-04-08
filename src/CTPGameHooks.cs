@@ -1,5 +1,6 @@
 ﻿using CaptureThePearl.Helpers;
 using HUD;
+using Watcher;
 using Menu;
 using Menu.Remix.MixedUI;
 using Mono.WebBrowser;
@@ -78,6 +79,7 @@ public static class CTPGameHooks
 
         On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
+        IL.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
 
         On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
         On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
@@ -156,6 +158,7 @@ public static class CTPGameHooks
 
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
+        IL.PlayerGraphics.ApplyPalette -= PlayerGraphics_ApplyPalette;
 
         On.Player.ctor -= Player_ctor;
         On.Oracle.Update -= Oracle_Update;
@@ -191,9 +194,28 @@ public static class CTPGameHooks
     #region Hooks, a lot of them
 
     //Don't spawn Watcher warp points
-    private static Watcher.WarpPoint Room_TrySpawnWarpPoint(On.Room.orig_TrySpawnWarpPoint orig, Room self, PlacedObject po, bool saveInRegionState, bool skipIfInRegionState, bool deathPersistent)
+    private static WarpPoint Room_TrySpawnWarpPoint(On.Room.orig_TrySpawnWarpPoint orig, Room self, PlacedObject po, bool saveInRegionState, bool skipIfInRegionState, bool deathPersistent)
     {
         return null;
+    }
+
+    //Prevent the game from blacking out Watcher in CTP
+    private static void PlayerGraphics_ApplyPalette(ILContext il)
+    {
+        var c = new ILCursor(il);
+
+        if (c.TryGotoNext(
+            MoveType.After,
+            x => x.MatchLdsfld<ModManager>(nameof(ModManager.Watcher))
+            ))
+        {
+            c.Emit(Mono.Cecil.Cil.OpCodes.Pop); //pop that field
+            //c.Emit(Mono.Cecil.Cil.OpCodes.Ldfld, SlugcatStats.Name.Night); //replace it with Nightcat again
+            c.Emit(Mono.Cecil.Cil.OpCodes.Ldc_I4_0); //replace with false
+            RainMeadow.RainMeadow.Debug("[CTP]: IL hook succeeded.");
+        }
+        else
+            RainMeadow.RainMeadow.Error("[CTP]: IL hook failed.");
     }
 
     //give each player a spear and a rock
@@ -203,7 +225,8 @@ public static class CTPGameHooks
 
         try
         {
-            if (self.IsLocal())
+            if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.ArmPlayers
+                && self.IsLocal())
             {
                 //spawn a spear
                 var abSpear = new AbstractSpear(world, null, abstractCreature.pos, world.game.GetNewID(), false);

@@ -10,6 +10,7 @@ using System.Globalization;
 using RWCustom;
 using Menu.Remix.MixedUI.ValueTypes;
 using System.IO;
+using System.Threading.Tasks;
 
 namespace CaptureThePearl;
 
@@ -90,22 +91,34 @@ public class CTPMenu : StoryOnlineMenu
 
     private int previousPageIdx;
     private string previousRegion = "";
+    private Task dropdownUpdateTask;
     public override void Update()
     {
         base.Update();
 
+        //if (this.scroll != 0 || this.lastScroll != 0) return;
+
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
-            UpdateConfigs();
+            SetGreyedOutConfigs(false); //ensure the configs aren't greyed out; that'd be annoying
+            if (this.scroll == 0 && this.lastScroll == 0)
+                UpdateConfigs();
 
             //Update region dropdown list
-            if (slugcatPageIndex != previousPageIdx)
+            if (slugcatPageIndex != previousPageIdx && dropdownUpdateTask == null)
             {
-                var oldItems = RegionDropdownBox._itemList;
-                var newItems = GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber);
-                RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
-                RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
-                previousPageIdx = slugcatPageIndex;
+                dropdownUpdateTask = Task.Run(() =>
+                {
+                    var idx = slugcatPageIndex;
+                    var oldItems = RegionDropdownBox._itemList;
+                    var newItems = GetRegionList(slugcatPages[idx].slugcatNumber);
+                    RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
+                    RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                    previousPageIdx = idx;
+
+                    dropdownUpdateTask = null; //clear itself out
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Updating region dropdown list for {idx} - {slugcatPages[slugcatPageIndex].slugcatNumber}");
+                });
             }
 
             //Set start text to always be "NEW SESSION"
@@ -120,7 +133,7 @@ public class CTPMenu : StoryOnlineMenu
                 ChangePageBackground();
                 clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
                 if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
-                    RegionDropdownBox.AddItems(true, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+                    RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
             if (onlineDifficultyLabel != null)
                 onlineDifficultyLabel.text = clientDescription;
@@ -145,21 +158,18 @@ public class CTPMenu : StoryOnlineMenu
                 GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber)
                 );
         RegionDropdownBox.description = "\n\nThe region in which to play.";
-        RegionDropdownBox.greyedOut = !OnlineManager.lobby.isOwner;
         //RegionDropdownBox.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, RegionDropdownBox);
         pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Region:", RegionDropdownBox.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
 
         TeamUpdown = new(teamConfig, this.nextButton.pos + new Vector2(0, 350), 60);
         TeamUpdown.description = "\n\nThe number of teams to use. Make sure there are more shelters than teams!!";
-        TeamUpdown.greyedOut = !OnlineManager.lobby.isOwner;
         //TeamUpdown.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, TeamUpdown);
         pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Teams:", TeamUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
 
         TimerUpdown = new(timerConfig, this.nextButton.pos + new Vector2(100, 350), 60);
         TimerUpdown.description = "\n\nThe length of the game in minutes.";
-        TimerUpdown.greyedOut = !OnlineManager.lobby.isOwner;
         //TimerUpdown.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, TimerUpdown);
         pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Timer:", TimerUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
@@ -167,7 +177,6 @@ public class CTPMenu : StoryOnlineMenu
         //CreatureCheckbox = new(this, pages[0], this, this.nextButton.pos + new Vector2(100, 400), 100f, "Creatures?", "CreatureCheckbox");//new(creaturesConfig, this.nextButton.pos + new Vector2(0, 450));
         CreatureCheckbox = new(creaturesConfig, this.nextButton.pos + new Vector2(100, 400));
         CreatureCheckbox.description = "\n\nWhether creatures should spawn in the world.";
-        CreatureCheckbox.greyedOut = !OnlineManager.lobby.isOwner;
         //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
         //if (OnlineManager.lobby.isOwner) CreatureCheckbox.selectable = true;
         //pages[0].subObjects.Add(CreatureCheckbox);
@@ -176,6 +185,15 @@ public class CTPMenu : StoryOnlineMenu
         //CreatureCheckbox.OnChange += UpdateConfigs;
         new UIelementWrapper(tabWrapper, CreatureCheckbox);
         pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Creatures?", CreatureCheckbox.pos + new Vector2(-100f, 0), new Vector2(100f, 30f), false));
+
+        SetGreyedOutConfigs(!storyGameMode.lobby.isOwner);
+    }
+    public void SetGreyedOutConfigs(bool greyed)
+    {
+        RegionDropdownBox.greyedOut = greyed;
+        TeamUpdown.greyedOut = greyed;
+        TimerUpdown.greyedOut = greyed;
+        CreatureCheckbox.greyedOut = greyed;
     }
 
     public void UpdateConfigs()

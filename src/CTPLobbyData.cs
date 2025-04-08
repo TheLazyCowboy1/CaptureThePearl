@@ -50,6 +50,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 spawnCreatures = gamemode.SpawnCreatures;
                 respawnCloseness = gamemode.ShelterRespawnCloseness;
                 pearlHeldSpeed = gamemode.PearlHeldSpeed;
+                armPlayers = gamemode.ArmPlayers;
             }
             catch (Exception ex)
             {
@@ -81,6 +82,8 @@ public class CTPLobbyData : OnlineResource.ResourceData
         private float respawnCloseness;
         [OnlineField]
         private float pearlHeldSpeed;
+        [OnlineField]
+        private bool armPlayers;
 
         public override void ReadTo(OnlineResource.ResourceData data, OnlineResource resource)
         {
@@ -103,6 +106,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
 
                 gamemode.ShelterRespawnCloseness = respawnCloseness;
                 gamemode.PearlHeldSpeed = pearlHeldSpeed;
+                gamemode.ArmPlayers = armPlayers;
 
                 gamemode.TeamPoints = teamPoints;
 

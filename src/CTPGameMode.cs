@@ -28,6 +28,7 @@ public class CTPGameMode : StoryGameMode
     public bool ShouldMuteOtherTeams = false; //should probably be true by default; synced among everyone
     public float ShelterRespawnCloseness = Plugin.Options.RespawnCloseness.Value;
     public float PearlHeldSpeed = Plugin.Options.PearlHeldSpeed.Value;
+    public bool ArmPlayers = Plugin.Options.ArmPlayers.Value;
 
     //Non-synced variables
     public OnlinePhysicalObject[] teamPearls = new OnlinePhysicalObject[0];
