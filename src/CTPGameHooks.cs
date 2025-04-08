@@ -108,7 +108,7 @@ public static class CTPGameHooks
         //On.AbstractCreature.Realize += AbstractCreature_Realize;
         //On.AbstractCreature.RealizeInRoom += AbstractCreature_RealizeInRoom;
         //On.Creature.Update += Creature_Update;
-        resourceFeedHook = new(typeof(ResourceSubscription).GetConstructors()[0], ResourceSubscription_ctor);
+        //resourceFeedHook = new(typeof(ResourceSubscription).GetConstructors()[0], ResourceSubscription_ctor);
 
         On.Weapon.HitThisObject += Weapon_HitThisObject;
         On.Player.Collide += Player_Collide;
@@ -179,7 +179,7 @@ public static class CTPGameHooks
         //On.AbstractCreature.Realize -= AbstractCreature_Realize;
         //On.AbstractCreature.RealizeInRoom -= AbstractCreature_RealizeInRoom;
         //On.Creature.Update -= Creature_Update;
-        resourceFeedHook?.Undo();
+        //resourceFeedHook?.Undo();
 
         On.Weapon.HitThisObject -= Weapon_HitThisObject;
         On.Player.Collide -= Player_Collide;
