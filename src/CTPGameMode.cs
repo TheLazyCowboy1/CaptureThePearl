@@ -26,6 +26,9 @@ public class CTPGameMode : StoryGameMode
     public int TimerLength = 10; //length in minutes
     public bool SpawnCreatures = true;
     public bool ShouldMuteOtherTeams = false; //should probably be true by default; synced among everyone
+    public float ShelterRespawnCloseness = Plugin.Options.RespawnCloseness.Value;
+    public float PearlHeldSpeed = Plugin.Options.PearlHeldSpeed.Value;
+    public bool ArmPlayers = Plugin.Options.ArmPlayers.Value;
 
     //Non-synced variables
     public OnlinePhysicalObject[] teamPearls = new OnlinePhysicalObject[0];
@@ -136,7 +139,7 @@ public class CTPGameMode : StoryGameMode
                 int minCount = Int32.MaxValue;
                 for (byte i = 0; i < NumberOfTeams; i++)
                 {
-                    teamCounts[i] = PlayerTeams.Count(kvp => kvp.Value == i);
+                    teamCounts[i] = PlayerTeams.Count(kvp => kvp.Value == i) + TeamPoints[i]; //add TeamPoints, to favor losing teams with new players
                     minCount = Math.Min(minCount, teamCounts[i]);
                 }
                 //get the list of teams that are valid options (team has the least number of players)
@@ -553,14 +556,24 @@ public class CTPGameMode : StoryGameMode
     //can be used to prevent spawning creatures
     public override bool ShouldLoadCreatures(RainWorldGame game, WorldSession worldSession)
     {
-        //return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
-        return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
+        return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
+        //return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
     }
     public override bool ShouldSyncAPOInWorld(WorldSession ws, AbstractPhysicalObject apo)
     {
-        return apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl //sync if pearl
-            || (apo is AbstractCreature ac && ac.creatureTemplate.type == CreatureTemplate.Type.Slugcat); //or player
+        //if (apo is AbstractCreature ac)
+            //return ac.state is PlayerState; //the only creature to sync in world is PLAYERS
+
+        return base.ShouldSyncAPOInWorld(ws, apo);
     }
+    public override bool ShouldSyncAPOInRoom(RoomSession rs, AbstractPhysicalObject apo)
+    {
+        //if (apo is AbstractCreature ac)
+            //return ShouldRealizeCreature(ac) && base.ShouldSyncAPOInRoom(rs, apo);
+
+        return base.ShouldSyncAPOInRoom(rs, apo);
+    }
+    //don't sync pearls that aren't team pearls
     public override bool ShouldRegisterAPO(OnlineResource resource, AbstractPhysicalObject apo)
     {
         if (apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl
@@ -571,6 +584,19 @@ public class CTPGameMode : StoryGameMode
                 return false;
         }
         return base.ShouldRegisterAPO(resource, apo);
+    }
+
+    //Check if someone else has already realized this creature. If so, skip realizing/registering it for now.
+    public bool ShouldRealizeCreature(AbstractCreature ac)
+    {
+        return true;
+        if (ac.state is PlayerState) return true; //realize players, duh
+        return !OnlineManager.recentEntities.Values.Any(
+            ent => ent is OnlineCreature oc && oc.realized //find a realized creature
+            && (oc.abstractCreature.spawnDen == ac.spawnDen || oc.abstractCreature.ID.spawner == ac.ID.spawner)
+            //&& oc.TryGetData(out CreatureSpawnData data) && (data.spawner == ac.ID.spawner || data.spawnDen == ac.spawnDen) //that already occupies this spawner
+            //&& oc.TryGetData(out CreatureSpawnData data) && (data.spawner == ac.ID.spawner) //that already occupies this spawner
+            );
     }
 
     public override void FilterItems(Room room)

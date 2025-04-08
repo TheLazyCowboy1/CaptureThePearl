@@ -32,7 +32,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
             {
                 if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
 
-                var tempKeys = gamemode.PlayerTeams.Keys.ToArray();
+                /*var tempKeys = gamemode.PlayerTeams.Keys.ToArray();
                 foreach (var key in tempKeys)
                 {
                     if (key == null || gamemode.PlayerTeams[key] == null)
@@ -40,18 +40,17 @@ public class CTPLobbyData : OnlineResource.ResourceData
                         gamemode.PlayerTeams.Remove(key);
                         RainMeadow.RainMeadow.Debug($"[CTP]: Glitched player??? {key}");
                     }
-                }
-
-                //teamPlayers = new(gamemode.PlayerTeams.Keys.Select(p => p.inLobbyId).ToList());
+                }*/
                 teamPlayers = gamemode.PlayerTeams.Keys.Select(p => p.inLobbyId).ToArray();
-                //playerTeams = new(gamemode.PlayerTeams.Values.Select(p => (ushort)p).ToList());
                 playerTeams = gamemode.PlayerTeams.Values.ToArray();
                 teamShelters = gamemode.TeamShelters;
-                //teamPearls = new(gamemode.TeamPearls.Select(p => p == null ? new OnlineEntity.EntityId(0, OnlineEntity.EntityId.IdType.none, -1) : p.id).ToList());
                 teamPoints = gamemode.TeamPoints;
                 numberOfTeams = gamemode.NumberOfTeams;
                 timerLength = gamemode.TimerLength;
                 spawnCreatures = gamemode.SpawnCreatures;
+                respawnCloseness = gamemode.ShelterRespawnCloseness;
+                pearlHeldSpeed = gamemode.PearlHeldSpeed;
+                armPlayers = gamemode.ArmPlayers;
             }
             catch (Exception ex)
             {
@@ -79,6 +78,12 @@ public class CTPLobbyData : OnlineResource.ResourceData
         private int timerLength;
         [OnlineField]
         private bool spawnCreatures;
+        [OnlineField]
+        private float respawnCloseness;
+        [OnlineField]
+        private float pearlHeldSpeed;
+        [OnlineField]
+        private bool armPlayers;
 
         public override void ReadTo(OnlineResource.ResourceData data, OnlineResource resource)
         {
@@ -98,6 +103,10 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 gamemode.NumberOfTeams = numberOfTeams;
                 gamemode.TimerLength = timerLength;
                 gamemode.SpawnCreatures = spawnCreatures;
+
+                gamemode.ShelterRespawnCloseness = respawnCloseness;
+                gamemode.PearlHeldSpeed = pearlHeldSpeed;
+                gamemode.ArmPlayers = armPlayers;
 
                 gamemode.TeamPoints = teamPoints;
 

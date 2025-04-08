@@ -34,7 +34,7 @@ public static class RandomShelterChooser
     {
         RandomShelterFilter.FindValidShelterPositions(region, slugcat);
 
-        if (otherTeamShelters.Length >= RandomShelterFilter.shelterNames.Length)
+        if (otherTeamShelters.Length >= RandomShelterFilter.shelterNames.Length + RandomShelterFilter.secondaryShelterNames.Length)
             throw new IndexOutOfRangeException("There are more team shelters than there are shelters in the region!!!!");
 
         List<Vector2> otherShelterLocs = new();
@@ -42,14 +42,27 @@ public static class RandomShelterChooser
         {
             int idx = Array.IndexOf(RandomShelterFilter.shelterNames, s);
             if (idx >= 0) otherShelterLocs.Add(RandomShelterFilter.shelterPositions[idx]);
+            else
+            {
+                idx = Array.IndexOf(RandomShelterFilter.secondaryShelterNames, s);
+                if (idx >= 0) otherShelterLocs.Add(RandomShelterFilter.secondaryShelterPositions[idx]);
+            }
         }
 
         var unorderedShelters = RandomShelterFilter.shelterNames
-            .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]))
-            .Where(kvp => !otherTeamShelters.Contains(kvp.n)) //don't spawn in other teams' shelters!!!
-            .ToList();
+            .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]));
+
+        //optionally add secondary shelters, if necessary
+        if (otherTeamShelters.Length >= RandomShelterFilter.shelterNames.Length)
+            unorderedShelters = unorderedShelters.Concat(
+                    RandomShelterFilter.secondaryShelterNames
+                    .Select((n, i) => (n, RandomShelterFilter.secondaryShelterPositions[i]))
+                );
+        unorderedShelters = unorderedShelters
+            .Where(kvp => !otherTeamShelters.Contains(kvp.n)); //don't spawn in other teams' shelters!!!
+
         //manual sort... :(
-        List<(string, float)> orderedShelters = new(unorderedShelters.Count);
+        List<(string, float)> orderedShelters = new(unorderedShelters.Count());
         foreach (var s in unorderedShelters)
         {
             float score = MIN_DISTANCE(s.Item2, otherShelterLocs) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
@@ -99,7 +112,8 @@ public static class RandomShelterFilter
         "MS_S05",
         "MS_S06",
         "MS_S09",
-        "RM_S04" //top of the Rot; mostly inaccessible
+        "RM_S04", //top of the Rot; mostly inaccessible
+        "HI_WS01" //Hydroponics shelter
     };
 
     public static string[] PENALIZED_SHELTERS = new string[] //shelters that should be used ONLY as a last resort
@@ -110,6 +124,13 @@ public static class RandomShelterFilter
         "SS_S04", //near SS_UW gate; again: long, linear path
         "GW_S09", //near SH gate; again: far removed; guarded by a scav toll
         "VS_S02" //near SL gate; way too far away from other shelters
+    };
+
+    public static string[] ALTERNATIVE_SHELTERS = new string[] //used if there aren't enough shelters for every team
+    {
+        //"WSKB_C06", //this one spawns inside a wall, sadly
+        "WSKB_C05", //my 4th choice of room... the C07 drops you into the void, 06 and 12 is in a wall; 15 is literally the big middle room
+        "WSKB_C15" //extra Sunlit Port rooms to act as shelters
     };
 
     public static string[] BLOCKED_ROOMS = new string[] //this needs to get moved to another file
@@ -127,11 +148,15 @@ public static class RandomShelterFilter
         "SB_D06", //gives access to the Depths
         "SB_F03", //the ravine; over-powered for Saint, who can climb up it easily
         "RM_D07", //above RM_AI; mostly inaccessible
-        "RM_CORE" //grants access to the core
+        "RM_CORE", //grants access to the core
+        "HI_W02" //Watcher entrance to Hydroponics
     };
 
     public static string[] shelterNames = new string[0];
     public static Vector2[] shelterPositions = new Vector2[0];
+
+    public static string[] secondaryShelterNames = new string[0];
+    public static Vector2[] secondaryShelterPositions = new Vector2[0];
 
     private static string lastSearchedRegion = "";
     private static SlugcatStats.Name lastSearchedSlugcat = null;
@@ -146,16 +171,20 @@ public static class RandomShelterFilter
 
         //get region shelter list
         var shelters = FindRegionShelters(filePath, slugcat.value);
+        var shelters2 = ALTERNATIVE_SHELTERS.Where(s => s.StartsWith(region)).ToList();
 
         //blacklist unaccessible shelters
         BlacklistShelters(shelters, filePath, slugcat.value);
-
-        shelterNames = shelters.ToArray();
+        BlacklistShelters(shelters2, filePath, slugcat.value);
+        //shelterNames = shelters.ToArray();
 
         //get map positions
         string mapPath = FindMapFile(region, slugcat.value);
         if (!File.Exists(mapPath)) throw new FileNotFoundException($"Failed to find map file for {region}");
         shelterPositions = FindShelterPositions(shelters, mapPath);
+        shelterNames = shelters.ToArray();
+        secondaryShelterPositions = FindShelterPositions(shelters2, mapPath);
+        secondaryShelterNames = shelters2.ToArray();
 
         lastSearchedRegion = region;
         lastSearchedSlugcat = slugcat;
@@ -233,7 +262,6 @@ public static class RandomShelterFilter
 
         string[] lines = File.ReadAllLines(path);
 
-        bool roomStartFound = false;
         foreach (string line in lines)
         {
             if (string.IsNullOrWhiteSpace(line)) continue;
@@ -254,7 +282,17 @@ public static class RandomShelterFilter
                 shelterLocs[idx] = new Vector2(x, y);
         }
 
-        return shelterLocs;
+        //blacklist shelters that weren't found
+        for (int i = shelterLocs.Length-1; i > 0; i--)
+        {
+            if (shelterLocs[i] == null)
+            {//if location not found
+                RainMeadow.RainMeadow.Error("[CTP]: Could not find location of shelter " + shelterNames[i]);
+                shelterNames.RemoveAt(i);
+            }
+        }
+
+        return shelterLocs.Where(vec => vec != null).ToArray();
     }
 
     private static string FindRegionFile(string region)
