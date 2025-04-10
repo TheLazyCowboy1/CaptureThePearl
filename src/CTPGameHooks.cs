@@ -96,6 +96,9 @@ public static class CTPGameHooks
         } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         On.GhostWorldPresence.SpawnGhost += GhostWorldPresence_SpawnGhost;
+        //On.World.SpawnGhost += World_SpawnGhost;
+        On.Watcher.SpinningTop.ctor += SpinningTop_ctor;
+        On.GhostWorldPresence.ctor_World_GhostID_int += GhostWorldPresence_ctor_World_GhostID_int;
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
         chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
 
@@ -168,6 +171,9 @@ public static class CTPGameHooks
         On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;
         On.Room.TrySpawnWarpPoint -= Room_TrySpawnWarpPoint;
         On.GhostWorldPresence.SpawnGhost -= GhostWorldPresence_SpawnGhost;
+        //On.World.SpawnGhost -= World_SpawnGhost;
+        On.Watcher.SpinningTop.ctor -= SpinningTop_ctor;
+        On.GhostWorldPresence.ctor_World_GhostID_int -= GhostWorldPresence_ctor_World_GhostID_int;
         //On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
         if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
         playerDisplayHook?.Undo();
@@ -343,6 +349,14 @@ public static class CTPGameHooks
                     pearl.apo.world.game.GetStorySession.AddNewPersistentTracker(pearl.apo); //this automatically checks if it's already added
                 }
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+            }
+
+            //remove trackers for non-CTP pearls
+            for (int i = self.mapData.objectTrackers.Count - 1; i >= 0; i--)
+            {
+                var tracker = self.mapData.objectTrackers[i];
+                if (!gamemode1.teamPearls.Any(p => p?.apo?.ID == tracker?.obj?.ID))
+                    self.removeTracker(tracker); //if it's not in the team pearls list, remove it
             }
         }
 
@@ -621,6 +635,34 @@ public static class CTPGameHooks
         return false;//No ghosts, not even ghost hunches
     }
 
+    //Watcher ghost prevention shenanigans
+    private static void GhostWorldPresence_ctor_World_GhostID_int(On.GhostWorldPresence.orig_ctor_World_GhostID_int orig, GhostWorldPresence self, World world, GhostWorldPresence.GhostID ghostID, int spinningTopSpawnId)
+    {
+        try //mark this ghost as already encountered
+        {
+            var encounterList = world.game.GetStorySession.saveState.deathPersistentSaveData.spinningTopEncounters;
+            if (!encounterList.Contains(spinningTopSpawnId))
+                encounterList.Add(spinningTopSpawnId);
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+
+        orig(self, world, ghostID, spinningTopSpawnId);
+    }
+
+    //Watcher ghost shenanigans continued...
+    private static void World_SpawnGhost(On.World.orig_SpawnGhost orig, World self)
+    {
+        //literally just do nothing
+        self.spinningTopPresences.Clear(); //just in case
+    }
+    //It is so unnecessarily hard to prevent the echo from spawning... how about I just immediately despawn it once it spawns, lol?
+    private static void SpinningTop_ctor(On.Watcher.SpinningTop.orig_ctor orig, SpinningTop self, Room room, PlacedObject placedObject, GhostWorldPresence worldGhost)
+    {
+        orig(self, room, placedObject, worldGhost);
+
+        self.slatedForDeletetion = true; //bye-bye, Spinning Top!
+    }
+
     //Update gamemode for clients
     //ALSO check if the game should end as the host
     private static void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
@@ -764,7 +806,13 @@ public static class CTPGameHooks
             save.loaded = true;
             save.redExtraCycles = false;
             save.initiatedInGameVersion = 0;
+
             save.theGlow = true; //make players glow; it's a nice convenience!
+            var ghosts = save.deathPersistentSaveData.ghostsTalkedTo.Keys;
+            foreach (var key in ghosts)
+            {
+                save.deathPersistentSaveData.ghostsTalkedTo[key] = 2; //disable ghost signals and ghosts; pretend we talked to all of them
+            }
 
             //get den pos
             /*string denPos = gamemode.lobby.isOwner
@@ -946,18 +994,17 @@ public static class CTPGameHooks
         self.buoyancy = 1.5f; //hopefully this is enough...?
 
         //ALSO destroy if there's already a team pearl of this color, or if it can't be a team pearl
-        if (CTPGameMode.IsCTPGameMode(out var gamemode)) {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && self.IsLocal()) { //don't destroy others' pearls
             int team = CTPGameMode.PearlIdxToTeam(self.AbstractPearl.dataPearlType.index);
             var opo = abstractPhysicalObject.GetOnlineObject();
-            if (team < 0 || team >= gamemode.NumberOfTeams || (gamemode.teamPearls[team] != null && gamemode.teamPearls[team] != opo))
+            if (team < 0 || team >= gamemode.NumberOfTeams
+                || (gamemode.teamPearls[team] != null && gamemode.teamPearls[team] != opo))
             {
                 //destroy the pearl
                 try { CTPGameMode.DestroyPearl(ref opo); } catch { }
-                try
-                {
-                    self?.AllGraspsLetGoOfThisObject(true);
-                    abstractPhysicalObject.Abstractize(abstractPhysicalObject.pos);
-                    abstractPhysicalObject.Destroy();
+                try {
+                    var abPearl = self.AbstractPearl;
+                    CTPGameMode.DestroyPearl(ref abPearl);
                 } catch { }
             }
         }

@@ -130,7 +130,9 @@ public static class RandomShelterFilter
     {
         //"WSKB_C06", //this one spawns inside a wall, sadly
         "WSKB_C05", //my 4th choice of room... the C07 drops you into the void, 06 and 12 is in a wall; 15 is literally the big middle room
-        "WSKB_C15" //extra Sunlit Port rooms to act as shelters
+        "WSKB_C15", //extra Sunlit Port rooms to act as shelters
+        "WSKB_C08",
+        "WSUR_A02" //Crumbling Fringes room
     };
 
     public static string[] BLOCKED_ROOMS = new string[] //this needs to get moved to another file

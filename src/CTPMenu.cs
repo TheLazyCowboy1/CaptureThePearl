@@ -34,12 +34,19 @@ public class CTPMenu : StoryOnlineMenu
     public CTPGameMode gameMode => storyGameMode as CTPGameMode;
 
     private static string lastRegion = "SU";
+    private static SlugcatStats.Name lastSlugcat = null;
     private string newSessionText = "NEW SESSION";
     private string clientDescription = "ERROR LOADING LOBBY: PLEASE WAIT";
 
     public CTPMenu(ProcessManager manager) : base(manager)
     {
         RainMeadow.RainMeadow.Debug("[CTP]: Setting up menu");
+
+        if (lastSlugcat != null) //set the page to the one I previously started on
+        {
+            int idx = this.slugcatColorOrder.IndexOf(lastSlugcat);
+            if (idx >= 0) this.slugcatPageIndex = idx;
+        }
 
         tabWrapper = new MenuTabWrapper(this, pages[0]);
         pages[0].subObjects.Add(tabWrapper);
@@ -81,7 +88,7 @@ public class CTPMenu : StoryOnlineMenu
         //add region dropdowns
         regionConfig = new(storyGameMode.region == null ? lastRegion : storyGameMode.region);
         teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4)); //cap at 4 teams
-        timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 30));
+        timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 60));
         creaturesConfig = new(gameMode.SpawnCreatures);
         SetupRegionDropdown();
 
@@ -96,15 +103,10 @@ public class CTPMenu : StoryOnlineMenu
     {
         base.Update();
 
-        //if (this.scroll != 0 || this.lastScroll != 0) return;
-
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
-            SetGreyedOutConfigs(false); //ensure the configs aren't greyed out; that'd be annoying
-            if (this.scroll == 0 && this.lastScroll == 0)
-                UpdateConfigs();
-
             //Update region dropdown list
+            //  made into a Task because apparently it is very slow (why??) and it was restarting while still active (HOW????)
             if (slugcatPageIndex != previousPageIdx && dropdownUpdateTask == null)
             {
                 dropdownUpdateTask = Task.Run(() =>
@@ -116,10 +118,14 @@ public class CTPMenu : StoryOnlineMenu
                     RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
                     previousPageIdx = idx;
 
-                    dropdownUpdateTask = null; //clear itself out
                     RainMeadow.RainMeadow.Debug($"[CTP]: Updating region dropdown list for {idx} - {slugcatPages[slugcatPageIndex].slugcatNumber}");
+                    dropdownUpdateTask = null; //clear itself out
                 });
             }
+
+            SetGreyedOutConfigs(dropdownUpdateTask != null); //grey out configs if they're being reset; otherwise ensure not greyed out
+            if (this.scroll == 0 && this.lastScroll == 0 && dropdownUpdateTask == null) //don't ask; just trust
+                UpdateConfigs();
 
             //Set start text to always be "NEW SESSION"
             startButton.menuLabel.text = newSessionText;
@@ -132,6 +138,8 @@ public class CTPMenu : StoryOnlineMenu
             {
                 ChangePageBackground();
                 clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+
+                //ensure the new region selected is actually in my region list
                 if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
                     RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
@@ -210,7 +218,8 @@ public class CTPMenu : StoryOnlineMenu
 
     public override void ShutDownProcess()
     {
-        lastRegion = gameMode.region; //so that if we end a round, it tries to keep the same region selected
+        lastRegion = storyGameMode.region; //so that if we end a round, it tries to keep the same region selected
+        lastSlugcat = storyGameMode.currentCampaign; //tries to keep same slugcat
         UpdateConfigs();
 
         base.ShutDownProcess();
@@ -316,7 +325,7 @@ public class CTPMenu : StoryOnlineMenu
         FSprite sprite;
         if (scene.flatIllustrations.Count < 1)
         {
-            RainMeadow.RainMeadow.Debug("Couldn't find flat illustration for " + storyGameMode.region);
+            RainMeadow.RainMeadow.Debug("[CTP]: Couldn't find flat illustration for " + storyGameMode.region);
 
             //mostly copied from WarpRegionIcon.AddGraphics
             string reg = "warp-" + storyGameMode.region.ToLowerInvariant();

@@ -21,6 +21,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
     }
 
     //vars to sync go in CTPGameMode
+    public static OnlineEntity.EntityId NullEntityID = new(ushort.MaxValue, OnlineEntity.EntityId.IdType.none, -1);
 
     private class CTPState : ResourceDataState
     {
@@ -51,6 +52,8 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 respawnCloseness = gamemode.ShelterRespawnCloseness;
                 pearlHeldSpeed = gamemode.PearlHeldSpeed;
                 armPlayers = gamemode.ArmPlayers;
+
+                teamPearls = new(gamemode.teamPearls.Select(pearl => pearl == null ? NullEntityID : pearl.id).ToList());
             }
             catch (Exception ex)
             {
@@ -58,31 +61,31 @@ public class CTPLobbyData : OnlineResource.ResourceData
             }
         }
 
-        [OnlineField]
+        [OnlineField(group = "players")] //as annoying as these "group" flags are, they help shrink the data size
         private ushort[] teamPlayers;
         //private DynamicOrderedUshorts teamPlayers;
         //private DynamicOrderedPlayerIDs teamPlayers;
-        [OnlineField]
+        [OnlineField(group = "players")]
         private byte[] playerTeams;
         //private DynamicOrderedUshorts playerTeams;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private string[] teamShelters;
-        //[OnlineField]
+        [OnlineField(group = "pearls")]
         //private OnlinePhysicalObject[] teamPearls;
-        //private DynamicOrderedEntityIDs teamPearls; //this is really expensive, and I don't like it
-        [OnlineField]
+        private DynamicOrderedEntityIDs teamPearls;
+        [OnlineField(group = "points")]
         private int[] teamPoints;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private byte numberOfTeams;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private int timerLength;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private bool spawnCreatures;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private float respawnCloseness;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private float pearlHeldSpeed;
-        [OnlineField]
+        [OnlineField(group = "configs")]
         private bool armPlayers;
 
         public override void ReadTo(OnlineResource.ResourceData data, OnlineResource resource)
@@ -99,6 +102,19 @@ public class CTPLobbyData : OnlineResource.ResourceData
 
                 gamemode.TeamShelters = teamShelters;
                 //gamemode.TeamPearls = teamPearls.list.Select(id => id.id == -1 ? null : (id.FindEntity(true) as OnlinePhysicalObject)).ToArray();
+                if (gamemode.teamPearls.Length == teamPearls.list.Count)
+                {
+                    for (int i = 0; i < gamemode.teamPearls.Length; i++)
+                    {
+                        if (gamemode.teamPearls[i] != null && gamemode.teamPearls[i].id != teamPearls.list[i]
+                            && teamPearls.list[i].type != (byte)OnlineEntity.EntityId.IdType.none) //ignore null pearls
+                        {
+                            RainMeadow.RainMeadow.Debug("[CTP] Destroying pearl not recognized by the host for team " + i);
+                            CTPGameMode.DestroyPearl(ref gamemode.teamPearls[i]);
+                            gamemode.RemoveIndicator(i);
+                        }
+                    }
+                }
 
                 gamemode.NumberOfTeams = numberOfTeams;
                 gamemode.TimerLength = timerLength;
