@@ -1,9 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using RainMeadow;
 using RWCustom;
 using UnityEngine;
@@ -420,8 +418,10 @@ public class CTPGameMode : StoryGameMode
         RainMeadow.RainMeadow.Debug($"[CTP]: Team {team} scored a point! Points: {TeamPoints[team]}");
         TeamScoredMessage(team);
 
-        if (teamPearls[loser] != null)
-            DestroyPearl(ref teamPearls[loser]);
+        //if (teamPearls[loser] != null)
+        //DestroyPearl(ref teamPearls[loser]);
+        if (pearlIndicators[loser] != null)
+            RemoveIndicator(loser);
     }
 
     private int PearlInEnemyShelter(OnlinePhysicalObject opo, int team)

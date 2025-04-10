@@ -3,21 +3,13 @@ using HUD;
 using Watcher;
 using Menu;
 using Menu.Remix.MixedUI;
-using Mono.WebBrowser;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using RainMeadow;
-using RWCustom;
 using System;
 using System.Collections.Generic;
-using System.Drawing;
 using System.Linq;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Threading.Tasks;
-using System.Windows.Forms;
 using UnityEngine;
 using Color = UnityEngine.Color;
 using Exception = System.Exception;
@@ -349,6 +341,13 @@ public static class CTPGameHooks
                     pearl.apo.world.game.GetStorySession.AddNewPersistentTracker(pearl.apo); //this automatically checks if it's already added
                 }
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+                if (pearl != null)
+                {
+                    if (!self.mapData.objectTrackers.Any(t => pearl.apo.ID == t?.obj?.ID))
+                    { //if it's not currently being tracked, add its tracker
+                        self.addTracker(new (pearl.apo));
+                    }
+                }
             }
 
             //remove trackers for non-CTP pearls
@@ -440,10 +439,13 @@ public static class CTPGameHooks
             var porlIdx = CTPGameMode.PearlIdxToTeam(porl.AbstractPearl.dataPearlType.index);
             mode.TeamLostAPearl(porlIdx);
 
-            //modify speed
+            //un-modify speed //new = old - c*old + c == new - c = (1-c)old == (new - c) / (1 - c) = old
             self.slugcatStats.runspeedFac /= mode.PearlHeldSpeed;
+            self.slugcatStats.runspeedFac = (self.slugcatStats.runspeedFac - 1 + mode.PearlHeldSpeed) / mode.PearlHeldSpeed;
             self.slugcatStats.poleClimbSpeedFac /= mode.PearlHeldSpeed;
+            self.slugcatStats.poleClimbSpeedFac = (self.slugcatStats.poleClimbSpeedFac - 1 + mode.PearlHeldSpeed) / mode.PearlHeldSpeed;
             self.slugcatStats.corridorClimbSpeedFac /= mode.PearlHeldSpeed;
+            self.slugcatStats.corridorClimbSpeedFac = (self.slugcatStats.corridorClimbSpeedFac - 1 + mode.PearlHeldSpeed) / mode.PearlHeldSpeed;
         }
     }
     private static void PhysicalObject_Grabbed(On.PhysicalObject.orig_Grabbed orig, PhysicalObject self, Creature.Grasp grasp)
@@ -459,9 +461,12 @@ public static class CTPGameHooks
                     mode.TeamHasAPearl(mode.PlayerTeams[onPl], porlIdx);
             }
 
-            //modify speed
+            //modify speed //new = old + (1 - old) * c
+            pl.slugcatStats.runspeedFac += (1 - pl.slugcatStats.runspeedFac) * (1 - mode.PearlHeldSpeed); //move towards Survivor stats
             pl.slugcatStats.runspeedFac *= mode.PearlHeldSpeed;
+            pl.slugcatStats.poleClimbSpeedFac += (1 - pl.slugcatStats.poleClimbSpeedFac) * (1 - mode.PearlHeldSpeed); //move towards Survivor stats
             pl.slugcatStats.poleClimbSpeedFac *= mode.PearlHeldSpeed;
+            pl.slugcatStats.corridorClimbSpeedFac += (1 - pl.slugcatStats.corridorClimbSpeedFac) * (1 - mode.PearlHeldSpeed); //move towards Survivor stats
             pl.slugcatStats.corridorClimbSpeedFac *= mode.PearlHeldSpeed;
         }
     }
@@ -962,8 +967,31 @@ public static class CTPGameHooks
     }
 
     //Set all parts of the map to discovered and revealed
-    private static void Map_ctor(On.HUD.Map.orig_ctor orig, HUD.Map self, HUD.HUD hud, HUD.Map.MapData mapData)
+    private static void Map_ctor(On.HUD.Map.orig_ctor orig, Map self, HUD.HUD hud, Map.MapData mapData)
     {
+        //add shelters...?
+        try
+        {
+            if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            {
+                List<Map.MapData.ShelterData> newShelters = new(gamemode.NumberOfTeams);
+                foreach (string shel in gamemode.TeamShelters)
+                {
+                    if (!mapData.shelterData.Any(data => mapData.world.GetAbstractRoom(data.roomIndex).name == shel))
+                    {
+                        var room = mapData.world.GetAbstractRoom(shel);
+                        if (room != null)
+                        {
+                            newShelters.Add(new(room.index, (room.size * 10).ToVector2()));
+                        }
+                    }
+                }
+                if (newShelters.Count > 0) //add new shelter data
+                    mapData.shelterData = mapData.shelterData.Concat(newShelters).ToArray();
+            }
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+
         hud.rainWorld.setup.revealMap = true; //causes everything to be discovered
         orig(self, hud, mapData);
         self.revealAllDiscovered = true; //causes everything to be revealed
