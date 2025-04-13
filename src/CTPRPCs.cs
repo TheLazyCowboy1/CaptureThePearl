@@ -23,23 +23,31 @@ public static class CTPRPCs
             gamemode.EndGame();
     }
 
+    [RPCMethod(runDeferred = true)]
+    public static void MovePearl(byte team, WorldCoordinate coord)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            gamemode.MovePearl(team, coord);
+    }
+
+    /* Deprecated
     [RPCMethod]
     //Received only by the host
     public static void RegisterTeamPearl(RPCEvent rpc, OnlinePhysicalObject opo, byte team)
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Received request to register pearl {opo} for team {team}.");
-        if (!CTPGameMode.IsCTPGameMode(out var gamemode))
+        if (!CTPGameMode.IsCTPGameMode(out var gamemode) || opo?.apo == null)
         {
             rpc.from.QueueEvent(new GenericResult.Fail(rpc));
             return;
         }
-        if (team >= gamemode.teamPearls.Length || gamemode.teamPearls[team] != null)
+        if (team >= gamemode.TeamPearls.Length || gamemode.TeamPearls[team] != null)
         {
             //this pearl is already registered!!
             rpc.from.QueueEvent(new GenericResult.Fail(rpc));
             return;
         }
-        gamemode.teamPearls[team] = opo;
+        gamemode.TeamPearls[team] = opo;
         gamemode.AddIndicator(opo, team);
         rpc.from.QueueEvent(new GenericResult.Ok(rpc));
         RainMeadow.RainMeadow.Debug($"[CTP]: Accepted request to register pearl {opo} for team {team}.");
@@ -52,11 +60,12 @@ public static class CTPRPCs
         RainMeadow.RainMeadow.Debug($"[CTP]: Received request to destroy pearl {opo} for team {team}.");
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
         {
-            if (team < gamemode.teamPearls.Length && gamemode.teamPearls[team] == opo)
+            if (team < gamemode.TeamPearls.Length && gamemode.TeamPearls[team] == opo)
             {
-                CTPGameMode.DestroyPearl(ref gamemode.teamPearls[team]);
+                //CTPGameMode.DestroyPearl(ref gamemode.TeamPearls[team]);
                 gamemode.RemoveIndicator(team);
             }
         }
     }
+    */
 }

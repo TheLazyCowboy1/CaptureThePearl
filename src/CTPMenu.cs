@@ -90,7 +90,7 @@ public class CTPMenu : StoryOnlineMenu
         teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4)); //cap at 4 teams
         timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 60));
         creaturesConfig = new(gameMode.SpawnCreatures);
-        SetupRegionDropdown();
+        SetupCustomUIElements();
 
 
         //To-do: Dropdown for slugcats for host
@@ -154,7 +154,7 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
-    public void SetupRegionDropdown()
+    public void SetupCustomUIElements()
     {
         //if (!OnlineManager.lobby.isOwner) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Setting up custom UI elements.");
@@ -230,10 +230,11 @@ public class CTPMenu : StoryOnlineMenu
         List<ListItem> list = new();
         //var regions = Region.GetFullRegionOrder();
         //var regions = Region.LoadAllRegions(slugcat);
-        var regions = SlugcatStats.SlugcatStoryRegions(slugcat)
+        var regions = PrioritizeRegions(
+            SlugcatStats.SlugcatStoryRegions(slugcat)
             .Union(SlugcatStats.SlugcatOptionalRegions(slugcat))
-            .Union(SpecialIncludedRegions(slugcat))
-            .ToArray();
+            .Union(SpecialIncludedRegions(slugcat)));
+            //.ToArray();
         for (int i = 0; i < regions.Length; i++)
         {
             string reg = Region.GetProperRegionAcronym(SlugcatStats.SlugcatToTimeline(slugcat), regions[i]);
@@ -251,9 +252,9 @@ public class CTPMenu : StoryOnlineMenu
                 "WARD", //Cold Storage
                 "WARE", //Heat Ducts
                 "WARF", //Aether Ridge
-                //"WARG", //I haven't gone to WARG yet, but it might be promising...?
+                "WARG", //"Surface" or something, idk?
                 "WBLA", //Badlands
-                //"WDSR", //Drainage System - bad warp //probably too small and annoying
+                //"WDSR", //bad Drainage System //probably too small and annoying
                 "WGWR", //bad Garbage Wastes
                 "WHIR", //bad Industrial Complex
                 //"WPTA" //Signal Spires //as cool as this would be... too spoilery, and it probably wouldn't be fun in practice
@@ -270,6 +271,48 @@ public class CTPMenu : StoryOnlineMenu
                 "WVWA" //Verdant Waterways
             };
         return new string[0];
+    }
+    //Partially sorts the region list, in order to make more fun regions easier to find
+    private static string[] PrioritizeRegions(IEnumerable<string> en)
+    {
+        string[] regionPriorities = new string[]
+        {
+            "SU", //Outskirts
+            "HI", //High Industrial
+            "MS", //Bitter Aerie
+            "WSKB" //Sunlit Port
+        };
+        string[] discouragedRegions = new string[]
+        {
+            "DM", //Looks to the Moon, simply because it's way too big and would probably crash everyone with lag
+            "UW" //The Exterior, because it probably just won't be fun, lol
+        };
+
+        var list = en.ToList();
+
+        //start from the least important; grab the region (if it's in the list) and move it to the front
+        for (int i = regionPriorities.Length - 1; i >= 0; i--)
+        {
+            int idx = list.IndexOf(regionPriorities[i]);
+            if (idx > 0)
+            {
+                string r = list[idx];
+                list.RemoveAt(idx);
+                list.Insert(0, r); //insert at start
+            }
+        }
+        for (int i = discouragedRegions.Length - 1; i >= 0; i--)
+        {
+            int idx = list.IndexOf(discouragedRegions[i]);
+            if (idx > 0)
+            {
+                string r = list[idx];
+                list.RemoveAt(idx);
+                list.Add(r); //add to the end
+            }
+        }
+
+        return list.ToArray();
     }
 
     private FSprite backgroundSprite;

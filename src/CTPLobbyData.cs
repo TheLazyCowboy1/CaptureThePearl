@@ -31,9 +31,16 @@ public class CTPLobbyData : OnlineResource.ResourceData
         {
             try
             {
-                if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
+                if (!CTPGameMode.IsCTPGameMode(out var gamemode))
+                {
+                    teamPlayers = new ushort[0]; //fallbacks; otherwise game freezes if the gamemode doesn't exist
+                    playerTeams = new byte[0];
+                    teamShelters = new string[0];
+                    teamPoints = new int[0];
+                    return;
+                }
 
-                /*var tempKeys = gamemode.PlayerTeams.Keys.ToArray();
+                var tempKeys = gamemode.PlayerTeams.Keys.ToArray();
                 foreach (var key in tempKeys)
                 {
                     if (key == null || gamemode.PlayerTeams[key] == null)
@@ -41,7 +48,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
                         gamemode.PlayerTeams.Remove(key);
                         RainMeadow.RainMeadow.Debug($"[CTP]: Glitched player??? {key}");
                     }
-                }*/
+                }
                 teamPlayers = gamemode.PlayerTeams.Keys.Select(p => p.inLobbyId).ToArray();
                 playerTeams = gamemode.PlayerTeams.Values.ToArray();
                 teamShelters = gamemode.TeamShelters;
@@ -52,8 +59,6 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 respawnCloseness = gamemode.ShelterRespawnCloseness;
                 pearlHeldSpeed = gamemode.PearlHeldSpeed;
                 armPlayers = gamemode.ArmPlayers;
-
-                teamPearls = new(gamemode.teamPearls.Select(pearl => pearl == null ? NullEntityID : pearl.id).ToList());
             }
             catch (Exception ex)
             {
@@ -70,9 +75,6 @@ public class CTPLobbyData : OnlineResource.ResourceData
         //private DynamicOrderedUshorts playerTeams;
         [OnlineField(group = "configs")]
         private string[] teamShelters;
-        [OnlineField(group = "pearls")]
-        //private OnlinePhysicalObject[] teamPearls;
-        private DynamicOrderedEntityIDs teamPearls;
         [OnlineField(group = "points")]
         private int[] teamPoints;
         [OnlineField(group = "configs")]
@@ -101,20 +103,6 @@ public class CTPLobbyData : OnlineResource.ResourceData
                     gamemode.PlayerTeams.Add(OnlineManager.players.Find(player => player.inLobbyId == teamPlayers[i]), playerTeams[i]);
 
                 gamemode.TeamShelters = teamShelters;
-                //gamemode.TeamPearls = teamPearls.list.Select(id => id.id == -1 ? null : (id.FindEntity(true) as OnlinePhysicalObject)).ToArray();
-                if (gamemode.teamPearls.Length == teamPearls.list.Count)
-                {
-                    for (int i = 0; i < gamemode.teamPearls.Length; i++)
-                    {
-                        if (gamemode.teamPearls[i] != null && gamemode.teamPearls[i].id != teamPearls.list[i]
-                            && teamPearls.list[i].type != (byte)OnlineEntity.EntityId.IdType.none) //ignore null pearls
-                        {
-                            RainMeadow.RainMeadow.Debug("[CTP] Destroying pearl not recognized by the host for team " + i);
-                            CTPGameMode.DestroyPearl(ref gamemode.teamPearls[i]);
-                            gamemode.RemoveIndicator(i);
-                        }
-                    }
-                }
 
                 gamemode.NumberOfTeams = numberOfTeams;
                 gamemode.TimerLength = timerLength;

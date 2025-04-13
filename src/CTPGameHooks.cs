@@ -42,6 +42,7 @@ public static class CTPGameHooks
         On.RainCycle.Update += RainCycle_Update;
 
         On.Player.CanBeSwallowed += Player_CanBeSwallowed;
+        On.Player.Stun += Player_Stun;
         On.PlayerProgression.SaveToDisk += PlayerProgression_SaveToDisk;
         On.PlayerProgression.GetOrInitiateSaveState += PlayerProgression_GetOrInitiateSaveState;
         On.HUD.TextPrompt.Update += TextPrompt_Update;
@@ -68,6 +69,7 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
         On.DataPearl.ctor += DataPearl_ctor;
+        On.DataPearl.AbstractDataPearl.ctor += AbstractDataPearl_ctor;
 
         On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
@@ -129,6 +131,7 @@ public static class CTPGameHooks
         On.RainCycle.Update -= RainCycle_Update;
 
         On.Player.CanBeSwallowed -= Player_CanBeSwallowed;
+        On.Player.Stun -= Player_Stun;
         On.PlayerProgression.SaveToDisk -= PlayerProgression_SaveToDisk;
         On.PlayerProgression.GetOrInitiateSaveState -= PlayerProgression_GetOrInitiateSaveState;
         On.HUD.TextPrompt.Update -= TextPrompt_Update;
@@ -150,6 +153,7 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
         On.DataPearl.ctor -= DataPearl_ctor;
+        On.DataPearl.AbstractDataPearl.ctor -= AbstractDataPearl_ctor;
 
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
@@ -333,7 +337,7 @@ public static class CTPGameHooks
         if (CTPGameMode.IsCTPGameMode(out var gamemode1))
         {
             //ensure pearl icons show up, even in other rooms
-            foreach (var pearl in gamemode1.teamPearls)
+            foreach (var pearl in gamemode1.TeamPearls)
             {
                 if (pearl == null) continue; //don't add myself
                 try
@@ -354,7 +358,7 @@ public static class CTPGameHooks
             for (int i = self.mapData.objectTrackers.Count - 1; i >= 0; i--)
             {
                 var tracker = self.mapData.objectTrackers[i];
-                if (!gamemode1.teamPearls.Any(p => p?.apo?.ID == tracker?.obj?.ID))
+                if (!gamemode1.TeamPearls.Any(p => p?.apo?.ID == tracker?.obj?.ID))
                     self.removeTracker(tracker); //if it's not in the team pearls list, remove it
             }
         }
@@ -425,7 +429,7 @@ public static class CTPGameHooks
                     //add to creatureSymbol list to get cleared!
                     self.creatureSymbols.Add(symbol);
                 }
-                catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+                catch { }// (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
         }
     }
@@ -470,10 +474,11 @@ public static class CTPGameHooks
             pl.slugcatStats.corridorClimbSpeedFac *= mode.PearlHeldSpeed;
         }
     }
-    //bad coding practice, will fix later
-    public static void ChatLogOverlay_UpdateLogDisplay(Action<ChatLogOverlay> orig, ChatLogOverlay self)
+
+    private delegate void UpdateLogDisplay_orig(ChatLogOverlay self);
+    private static void ChatLogOverlay_UpdateLogDisplay(UpdateLogDisplay_orig orig, ChatLogOverlay self)
     {
-        if (CTPGameMode.IsCTPGameMode(out var mode))
+        /*if (CTPGameMode.IsCTPGameMode(out var mode))
         {
             if (self.chatHud.chatLog.Count > 0)
             {
@@ -562,7 +567,37 @@ public static class CTPGameHooks
                 }
             }
         }
-        else orig(self);
+        else orig(self);*/
+        orig(self);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            //only search through the last 10. Might very rarely miss some, but probably not
+            //for (int i = self.pages[0].subObjects.Count; i >= 0 && i > self.pages[0].subObjects.Count - 10; i--)
+            foreach (var obj in self.pages[0].subObjects)
+            {
+                //var obj = self.pages[0].subObjects[i];
+                if (obj is MenuLabel label)
+                {
+                    if (label.label.color == Futile.white)
+                    {
+                        //try to find corresponding chatLog
+                        //for (int j = self.chatHud.chatLog.Count; j >= 0 && j > self.chatHud.chatLog.Count - 10; j--)
+                        foreach (var (username, message) in self.chatHud.chatLog)
+                        {
+                            if (label.label.text == ": " + message)
+                            {
+                                var player = OnlineManager.players.Find(p => p.id.name == username);
+                                if (player != null && gamemode.PlayerTeams.TryGetValue(player, out byte team))
+                                    label.label.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(team));
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
     }
 
 
@@ -673,66 +708,73 @@ public static class CTPGameHooks
     private static void RainWorldGame_Update(On.RainWorldGame.orig_Update orig, RainWorldGame self)
     {
         orig(self);
-        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+
+        try
         {
-            gamemode.ClientGameTick();
-
-            //should game end?
-            if (gamemode.gameSetup && self.world != null && self.world.rainCycle != null
-                && self.world.rainCycle.timer >= self.world.rainCycle.cycleLength)
+            if (CTPGameMode.IsCTPGameMode(out var gamemode))
             {
-                //display no respawns message
-                if (self.world.rainCycle.timer == self.world.rainCycle.cycleLength)
-                {
-                    ChatLogManager.LogMessage("", "The game is ending! Respawns are now disabled.");
-                }
+                gamemode.ClientGameTick();
 
-                bool shouldEnd = self.world.rainCycle.timer >= self.world.rainCycle.cycleLength + 40 * 60; //1 minute hard limit
-                if (!shouldEnd)
+                //should game end?
+                if (gamemode.gameSetup && self.world != null && self.world.rainCycle != null
+                    && self.world.rainCycle.timer >= self.world.rainCycle.cycleLength)
                 {
-                    shouldEnd = true;
-                    foreach (var kvp in gamemode.lobby.playerAvatars) //search if any player is still alive
+                    //display no respawns message
+                    if (self.world.rainCycle.timer == self.world.rainCycle.cycleLength)
                     {
-                        var oc = kvp.Value.FindEntity(true) as OnlineCreature;
-                        if (oc != null && oc.abstractCreature.state.alive)
+                        ChatLogManager.LogMessage("", "The game is ending! Respawns are now disabled.");
+                    }
+
+                    bool shouldEnd = self.world.rainCycle.timer >= self.world.rainCycle.cycleLength + 40 * 60; //1 minute hard limit
+                    if (!shouldEnd)
+                    {
+                        shouldEnd = true;
+                        foreach (var kvp in gamemode.lobby.playerAvatars) //search if any player is still alive
                         {
-                            shouldEnd = false;
-                            break;
+                            var oc = kvp.Value.FindEntity(true) as OnlineCreature;
+                            if (oc != null && oc.abstractCreature.state.alive)
+                            {
+                                shouldEnd = false;
+                                break;
+                            }
+                        }
+                        if (shouldEnd) RainMeadow.RainMeadow.Debug("[CTP]: Ending game because no more players are still alive!");
+                    }
+                    if (shouldEnd)
+                    {
+                        gamemode.EndGame();
+                        foreach (var player in OnlineManager.players) //tell others the game is over
+                        {
+                            if (!player.isMe) player.InvokeOnceRPC(CTPRPCs.GameFinished);
                         }
                     }
-                    if (shouldEnd) RainMeadow.RainMeadow.Debug("[CTP]: Ending game because no more players are still alive!");
                 }
-                if (shouldEnd)
+            }
+
+            //abstractize the necessary creatures
+            if (self.world != null)
+            {
+                foreach (var crit in CreaturesToAbstractize)
                 {
-                    gamemode.EndGame();
-                    foreach (var player in OnlineManager.players) //tell others the game is over
+                    if (crit != null && crit.IsLocal())
                     {
-                        if (!player.isMe) player.InvokeOnceRPC(CTPRPCs.GameFinished);
+                        if (crit.abstractAI != null) crit.abstractAI.RealAI = null; //stupid creature controllers!!!!!
+                        crit.Abstractize(crit.pos);
+                        crit.realizedCreature = null;
+                        try
+                        {
+                            var opo = crit.GetOnlineObject();
+                            opo?.Deactivated(opo.primaryResource); //bye-bye creature!
+                        }
+                        catch { }
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Abstractized duplicate creature {crit}");
                     }
                 }
             }
-        }
+            CreaturesToAbstractize.Clear();
 
-        //abstractize the necessary creatures
-        if (self.world != null)
-        {
-            foreach (var crit in CreaturesToAbstractize)
-            {
-                if (crit != null && crit.IsLocal())
-                {
-                    if (crit.abstractAI != null) crit.abstractAI.RealAI = null; //stupid creature controllers!!!!!
-                    crit.Abstractize(crit.pos);
-                    crit.realizedCreature = null;
-                    try
-                    {
-                        var opo = crit.GetOnlineObject();
-                        opo?.Deactivated(opo.primaryResource); //bye-bye creature!
-                    } catch { }
-                    RainMeadow.RainMeadow.Debug($"[CTP]: Abstractized duplicate creature {crit}");
-                }
-            }
         }
-        CreaturesToAbstractize.Clear();
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
 
     //Sets game timer, basically
@@ -789,6 +831,19 @@ public static class CTPGameHooks
     {
         if (testObj is DataPearl) return false;
         return orig(self, testObj);
+    }
+
+    //Makes players release pearls when stunned
+    private static void Player_Stun(On.Player.orig_Stun orig, Player self, int st)
+    {
+        orig(self, st);
+
+        foreach (var grasp in self.grasps)
+        {
+            if (grasp?.grabbed is DataPearl)
+                self.ReleaseGrasp(grasp.graspUsed); //ensures it properly updates stats
+                //grasp.Release();
+        }
     }
 
     //Don't overwrite my save files with silly CTP stuff!!!
@@ -1023,18 +1078,31 @@ public static class CTPGameHooks
 
         //ALSO destroy if there's already a team pearl of this color, or if it can't be a team pearl
         if (CTPGameMode.IsCTPGameMode(out var gamemode) && self.IsLocal()) { //don't destroy others' pearls
-            int team = CTPGameMode.PearlIdxToTeam(self.AbstractPearl.dataPearlType.index);
-            var opo = abstractPhysicalObject.GetOnlineObject();
-            if (team < 0 || team >= gamemode.NumberOfTeams
-                || (gamemode.teamPearls[team] != null && gamemode.teamPearls[team] != opo))
+            if (!gamemode.CanBeTeamPearl(self.AbstractPearl))
             {
                 //destroy the pearl
-                try { CTPGameMode.DestroyPearl(ref opo); } catch { }
+                //try { CTPGameMode.DestroyPearl(ref opo); } catch { }
                 try {
-                    var abPearl = self.AbstractPearl;
-                    CTPGameMode.DestroyPearl(ref abPearl);
-                } catch { }
+                    CTPGameMode.DestroyPearl(self.AbstractPearl);
+                }
+                catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
+        }
+    }
+
+
+    private static void AbstractDataPearl_ctor(On.DataPearl.AbstractDataPearl.orig_ctor orig, DataPearl.AbstractDataPearl self, World world, AbstractPhysicalObject.AbstractObjectType objType, PhysicalObject realizedObject, WorldCoordinate pos, EntityID ID, int originRoom, int placedObjectIndex, PlacedObject.ConsumableObjectData consumableData, DataPearl.AbstractDataPearl.DataPearlType dataPearlType)
+    {
+        orig(self, world, objType, realizedObject, pos, ID, originRoom, placedObjectIndex, consumableData, dataPearlType);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && self.IsLocal() && !gamemode.CanBeTeamPearl(self))
+        {
+            //destroy the pearl
+            try
+            {
+                CTPGameMode.DestroyPearl(self);
+            }
+            catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
         }
     }
 
