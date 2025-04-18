@@ -15,6 +15,9 @@ public partial class CTPGameMode
     public long[] pearlUntouchedTicks = new long[0];
     public bool[] blockedScores = new bool[0];
 
+    //TODO: make this a config instead of a constant!
+    public const float UNTENDED_PEARL_RESPAWN_TIME = 5f; //5 seconds of map open
+
     public void SanitizeTracker()
     {
         ClearIndicators();
@@ -57,6 +60,7 @@ public partial class CTPGameMode
         if (pearlIndicators[team] != null) RemoveIndicator(team);
         pearlIndicators[team] = new PearlIndicator(hud, cam, opo.apo);
         hud.AddPart(pearlIndicators[team]);
+        RainMeadow.RainMeadow.Debug($"[CTP]: Added pearl indicator for {opo} for team {team}");
     }
     public void RemoveIndicator(int team)
     {
@@ -174,17 +178,19 @@ public partial class CTPGameMode
                     }
                     else if (pearlUntouchedTicks[i] >= 0) //everything is fine with the pearl
                     {
+                        var player = GetMyPlayer();
                         //manage pearl timer
                         if (UNTENDED_PEARL_RESPAWN_TIME <= 0 //if the mechanic is disabled
-                            || TeamPearls[i].apo.realizedObject == null //if it's not realized
-                            || TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0) //or is held by something
+                            && (player == null || TeamPearls[i].apo.pos.room != player.pos.room //not in the same room
+                            || (TeamPearls[i].apo.realizedObject != null && TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0))) //or is held by something
                             pearlUntouchedTicks[i] = 0; //reset timer
                                                         //else if (player.realizedObject != null && player.realizedObject.firstChunk.vel.sqrMagnitude <= 2f)
                         else
                         {
-                            var player = GetMyPlayer();
                             if (player.realizedObject is Player realPlayer && realPlayer.input[0].mp)
-                                pearlUntouchedTicks[i]++; //increment timer if the player's map is open
+                                pearlUntouchedTicks[i] += 5; //increment timer faster if the player's map is open
+                            else
+                                pearlUntouchedTicks[i]++;
                         }
                     }
                 }
@@ -280,7 +286,7 @@ public partial class CTPGameMode
                 //If the pearl is mine, yet destroyed //and in the same room
                 if (pearl != null && pearl.isMine)
                 {
-                    if (pearlUntouchedTicks[i] < 0)
+                    if (pearlUntouchedTicks[i] < 0 || pearlUntouchedTicks[i] > (UNTENDED_PEARL_RESPAWN_TIME + 1) * 200f)
                     {//forced abstraction
                         pearl.apo.Abstractize(pearl.apo.pos);
                         RainMeadow.RainMeadow.Debug($"[CTP] Manually abstractized newly acquired pearl {pearl} for team {i}");
@@ -308,7 +314,7 @@ public partial class CTPGameMode
                     string moveReason = "";
                     if (!pearl.realized || pearl.apo.realizedObject == null) moveReason = "null";
                     else if (pearl.apo.InDen) moveReason = "in a den";
-                    else if (UNTENDED_PEARL_RESPAWN_TIME > 0 && pearlUntouchedTicks[i] > UNTENDED_PEARL_RESPAWN_TIME * 40f) moveReason = "due for a manual reposition.";
+                    else if (UNTENDED_PEARL_RESPAWN_TIME > 0 && pearlUntouchedTicks[i] > UNTENDED_PEARL_RESPAWN_TIME * 200f) moveReason = "due for a manual reposition.";
                     else if (pearl.apo.pos.Tile.y < 0 || pearl.apo.pos.Tile.x < 0
                         || pearl.apo.pos.Tile.y > pearl.apo.Room.size.y || pearl.apo.pos.Tile.x > pearl.apo.Room.size.x)
                         moveReason = "out of bounds";

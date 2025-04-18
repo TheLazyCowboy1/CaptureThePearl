@@ -36,8 +36,6 @@ public partial class CTPGameMode : StoryGameMode
 
     public bool otherTeamsMuted = false; //whether players on other teams should be CURRENTLY muted
 
-    public const float UNTENDED_PEARL_RESPAWN_TIME = 5f; //5 seconds of map open
-
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
         pearlTrackerOwner = lobby.owner;

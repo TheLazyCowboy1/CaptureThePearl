@@ -62,7 +62,8 @@ public class PearlTrackingData : OnlineResource.ResourceData
                 if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
                 gamemode.pearlTrackerOwner = resource.owner;
 
-                if (resource.isOwner) return; //don't apply this for host!
+                //if (resource.isOwner) return; //don't apply this for host!
+                    //it might be transferring to me, though!!!
 
                 if (gamemode.TeamPearls.Length != teamPearls.list.Count)
                 { //reset TeamPearls list
