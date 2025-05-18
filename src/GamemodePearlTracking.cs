@@ -181,8 +181,8 @@ public partial class CTPGameMode
                         var player = GetMyPlayer();
                         //manage pearl timer
                         if (UNTENDED_PEARL_RESPAWN_TIME <= 0 //if the mechanic is disabled
-                            && (player == null || TeamPearls[i].apo.pos.room != player.pos.room //not in the same room
-                            || (TeamPearls[i].apo.realizedObject != null && TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0))) //or is held by something
+                            || player == null || TeamPearls[i].apo.pos.room != player.pos.room //not in the same room
+                            || (TeamPearls[i].apo.realizedObject != null && TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0)) //or is held by something
                             pearlUntouchedTicks[i] = 0; //reset timer
                                                         //else if (player.realizedObject != null && player.realizedObject.firstChunk.vel.sqrMagnitude <= 2f)
                         else
@@ -278,6 +278,8 @@ public partial class CTPGameMode
             return;
         }
 
+        EnsureTrackerExists(player.world);
+
         for (int i = 0; i < TeamPearls.Length; i++)
         {
             var pearl = TeamPearls[i];
@@ -288,7 +290,10 @@ public partial class CTPGameMode
                 {
                     if (pearlUntouchedTicks[i] < 0 || pearlUntouchedTicks[i] > (UNTENDED_PEARL_RESPAWN_TIME + 1) * 200f)
                     {//forced abstraction
+                        pearl.apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
                         pearl.apo.Abstractize(pearl.apo.pos);
+                        pearl.apo.LoseAllStuckObjects();
+                        pearl.apo.Room?.RemoveEntity(pearl.apo);
                         RainMeadow.RainMeadow.Debug($"[CTP] Manually abstractized newly acquired pearl {pearl} for team {i}");
                     }
 
@@ -337,6 +342,7 @@ public partial class CTPGameMode
                             pearl.apo.Room.MoveEntityOutOfDen(pearl.apo);
                             RainMeadow.RainMeadow.Debug($"[CTP] Moving pearl {pearl} out of den");
                         }
+                        pearl.apo.InDen = false; //just to doubly ensure it's not in a den
 
                         if (player.realizedObject == null || player.state.dead)
                         {
@@ -352,6 +358,8 @@ public partial class CTPGameMode
 
                         //respawn the pearl at my location; it belongs to me!!
                         //pearl.apo.pos = player.pos;
+                        pearl.apo.realizedObject.AllGraspsLetGoOfThisObject(true);
+                        pearl.apo.LoseAllStuckObjects();
                         pearl.apo.Move(player.pos);
                         /*if (!pearl.apo.Room.entities.Contains(pearl.apo))
                         {
@@ -364,7 +372,6 @@ public partial class CTPGameMode
                             RainMeadow.RainMeadow.Debug("[CTP]: Realized pearl");
                         }
 
-                        pearl.apo.realizedObject.AllGraspsLetGoOfThisObject(true);
                         pearl.apo.realizedObject.firstChunk.pos = player.realizedObject.firstChunk.pos; //set it to my location
                         pearl.apo.realizedObject.firstChunk.vel = new(0, 0);
 
@@ -383,6 +390,16 @@ public partial class CTPGameMode
                 }
             }
             catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+        }
+    }
+
+    public void EnsureTrackerExists(World world)
+    {
+        var ws = world.GetResource();
+        if (ws != null && !ws.TryGetData<PearlTrackingData>(out var _))
+        {
+            RainMeadow.RainMeadow.Error($"[CTP]: Reinstating PearlTrackingData for {world.name}");
+            ws.AddData(new PearlTrackingData());
         }
     }
 

@@ -41,10 +41,10 @@ public static class MeadowHooks
             typeof(ChatHud).GetConstructors()[0],
             ChatHud_ctor
             );
-        resourceFromID = new Hook(
+        /*resourceFromID = new Hook(
             typeof(OnlineManager).GetMethod(nameof(OnlineManager.ResourceFromIdentifier)),
             OnlineManager_ResourceFromIdentifier
-            );
+            );*/
 
         RainMeadow.RainMeadow.Debug("[CTP]: Applied Rain Meadow hooks");
     }
@@ -59,7 +59,9 @@ public static class MeadowHooks
         deathScreenRPCHook?.Undo();
         leaveLobbyHook?.Undo();
         chatMessageHook?.Undo();
+        playerNameMessageHook?.Undo();
         chatTutorialHook?.Undo();
+        //resourceFromID?.Undo();
     }
 
 
@@ -158,6 +160,7 @@ public static class MeadowHooks
 
     //patch Meadow's broken code...
     private delegate OnlineResource stringDel(string rid);
+    [Obsolete]
     private static OnlineResource OnlineManager_ResourceFromIdentifier(stringDel orig, string rid)
     {
         var ret = orig(rid);

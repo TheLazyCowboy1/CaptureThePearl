@@ -73,7 +73,7 @@ public static class CTPGameHooks
 
         On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
-        IL.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
+        //IL.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
 
         On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
         On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
@@ -157,7 +157,7 @@ public static class CTPGameHooks
 
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
-        IL.PlayerGraphics.ApplyPalette -= PlayerGraphics_ApplyPalette;
+        //IL.PlayerGraphics.ApplyPalette -= PlayerGraphics_ApplyPalette;
 
         On.Player.ctor -= Player_ctor;
         On.Oracle.Update -= Oracle_Update;
@@ -202,6 +202,7 @@ public static class CTPGameHooks
     }
 
     //Prevent the game from blacking out Watcher in CTP
+    [Obsolete]
     private static void PlayerGraphics_ApplyPalette(ILContext il)
     {
         var c = new ILCursor(il);
@@ -274,10 +275,10 @@ public static class CTPGameHooks
     {
         orig(self);
 
-        foreach (var button in self.playerButtons)
+        foreach (var button in self.PlayerButtons)
         {
             if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.OnMyTeam(button.player))
-                button.button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
+                button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
         }
     }
 
@@ -572,24 +573,25 @@ public static class CTPGameHooks
 
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
         {
-            //only search through the last 10. Might very rarely miss some, but probably not
-            //for (int i = self.pages[0].subObjects.Count; i >= 0 && i > self.pages[0].subObjects.Count - 10; i--)
+            int lastFoundIdx = -1; //optimization AND prevents miscoloring
             foreach (var obj in self.pages[0].subObjects)
             {
                 //var obj = self.pages[0].subObjects[i];
                 if (obj is MenuLabel label)
                 {
-                    if (label.label.color == Futile.white)
+                    if (label.label.color == Futile.white && label.label.text.StartsWith(": "))
                     {
                         //try to find corresponding chatLog
-                        //for (int j = self.chatHud.chatLog.Count; j >= 0 && j > self.chatHud.chatLog.Count - 10; j--)
-                        foreach (var (username, message) in self.chatHud.chatLog)
+                        //foreach (var (username, message) in self.chatHud.chatLog)
+                        for (int i = lastFoundIdx + 1; i < self.chatHud.chatLog.Count; i++)
                         {
+                            string username = self.chatHud.chatLog[i].Item1, message = self.chatHud.chatLog[i].Item2;
                             if (label.label.text == ": " + message)
                             {
                                 var player = OnlineManager.players.Find(p => p.id.name == username);
                                 if (player != null && gamemode.PlayerTeams.TryGetValue(player, out byte team))
                                     label.label.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(team));
+                                lastFoundIdx = i;
                                 break;
                             }
                         }

@@ -39,8 +39,12 @@ public class PearlTrackingData : OnlineResource.ResourceData
                     return;
                 }
 
-                if (gamemode.pearlTrackerOwner != null && !gamemode.pearlTrackerOwner.isMe)
+                if (gamemode.pearlTrackerOwner == null || !gamemode.pearlTrackerOwner.isMe)
+                {
                     RainMeadow.RainMeadow.Debug($"[CTP]: Received ownership of the game pearl tracking system from {gamemode.pearlTrackerOwner}");
+                    for (int i = 0; i < gamemode.TeamPearls.Length; i++)
+                        RainMeadow.RainMeadow.Debug($"Pearl {i} == {gamemode.TeamPearls[i]}");
+                }
                 gamemode.pearlTrackerOwner = OnlineManager.mePlayer;
                 gamemode.SetupTrackedPearls();
 
@@ -60,6 +64,13 @@ public class PearlTrackingData : OnlineResource.ResourceData
             try
             {
                 if (!CTPGameMode.IsCTPGameMode(out var gamemode)) return;
+
+                if (gamemode.pearlTrackerOwner != resource.owner)
+                {
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Ownership of the game pearl tracking system transferred from {gamemode.pearlTrackerOwner} to {resource.owner}");
+                    for (int i = 0; i < gamemode.TeamPearls.Length; i++)
+                        RainMeadow.RainMeadow.Debug($"Pearl {i} == {gamemode.TeamPearls[i]}");
+                }
                 gamemode.pearlTrackerOwner = resource.owner;
 
                 //if (resource.isOwner) return; //don't apply this for host!

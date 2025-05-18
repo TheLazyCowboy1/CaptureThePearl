@@ -162,7 +162,8 @@ public partial class CTPGameMode : StoryGameMode
     {
         base.LobbyTick(tick);
 
-        readyForGate = ReadyForGate.Closed; //ensure players can NEVER cross through gates
+        //readyForGate = ReadyForGate.Closed; //ensure players can NEVER cross through gates
+        base.readyForTransition = ReadyForTransition.Closed;
 
         //ClientGameTick(); //done here as well as update, just to be extra safe
 
