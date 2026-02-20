@@ -52,7 +52,7 @@ public class CTPMenu : StoryOnlineMenu
         pages[0].subObjects.Add(tabWrapper);
 
         //remove "match save" option
-        RemoveMenuObject(clientWantsToOverwriteSave);
+        //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been renamed, so I'm not sure what this is removing
         RemoveMenuObject(restartCheckbox);
         newSessionText = Translate("NEW SESSION");
 
@@ -143,8 +143,8 @@ public class CTPMenu : StoryOnlineMenu
                 if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
                     RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
-            if (onlineDifficultyLabel != null)
-                onlineDifficultyLabel.text = clientDescription;
+            //if (base.onlineDifficultyLabel != null)
+                //base.onlineDifficultyLabel.text = clientDescription;
 
             //set custom settings
             RegionDropdownBox.value = storyGameMode.region;

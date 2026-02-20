@@ -41,10 +41,6 @@ public static class MeadowHooks
             typeof(ChatHud).GetConstructors()[0],
             ChatHud_ctor
             );
-        /*resourceFromID = new Hook(
-            typeof(OnlineManager).GetMethod(nameof(OnlineManager.ResourceFromIdentifier)),
-            OnlineManager_ResourceFromIdentifier
-            );*/
 
         RainMeadow.RainMeadow.Debug("[CTP]: Applied Rain Meadow hooks");
     }
@@ -61,7 +57,6 @@ public static class MeadowHooks
         chatMessageHook?.Undo();
         playerNameMessageHook?.Undo();
         chatTutorialHook?.Undo();
-        //resourceFromID?.Undo();
     }
 
 
@@ -156,25 +151,6 @@ public static class MeadowHooks
         }
 
         orig(self, hud, camera);
-    }
-
-    //patch Meadow's broken code...
-    private delegate OnlineResource stringDel(string rid);
-    [Obsolete]
-    private static OnlineResource OnlineManager_ResourceFromIdentifier(stringDel orig, string rid)
-    {
-        var ret = orig(rid);
-        if (ret != null || OnlineManager.lobby == null)
-            return ret;
-
-        if (rid.Contains('_')
-            && OnlineManager.lobby.worldSessions.TryGetValue(rid.Substring(0, rid.IndexOf('_')/2), out var ws)
-            && ws.roomSessions.TryGetValue(rid.Substring(rid.IndexOf('_')/2), out var room))
-            return room;
-        if (OnlineManager.lobby.worldSessions.TryGetValue(rid, out var r)) return r;
-
-        RainMeadow.RainMeadow.Error("Resource ACTUALLY not found: " + rid);
-        return null;
     }
 
 }

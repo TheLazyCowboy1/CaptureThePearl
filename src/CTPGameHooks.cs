@@ -76,7 +76,8 @@ public static class CTPGameHooks
         //IL.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
 
         On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
-        On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
+        //On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
+        On.Room.TrySpawnWarpPoint_PlacedObject_bool += Room_TrySpawnWarpPoint;
 
         On.Player.ctor += Player_ctor;
         On.Oracle.Update += Oracle_Update;
@@ -165,7 +166,7 @@ public static class CTPGameHooks
         IteratorUnconsciousHook?.Undo();
 
         On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;
-        On.Room.TrySpawnWarpPoint -= Room_TrySpawnWarpPoint;
+        On.Room.TrySpawnWarpPoint_PlacedObject_bool -= Room_TrySpawnWarpPoint;
         On.GhostWorldPresence.SpawnGhost -= GhostWorldPresence_SpawnGhost;
         //On.World.SpawnGhost -= World_SpawnGhost;
         On.Watcher.SpinningTop.ctor -= SpinningTop_ctor;
@@ -196,7 +197,7 @@ public static class CTPGameHooks
     #region Hooks, a lot of them
 
     //Don't spawn Watcher warp points
-    private static WarpPoint Room_TrySpawnWarpPoint(On.Room.orig_TrySpawnWarpPoint orig, Room self, PlacedObject po, bool saveInRegionState, bool skipIfInRegionState, bool deathPersistent)
+    private static WarpPoint Room_TrySpawnWarpPoint(On.Room.orig_TrySpawnWarpPoint_PlacedObject_bool orig, Room self, PlacedObject po, bool saveInRegionState)
     {
         return null;
     }
@@ -343,7 +344,8 @@ public static class CTPGameHooks
                 if (pearl == null) continue; //don't add myself
                 try
                 {
-                    pearl.apo.world.game.GetStorySession.AddNewPersistentTracker(pearl.apo); //this automatically checks if it's already added
+                    World w = pearl.apo.world;
+                    w.game.GetStorySession.AddNewPersistentTracker(pearl.apo, w); //this automatically checks if it's already added
                 }
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
                 if (pearl != null)
