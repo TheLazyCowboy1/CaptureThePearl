@@ -5,7 +5,6 @@ using System.Text.RegularExpressions;
 using RainMeadow;
 using RWCustom;
 using UnityEngine;
-using static CaptureThePearl.PearlTrackingData;
 
 namespace CaptureThePearl;
 
@@ -38,7 +37,7 @@ public partial class CTPGameMode : StoryGameMode
 
     public CTPGameMode(Lobby lobby) : base(lobby)
     {
-        pearlTrackerOwner = lobby.owner;
+        //pearlTrackerOwner = lobby.owner;
     }
 
     public void SanitizeCTP()
@@ -169,12 +168,20 @@ public partial class CTPGameMode : StoryGameMode
 
         if (gameSetup && lobby.isOwner) //isOwner should always be true
         {
-            AssignPlayerTeams(); //add other players to the team if they join in; ensures team list is up to date
-
-            //ScorePoints(); //instead handled by SearchForPearls
-            //if (teamPearls.All(p => p == null))
-                //SpawnPearls(true); //can cause desyncs
+            HostTick();
         }
+    }
+
+    public void HostTick()
+    {
+        AssignPlayerTeams(); //add other players to the team if they join in; ensures team list is up to date
+
+        //ScorePoints(); //instead handled by SearchForPearls
+        //if (teamPearls.All(p => p == null))
+        //SpawnPearls(true); //can cause desyncs
+
+        SearchForPearls();
+        TestForScore();
     }
 
     public void ClientGameTick()
@@ -190,7 +197,7 @@ public partial class CTPGameMode : StoryGameMode
         //SearchForPearls();
         //SpawnPearls();
         RepositionPearls();
-        TestForScore();
+        //TestForScore();
 
         ManageIndicators();
 
@@ -200,7 +207,7 @@ public partial class CTPGameMode : StoryGameMode
     private int respawnCounter = 0;
     public void RespawnCreatures()
     {
-        if (SpawnCreatures && pearlTrackerOwner == OnlineManager.mePlayer)
+        if (SpawnCreatures && WorldOwner.isMe)
         {
             respawnCounter++;
             if (respawnCounter > 800) //once every 20 seconds
@@ -429,7 +436,7 @@ public partial class CTPGameMode : StoryGameMode
             && apo is DataPearl.AbstractDataPearl ap)
         {
             int idx = PearlIdxToTeam(ap.dataPearlType.index);
-            if (idx < 0 || idx >= TeamPearls.Length || (TeamPearls[idx] != null && TeamPearls[idx].apo != apo)) //this team pearl has already been registered!
+            if (idx < 0 || idx >= TeamPearls.Length)// || (TeamPearls[idx] != null && TeamPearls[idx].apo != apo)) //this team pearl has already been registered!
                 return false;
         }
         return base.ShouldRegisterAPO(resource, apo);
@@ -473,8 +480,8 @@ public partial class CTPGameMode : StoryGameMode
         base.ResourceAvailable(onlineResource);
         if (onlineResource is Lobby)
             onlineResource.AddData(new CTPLobbyData());
-        else if (onlineResource is WorldSession)
-            onlineResource.AddData(new PearlTrackingData());
+        //else if (onlineResource is WorldSession)
+            //onlineResource.AddData(new PearlTrackingData());
     }
 
     public override void PlayerLeftLobby(OnlinePlayer player)

@@ -59,6 +59,8 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 respawnCloseness = gamemode.ShelterRespawnCloseness;
                 pearlHeldSpeed = gamemode.PearlHeldSpeed;
                 armPlayers = gamemode.ArmPlayers;
+
+                teamPearls = gamemode.TeamPearls.Select(opo => opo == null ? NullEntityID : opo.id).ToArray();
             }
             catch (Exception ex)
             {
@@ -90,6 +92,9 @@ public class CTPLobbyData : OnlineResource.ResourceData
         [OnlineField(group = "configs")]
         private bool armPlayers;
 
+        [OnlineField(group = "pearls")]
+        private OnlineEntity.EntityId[] teamPearls;
+
         public override void ReadTo(OnlineResource.ResourceData data, OnlineResource resource)
         {
             try
@@ -113,6 +118,9 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 gamemode.ArmPlayers = armPlayers;
 
                 gamemode.TeamPoints = teamPoints;
+
+                //gamemode.TeamPearls = teamPearls.Select(id => (id != NullEntityID && OnlineManager.recentEntities.TryGetValue(id, out OnlineEntity ent)) ? (ent as OnlinePhysicalObject) : null).ToArray();
+                gamemode.TeamPearls = teamPearls.Select(id => id == NullEntityID ? null : id.FindEntity(true) as OnlinePhysicalObject).ToArray();
 
                 //ensure cannot join game unless I have been assigned a team
                 gamemode.changedRegions = !gamemode.PlayerTeams.ContainsKey(OnlineManager.mePlayer);

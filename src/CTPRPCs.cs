@@ -23,11 +23,11 @@ public static class CTPRPCs
             gamemode.EndGame();
     }
 
-    [RPCMethod(runDeferred = true)]
-    public static void MovePearl(byte team, WorldCoordinate coord)
+    [RPCMethod(runDeferred = true)] //defer just in case there's some sort of weird race condition where it tries to spawn before it's destroyed?
+    public static void SpawnPearl(byte team)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            gamemode.MovePearl(team, coord);
+            gamemode.SpawnPearl(team, gamemode.worldSession.world);
     }
 
     /* Deprecated

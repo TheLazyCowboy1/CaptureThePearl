@@ -9,7 +9,12 @@ public partial class CTPGameMode
 {
     //public TrackedPearl[] TrackedPearls = new TrackedPearl[0];
     public OnlinePhysicalObject[] TeamPearls = new OnlinePhysicalObject[0];
-    public OnlinePlayer pearlTrackerOwner = null;
+    //public OnlinePlayer pearlTrackerOwner = null;
+    //public OnlinePlayer worldOwner => lobby.overworld?.owner ?? lobby.owner; //worldSession owner if available; lobby owner otherwise
+    public OnlinePlayer WorldOwner => (lobby.overworld.worldSessions.TryGetValue(region, out WorldSession worldSes)
+        ? worldSes.owner
+        : lobby.overworld?.owner)
+        ?? lobby.owner; //final fallback condition
 
     public PearlIndicator[] pearlIndicators = new PearlIndicator[0];
     public long[] pearlUntouchedTicks = new long[0];
@@ -25,7 +30,7 @@ public partial class CTPGameMode
         //TrackedPearls = new TrackedPearl[0];
         TeamPearls = new OnlinePhysicalObject[0];
         pearlIndicators = new PearlIndicator[0];
-        pearlTrackerOwner = null;
+        //pearlTrackerOwner = null;
         pearlUntouchedTicks = new long[0];
         blockedScores = new bool[0];
     }
@@ -98,7 +103,10 @@ public partial class CTPGameMode
         ClearIndicators(); //the hud is being destroyed, so we'll have to re-add the indicators after respawning
     }
 
-    //only called by WorldSession owner
+    /// <summary>
+    /// HOST ONLY
+    /// </summary>
+    [Obsolete]
     public void SetupTrackedPearls()
     {
         if (TeamPearls.Length != TeamShelters.Length)
@@ -118,7 +126,7 @@ public partial class CTPGameMode
                 {
                     try
                     {
-                        SpawnPearl(i, player.world);
+                        TrySpawnPearl(i, player.world);
                     }
                     catch (Exception ex)
                     {
@@ -130,6 +138,9 @@ public partial class CTPGameMode
         }
     }
 
+    /// <summary>
+    /// HOST ONLY
+    /// </summary>
     public void TestForScore()
     {
         if (blockedScores.Length != TeamShelters.Length)
@@ -155,61 +166,121 @@ public partial class CTPGameMode
         {
             try
             {
-                if (TeamPearls[i] != null && TeamPearls[i].isMine)
+                if (TeamPearls[i] != null)// && TeamPearls[i].isMine)
                 {
                     int idx = PearlInEnemyShelter(TeamPearls[i], i);
-                    if (idx >= 0 && TeamPearls[i].apo.realizedObject != null && !blockedScores[i])
+                    if (idx >= 0)
                     {
-                        //if (pearlTrackerOwner != OnlineManager.mePlayer) //inform host
+                        if (!blockedScores[i])// && TeamPearls[i].apo.realizedObject != null)
+                        {
+                            //if (pearlTrackerOwner != OnlineManager.mePlayer) //inform host
                             //pearlTrackerOwner?.InvokeRPC(CTPRPCs.DestroyTeamPearl, TeamPearls[i], (byte)i);
-                        //DestroyPearl(ref TeamPearls[i]); //if it's in someone else's shelter... bye-bye!
-                        //RemoveIndicator(i);
-                        TeamScored(idx, i);
-                        //tell everyone that a point was scored!
-                        foreach (var p in OnlineManager.players)
-                        {
-                            if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx, (byte)i);
-                        }
-                        blockedScores[i] = true; //prevent this from happening multiple times before it gets moved
+                            //DestroyPearl(ref TeamPearls[i]); //if it's in someone else's shelter... bye-bye!
+                            //RemoveIndicator(i);
+                            TeamScored(idx, i);
+                            //tell everyone that a point was scored!
+                            foreach (var p in OnlineManager.players)
+                            {
+                                if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx, (byte)i);
+                            }
+                            blockedScores[i] = true; //prevent this from happening multiple times before it gets moved
 
-                        //respawn the pearl
-                        //SpawnPearls(true);
-                        RespawnTeamPearl(i);
-                    }
-                    else if (pearlUntouchedTicks[i] >= 0) //everything is fine with the pearl
-                    {
-                        var player = GetMyPlayer();
-                        //manage pearl timer
-                        if (UNTENDED_PEARL_RESPAWN_TIME <= 0 //if the mechanic is disabled
-                            || player == null || TeamPearls[i].apo.pos.room != player.pos.room //not in the same room
-                            || (TeamPearls[i].apo.realizedObject != null && TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0)) //or is held by something
-                            pearlUntouchedTicks[i] = 0; //reset timer
-                                                        //else if (player.realizedObject != null && player.realizedObject.firstChunk.vel.sqrMagnitude <= 2f)
-                        else
-                        {
-                            if (player.realizedObject is Player realPlayer && realPlayer.input[0].mp)
-                                pearlUntouchedTicks[i] += 5; //increment timer faster if the player's map is open
-                            else
-                                pearlUntouchedTicks[i]++;
+                            //respawn the pearl
+                            //SpawnPearls(true);
+                            //RespawnTeamPearl(i);
                         }
+
+                        TryDestroyPearl(i); //always destroy when in enemy shelters
                     }
                 }
-                else if (pearlUntouchedTicks[i] > 0) pearlUntouchedTicks[i] = 0;
             }
             catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
         }
     }
 
-    //Run by world-owner now, not by individual players
+    /// <summary>
+    /// HOST ONLY
+    /// </summary>
+    public void SearchForPearls()
+    {
+        //remove pearls that don't actually exist
+        for (int i = 0; i < TeamPearls.Length; i++)
+        {
+            if (TeamPearls[i] == null) continue;
+            var apo = TeamPearls[i].apo;
+            if (apo == null || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
+            {
+                RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
+                TeamPearls[i] = null; //the pearl doesn't actually exist
+            }
+        }
+
+        World world = worldSession.world;
+        //go through every room in the world (slow maybe? yeah; probably)
+        foreach (AbstractRoom room in world.abstractRooms)
+        {
+            if (room == null) continue;
+            //go through every entity in the room
+            foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
+            {
+                if (abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
+                if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                {
+                    DestroyPearl(abPearl);
+                    continue;
+                }
+                int team = PearlIdxToTeam(abPearl.dataPearlType.index);
+                if (TeamPearls[team] == null)
+                {
+                    TeamPearls[team] = abPearl.GetOnlineObject(); //need a team pearl = use this one
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Found a new pearl for team {team} in room {room.name}!");
+                }
+            }
+        }
+
+        //try to spawn pearls that are needed
+        for (byte i = 0; i < TeamPearls.Length; i++)
+        {
+            if (TeamPearls[i] != null) continue;
+            TrySpawnPearl(i, world);
+        }
+
+    }
+
+    /// <summary>
+    /// HOST ONLY
+    /// </summary>
+    public void TrySpawnPearl(byte team, World world)
+    {
+        RainMeadow.RainMeadow.Debug($"[CTP]: Trying to spawn pearl for team {team}");
+        AbstractRoom room = world.GetAbstractRoom(TeamShelters[team]);
+
+        OnlinePlayer owner = room.GetResource()?.owner ?? world.GetResource()?.owner ?? lobby.owner; //RoomSession owner first; otherwise WorldSession owner
+
+        if (owner.isMe)
+            SpawnPearl(team, world);
+        else if (owner == null)
+            RainMeadow.RainMeadow.Error("[CTP]: NO WORLD OWNER OR LOBBY OWNER OR ANYTHING WHAT HOW DID THIS HAPPEN");
+        else
+            owner.InvokeRPC(CTPRPCs.SpawnPearl, team);
+    }
+
+    //Run only by request of the host
     public void SpawnPearl(byte team, World world)
     {
-        var room = world.GetAbstractRoom(TeamShelters[team]);
-        var abPearl = new DataPearl.AbstractDataPearl(world, AbstractPhysicalObject.AbstractObjectType.DataPearl, null,
+        if (TeamPearls[team] != null)
+        {
+            RainMeadow.RainMeadow.Error($"[CTP]: Requested to spawn pearl for team {team}, but that pearl already exists!!!");
+            return;
+        }
+
+        AbstractRoom room = world.GetAbstractRoom(TeamShelters[team]);
+        DataPearl.AbstractDataPearl abPearl = new(world, AbstractPhysicalObject.AbstractObjectType.DataPearl, null,
             PearlSpawnCoord(room), world.game.GetNewID(), room.index,
             -1, null, new(DataPearl.AbstractDataPearl.DataPearlType.values.GetEntry(TeamToPearlIdx(team)), false));
 
         room.AddEntity(abPearl);
-        //abPearl.RealizeInRoom(); //I'm not sure if this will work...
+        abPearl.RealizeInRoom(); //I'm not sure if this will work...
 
         //TrackedPearls[team].pearl = abPearl.GetOnlineObject();
         TeamPearls[team] = abPearl.GetOnlineObject();
@@ -217,31 +288,25 @@ public partial class CTPGameMode
         RainMeadow.RainMeadow.Debug($"[CTP]: Spawned pearl {TeamPearls[team]} for team {team} in {world.name}");
     }
 
-    public void MovePearl(byte team, WorldCoordinate coord)
+    /// <summary>
+    /// HOST ONLY
+    /// </summary>
+    public void TryDestroyPearl(byte team)
     {
-        if (team >= 0 && team < TeamPearls.Length && TeamPearls[team] != null)
+        if (TeamPearls[team] == null)
         {
-            var pearl = TeamPearls[team].apo;TeamPearls[team].beingMoved = true; //this overrides Rain Meadow's sanity checks
-            pearl.realizedObject?.AllGraspsLetGoOfThisObject(true);
-            pearl.LoseAllStuckObjects();
-            pearl.Abstractize(coord);
-            RainMeadow.RainMeadow.Debug($"[CTP]: Moved team {team}'s pearl to {coord}");
-            TeamPearls[team].beingMoved = false;
+            RainMeadow.RainMeadow.Error($"[CTP]: Cannot destroy the pearl for team {team} because it is already destroyed.");
+            return;
         }
-    }
-    public void RespawnTeamPearl(byte team)
-    {
-        var pearl = TeamPearls[team].apo;
-        var coord = PearlSpawnCoord(pearl.world.GetAbstractRoom(TeamShelters[team]));
+        RainMeadow.RainMeadow.Debug($"[CTP]: Host trying to destroy pearl for team {team}.");
+        DestroyPearl(TeamPearls[team].apo as DataPearl.AbstractDataPearl);
+        //TeamPearls[team].Deregister();
+        //TeamPearls[team].Deactivated(TeamPearls[team].primaryResource); //used a while ago in my old implementation
+        TeamPearls[team] = null;
 
-        MovePearl(team, coord);
-        if (!TeamPearls[team].primaryResource.isOwner)
-        {
-            RainMeadow.RainMeadow.Debug($"[CTP]: Requesting world owner {TeamPearls[team].primaryResource.owner} to move the pearl to {coord}");
-            TeamPearls[team].primaryResource.owner.InvokeRPC(CTPRPCs.MovePearl, team, coord);
-        }
-        RainMeadow.RainMeadow.Debug($"[CTP]: Respawned pearl {TeamPearls[team]} for team {team}");
+        RemoveIndicator(team);
     }
+
     private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);
 
     public bool CanBeTeamPearl(DataPearl.AbstractDataPearl abPearl)
@@ -278,24 +343,44 @@ public partial class CTPGameMode
             return;
         }
 
-        EnsureTrackerExists(player.world);
+        //EnsureTrackerExists(player.world);
 
         for (int i = 0; i < TeamPearls.Length; i++)
         {
             var pearl = TeamPearls[i];
             try
             {
-                //If the pearl is mine, yet destroyed //and in the same room
-                if (pearl != null && pearl.isMine)
+                //manage pearl untouched timer
+                if (pearl == null)
+                    pearlUntouchedTicks[i] = 0;
+                else if (pearlUntouchedTicks[i] >= 0) //everything is fine with the pearl
                 {
-                    if (pearlUntouchedTicks[i] < 0 || pearlUntouchedTicks[i] > (UNTENDED_PEARL_RESPAWN_TIME + 1) * 200f)
+                    //manage pearl timer
+                    if (UNTENDED_PEARL_RESPAWN_TIME <= 0 //if the mechanic is disabled
+                        || player == null || TeamPearls[i].apo.pos.room != player.pos.room //not in the same room
+                        || (TeamPearls[i].apo.realizedObject != null && TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0)) //or is held by something
+                        pearlUntouchedTicks[i] = 0; //reset timer
+                                                    //else if (player.realizedObject != null && player.realizedObject.firstChunk.vel.sqrMagnitude <= 2f)
+                    else
+                    {
+                        if (player.realizedObject is Player realPlayer && realPlayer.input[0].mp)
+                            pearlUntouchedTicks[i] += 5; //increment timer faster if the player's map is open
+                        else
+                            pearlUntouchedTicks[i]++;
+                    }
+                }
+
+            //If the pearl is mine, yet destroyed //and in the same room
+            if (pearl != null && pearl.isMine)
+                {
+                    /*if (pearlUntouchedTicks[i] < 0 || pearlUntouchedTicks[i] > (UNTENDED_PEARL_RESPAWN_TIME + 1) * 200f)
                     {//forced abstraction
                         pearl.apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
                         pearl.apo.Abstractize(pearl.apo.pos);
                         pearl.apo.LoseAllStuckObjects();
                         pearl.apo.Room?.RemoveEntity(pearl.apo);
                         RainMeadow.RainMeadow.Debug($"[CTP] Manually abstractized newly acquired pearl {pearl} for team {i}");
-                    }
+                    }*/
 
                     if (pearlIndicators[i] == null && player.realizedObject == null)
                     {
@@ -379,7 +464,7 @@ public partial class CTPGameMode
                     }
                 }
                 //if the pearl exists only abstractly in my room, request it so I can realize it later
-                else if (pearl != null && !pearl.realized && player?.realizedObject != null && pearl.apo.pos.room == player.pos.room)
+                /*else if (pearl != null && !pearl.realized && player?.realizedObject != null && pearl.apo.pos.room == player.pos.room)
                 {
                     if (!pearl.isPending && !pearl.isTransfering)
                     {
@@ -387,21 +472,13 @@ public partial class CTPGameMode
                         pearl.Request();
                         pearlUntouchedTicks[i] = -1; //represents that this needs to be abstractized when possible
                     }
-                }
+                }*/
             }
             catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
         }
     }
 
-    public void EnsureTrackerExists(World world)
-    {
-        var ws = world.GetResource();
-        if (ws != null && !ws.TryGetData<PearlTrackingData>(out var _))
-        {
-            RainMeadow.RainMeadow.Error($"[CTP]: Reinstating PearlTrackingData for {world.name}");
-            ws.AddData(new PearlTrackingData());
-        }
-    }
+    public WorldSession worldSession => lobby.overworld.worldSessions.TryGetValue(region, out WorldSession worldSes) ? worldSes : null;
 
 
     //deprecated; archived:
