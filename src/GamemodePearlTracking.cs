@@ -175,7 +175,7 @@ public partial class CTPGameMode
             {
                 if (TeamPearls[i] == null) continue;
                 var apo = TeamPearls[i].apo;
-                if (apo == null || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
+                if (apo == null || apo.slatedForDeletion || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
                 {
                     RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
                     TeamPearls[i] = null; //the pearl doesn't actually exist
@@ -205,7 +205,7 @@ public partial class CTPGameMode
                 foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
                 {
                     if (abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
-                    if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                    if (!CanBeTeamPearl(abPearl) || abPearl.slatedForDeletion) //not a team pearl = destroy
                     {
                         DestroyPearl(abPearl);
                         continue;
@@ -290,13 +290,13 @@ public partial class CTPGameMode
             DestroyPearl(TeamPearls[team].apo as DataPearl.AbstractDataPearl);
             //TeamPearls[team].Deregister();
             //TeamPearls[team].Deactivated(TeamPearls[team].primaryResource); //used a while ago in my old implementation
-            TeamPearls[team] = null;
+            //TeamPearls[team] = null;
 
             //RemoveIndicator(team); //just let ManageIndicators deal with it
         }
         else if (amHost)
         {
-            TeamPearls[team].owner.InvokeRPC(TryDestroyPearl, team);
+            TeamPearls[team].owner.InvokeRPC(CTPRPCs.TryDestroyPearl, team);
         }
         else
             RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl for team {team}, but I don't own it and I am not the host!");
@@ -324,8 +324,8 @@ public partial class CTPGameMode
         apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
         apo.Abstractize(apo.pos);
         apo.LoseAllStuckObjects();
-        apo.Room?.RemoveEntity(apo);
-        apo.slatedForDeletion = true;
+        //apo.Room?.RemoveEntity(apo);
+        //apo.slatedForDeletion = true;
         apo.Destroy();
     }
 
