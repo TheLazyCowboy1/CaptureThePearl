@@ -203,53 +203,65 @@ public partial class CTPGameMode
     /// </summary>
     public void SearchForPearls()
     {
-        //remove pearls that don't actually exist
-        for (int i = 0; i < TeamPearls.Length; i++)
+        try
         {
-            if (TeamPearls[i] == null) continue;
-            var apo = TeamPearls[i].apo;
-            if (apo == null || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
+            //remove pearls that don't actually exist
+            for (int i = 0; i < TeamPearls.Length; i++)
             {
-                RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
-                TeamPearls[i] = null; //the pearl doesn't actually exist
-            }
-        }
-
-        World world = worldSession?.world;
-        if (world == null)
-        {
-            RainMeadow.RainMeadow.Error("[CTP]: World is null!");
-            return;
-        }
-
-        //go through every room in the world (slow maybe? yeah; probably)
-        foreach (AbstractRoom room in world.abstractRooms)
-        {
-            if (room == null) continue;
-            //go through every entity in the room
-            foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
-            {
-                if (abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
-                if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                if (TeamPearls[i] == null) continue;
+                var apo = TeamPearls[i].apo;
+                if (apo == null || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
                 {
-                    DestroyPearl(abPearl);
-                    continue;
-                }
-                int team = PearlIdxToTeam(abPearl.dataPearlType.index);
-                if (TeamPearls[team] == null)
-                {
-                    TeamPearls[team] = abPearl.GetOnlineObject(); //need a team pearl = use this one
-                    RainMeadow.RainMeadow.Debug($"[CTP]: Found a new pearl for team {team} in room {room.name}!");
+                    RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
+                    TeamPearls[i] = null; //the pearl doesn't actually exist
                 }
             }
         }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
-        //try to spawn pearls that are needed
-        for (byte i = 0; i < TeamPearls.Length; i++)
+        try
         {
-            if (TeamPearls[i] != null) continue;
-            TrySpawnPearl(i, world);
+            WorldSession ws = worldSession;
+            if (ws.worldLoader != null && !ws.worldLoader.Finished) //wait until world is actually loaded, stupid
+                return;
+
+            World world = ws.world;
+            if (world == null || world.abstractRooms == null)
+            {
+                RainMeadow.RainMeadow.Error("[CTP]: World is null!");
+                return;
+            }
+
+            //go through every room in the world (slow maybe? yeah; probably)
+            foreach (AbstractRoom room in world.abstractRooms)
+            {
+                if (room == null) continue;
+                //go through every entity in the room
+                foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
+                {
+                    if (abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
+                    if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                    {
+                        DestroyPearl(abPearl);
+                        continue;
+                    }
+                    int team = PearlIdxToTeam(abPearl.dataPearlType.index);
+                    if (TeamPearls[team] == null)
+                    {
+                        TeamPearls[team] = abPearl.GetOnlineObject(); //need a team pearl = use this one
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Found a new pearl for team {team} in room {room.name}!");
+                    }
+                }
+            }
+
+            //try to spawn pearls that are needed
+            for (byte i = 0; i < TeamPearls.Length; i++)
+            {
+                if (TeamPearls[i] != null) continue;
+                TrySpawnPearl(i, world);
+            }
         }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
     }
 
