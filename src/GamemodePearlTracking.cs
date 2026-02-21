@@ -215,7 +215,13 @@ public partial class CTPGameMode
             }
         }
 
-        World world = worldSession.world;
+        World world = worldSession?.world;
+        if (world == null)
+        {
+            RainMeadow.RainMeadow.Error("[CTP]: World is null!");
+            return;
+        }
+
         //go through every room in the world (slow maybe? yeah; probably)
         foreach (AbstractRoom room in world.abstractRooms)
         {
