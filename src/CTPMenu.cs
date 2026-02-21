@@ -112,13 +112,17 @@ public class CTPMenu : StoryOnlineMenu
                 dropdownUpdateTask = Task.Run(() =>
                 {
                     var idx = slugcatPageIndex;
-                    var oldItems = RegionDropdownBox._itemList;
-                    var newItems = GetRegionList(slugcatPages[idx].slugcatNumber);
-                    RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
-                    RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                    try
+                    {
+                        var oldItems = RegionDropdownBox._itemList;
+                        var newItems = GetRegionList(slugcatPages[idx].slugcatNumber);
+                        RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
+                        RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                    }
+                    catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
                     previousPageIdx = idx;
 
-                    RainMeadow.RainMeadow.Debug($"[CTP]: Updating region dropdown list for {idx} - {slugcatPages[slugcatPageIndex].slugcatNumber}");
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Updated region dropdown list for {idx} - {slugcatPages[slugcatPageIndex].slugcatNumber}");
                     dropdownUpdateTask = null; //clear itself out
                 });
             }
