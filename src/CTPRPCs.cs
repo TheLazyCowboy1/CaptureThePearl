@@ -24,10 +24,17 @@ public static class CTPRPCs
     }
 
     [RPCMethod(runDeferred = true)] //defer just in case there's some sort of weird race condition where it tries to spawn before it's destroyed?
-    public static void SpawnPearl(byte team)
+    public static void TrySpawnPearl(byte team)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.worldSession != null)
-            gamemode.SpawnPearl(team, gamemode.worldSession.world);
+            gamemode.TrySpawnPearl(team, gamemode.worldSession.world, false);
+    }
+
+    [RPCMethod]
+    public static void TryDestroyPearl(byte team)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.worldSession != null)
+            gamemode.TryDestroyPearl(team, false);
     }
 
     /* Deprecated

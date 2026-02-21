@@ -106,41 +106,6 @@ public partial class CTPGameMode
     /// <summary>
     /// HOST ONLY
     /// </summary>
-    [Obsolete]
-    public void SetupTrackedPearls()
-    {
-        if (TeamPearls.Length != TeamShelters.Length)
-        {
-            TeamPearls = new OnlinePhysicalObject[TeamShelters.Length];
-            //TrackedPearls = new TrackedPearl[TeamShelters.Length];
-            //for (byte i = 0; i < TeamShelters.Length; i++)
-                //TrackedPearls[i] = new(TeamShelters[i], i);
-        }
-
-        var player = GetMyPlayer();
-        if (player != null)
-        {
-            for (byte i = 0; i < TeamPearls.Length; i++)
-            {
-                if (TeamPearls[i] == null)
-                {
-                    try
-                    {
-                        TrySpawnPearl(i, player.world);
-                    }
-                    catch (Exception ex)
-                    {
-                        RainMeadow.RainMeadow.Error($"[CTP]: Error spawning pearl for team {i}:");
-                        RainMeadow.RainMeadow.Error(ex);
-                    }
-                }
-            }
-        }
-    }
-
-    /// <summary>
-    /// HOST ONLY
-    /// </summary>
     public void TestForScore()
     {
         if (blockedScores.Length != TeamShelters.Length)
@@ -151,7 +116,7 @@ public partial class CTPGameMode
 
         for (byte i = 0; i < blockedScores.Length; i++)
         {
-            if (blockedScores[i] && TeamPearls[i] != null && TeamPearls[i].apo.realizedObject != null)
+            if (blockedScores[i] && TeamPearls[i] != null)// && TeamPearls[i].apo.realizedObject != null)
             {
                 int idx = PearlInEnemyShelter(TeamPearls[i], i);
                 if (idx < 0)
@@ -190,7 +155,7 @@ public partial class CTPGameMode
                             //RespawnTeamPearl(i);
                         }
 
-                        TryDestroyPearl(i); //always destroy when in enemy shelters
+                        TryDestroyPearl(i, true); //always destroy when in enemy shelters
                     }
                 }
             }
@@ -222,7 +187,7 @@ public partial class CTPGameMode
         try
         {
             WorldSession ws = worldSession;
-            if (ws.worldLoader != null && !ws.worldLoader.Finished) //wait until world is actually loaded, stupid
+            if (ws == null || ws.worldLoader != null && !ws.worldLoader.Finished) //wait until world is actually loaded, stupid
                 return;
 
             World world = ws.world;
@@ -258,7 +223,7 @@ public partial class CTPGameMode
             for (byte i = 0; i < TeamPearls.Length; i++)
             {
                 if (TeamPearls[i] != null) continue;
-                TrySpawnPearl(i, world);
+                TrySpawnPearl(i, world, true);
             }
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
@@ -266,9 +231,9 @@ public partial class CTPGameMode
     }
 
     /// <summary>
-    /// HOST ONLY
+    /// Host OR by request
     /// </summary>
-    public void TrySpawnPearl(byte team, World world)
+    public void TrySpawnPearl(byte team, World world, bool amHost)
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Trying to spawn pearl for team {team}");
         AbstractRoom room = world.GetAbstractRoom(TeamShelters[team]);
@@ -279,8 +244,10 @@ public partial class CTPGameMode
             SpawnPearl(team, world);
         else if (owner == null)
             RainMeadow.RainMeadow.Error("[CTP]: NO WORLD OWNER OR LOBBY OWNER OR ANYTHING WHAT HOW DID THIS HAPPEN");
+        else if (amHost)
+            owner.InvokeRPC(CTPRPCs.TrySpawnPearl, team);
         else
-            owner.InvokeRPC(CTPRPCs.SpawnPearl, team);
+            RainMeadow.RainMeadow.Error($"[CTP]: Requested to spawn a pearl for team {team}, but I don't own the room and I am not the host!");
     }
 
     //Run only by request of the host
@@ -309,7 +276,7 @@ public partial class CTPGameMode
     /// <summary>
     /// HOST ONLY
     /// </summary>
-    public void TryDestroyPearl(byte team)
+    public void TryDestroyPearl(byte team, bool amHost)
     {
         if (TeamPearls[team] == null)
         {
@@ -317,12 +284,22 @@ public partial class CTPGameMode
             return;
         }
         RainMeadow.RainMeadow.Debug($"[CTP]: Host trying to destroy pearl for team {team}.");
-        DestroyPearl(TeamPearls[team].apo as DataPearl.AbstractDataPearl);
-        //TeamPearls[team].Deregister();
-        //TeamPearls[team].Deactivated(TeamPearls[team].primaryResource); //used a while ago in my old implementation
-        TeamPearls[team] = null;
 
-        RemoveIndicator(team);
+        if (TeamPearls[team].isMine)
+        {
+            DestroyPearl(TeamPearls[team].apo as DataPearl.AbstractDataPearl);
+            //TeamPearls[team].Deregister();
+            //TeamPearls[team].Deactivated(TeamPearls[team].primaryResource); //used a while ago in my old implementation
+            TeamPearls[team] = null;
+
+            //RemoveIndicator(team); //just let ManageIndicators deal with it
+        }
+        else if (amHost)
+        {
+            TeamPearls[team].owner.InvokeRPC(TryDestroyPearl, team);
+        }
+        else
+            RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl for team {team}, but I don't own it and I am not the host!");
     }
 
     private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);

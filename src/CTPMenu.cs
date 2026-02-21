@@ -116,8 +116,17 @@ public class CTPMenu : StoryOnlineMenu
                     {
                         var oldItems = RegionDropdownBox._itemList;
                         var newItems = GetRegionList(slugcatPages[idx].slugcatNumber);
-                        RegionDropdownBox.RemoveItems(true, oldItems.Except(newItems).Select(item => item.name).ToArray());
-                        RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                        var removeList = oldItems.Except(newItems).Select(item => item.name).ToArray();
+                        if (removeList.Length < oldItems.Length)
+                        {
+                            RegionDropdownBox.RemoveItems(true, removeList);
+                            RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                        }
+                        else //cannot remove literally everything at once (for some annoying reason???), so if we have to do so, add THEN remove
+                        {
+                            RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                            RegionDropdownBox.RemoveItems(true, removeList);
+                        }
                     }
                     catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
                     previousPageIdx = idx;
