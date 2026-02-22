@@ -181,7 +181,8 @@ public class PearlIndicator : HudPart
         this.arrowSprite.RemoveFromContainer();
         this.pearlIcon.RemoveFromContainer();
 
-        if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            gamemode.ClearIndicators(); //if it stopped being drawn, get rid of it!
+        //if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        //gamemode.ClearIndicators(); //if it stopped being drawn, get rid of it!
+        base.slatedForDeletion = true;
     }
 }

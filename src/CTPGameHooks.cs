@@ -361,7 +361,7 @@ public static class CTPGameHooks
             for (int i = self.mapData.objectTrackers.Count - 1; i >= 0; i--)
             {
                 var tracker = self.mapData.objectTrackers[i];
-                if (!gamemode1.TeamPearls.Any(p => p?.apo?.ID == tracker?.obj?.ID))
+                if (tracker?.obj == null || !gamemode1.TeamPearls.Any(p => p?.apo?.ID == tracker.obj.ID))
                     self.removeTracker(tracker); //if it's not in the team pearls list, remove it
             }
         }

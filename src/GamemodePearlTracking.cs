@@ -87,12 +87,16 @@ public partial class CTPGameMode
         {
             if (TeamPearls[i] != null && pearlIndicators[i] == null)
                 AddIndicator(TeamPearls[i], i);
-            else if (pearlIndicators[i] != null && (TeamPearls[i] == null || pearlIndicators[i].apo != TeamPearls[i].apo))
+            else if (pearlIndicators[i] != null && (TeamPearls[i] == null || pearlIndicators[i].apo != TeamPearls[i].apo || pearlIndicators[i].slatedForDeletion))
                 RemoveIndicator(i);
             else if (TeamPearls[i] != null && pearlIndicators[i] != null)
             { //ensure the hud is actually loaded!
-                var game = TeamPearls[i].apo.world?.game;
-                if (game == null || game.cameras[0]?.hud == null) ClearIndicators();
+                var game = TeamPearls[i].apo?.world.game;
+                if (game == null || game.cameras[0]?.hud == null)
+                {
+                    RainMeadow.RainMeadow.Error("[CTP]: Hud is not yet loaded; removing pearl indicators");
+                    ClearIndicators();
+                }
             }
         }
     }
@@ -293,7 +297,7 @@ public partial class CTPGameMode
         if (opo.isMine)
         {
             DestroyPearl(opo.apo);
-            opo.Deactivated(opo.primaryResource);
+            //opo.Deactivated(opo.primaryResource);
             return true;
         }
         else if (amHost)
@@ -338,11 +342,11 @@ public partial class CTPGameMode
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Destroying local pearl {apo}");
         apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
-        apo.Abstractize(apo.pos);
-        apo.LoseAllStuckObjects();
-        //apo.Room?.RemoveEntity(apo);
+        //apo.Abstractize(apo.pos);
+        //apo.LoseAllStuckObjects();
         //apo.slatedForDeletion = true;
         apo.Destroy();
+        apo.Room?.RemoveEntity(apo);
     }
 
     public void RepositionPearls()
