@@ -84,23 +84,26 @@ public class CTPMenu : StoryOnlineMenu
             //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
             if (OnlineManager.lobby.isOwner) //messes up client menu
             {
-                /*for (int k = 0; k < slugcatPages.Count; k++)
+                int properPageIdx = slugcatPageIndex;
+                slugcatPageIndex = -1;
+                for (int k = 0; k < slugcatPages.Count; k++)
                 {
                     slugcatPages[k]?.RemoveSprites(); //otherwise can leave annoying remnants
                     this.pages.Remove(this.slugcatPages[k]);
                     slugcatPages[k] = null;
                 }
-                slugcatPages.Clear();*/
+                slugcatPages.Clear();
                 redIsDead = false;
                 artificerIsDead = false;
                 saintIsDead = false;
                 for (int j = 0; j < slugcatColorOrder.Count; j++)
                 {
-                    //slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
-                    //pages.Add(slugcatPages[j]);
-                    slugcatPages[j]?.RemoveSprites(); //clear out old page
-                    slugcatPages[j] = new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]);
+                    slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
+                    pages.Add(slugcatPages[j]);
+                    //slugcatPages[j]?.RemoveSprites(); //clear out old page
+                    //slugcatPages[j] = new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]);
                 }
+                slugcatPageIndex = properPageIdx;
             }
 
             AddTeamSelectButtons();
