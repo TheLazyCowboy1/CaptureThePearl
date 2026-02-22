@@ -157,7 +157,9 @@ public class CTPMenu : StoryOnlineMenu
                     RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
             }
             //if (base.onlineDifficultyLabel != null)
-                //base.onlineDifficultyLabel.text = clientDescription;
+            //base.onlineDifficultyLabel.text = clientDescription;
+            if (base.lobbyLabel != null)
+                base.lobbyLabel.text = clientDescription;
 
             //set custom settings
             RegionDropdownBox.value = storyGameMode.region;

@@ -340,11 +340,12 @@ public partial class CTPGameMode
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Destroying local pearl {apo}");
         apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
-        //apo.Abstractize(apo.pos);
-        //apo.LoseAllStuckObjects();
-        //apo.slatedForDeletion = true;
+        apo.realizedObject?.room.CleanOutObjectNotInThisRoom(apo.realizedObject);
+
+        apo.Abstractize(apo.pos);
         apo.Destroy();
-        apo.Room?.RemoveEntity(apo);
+
+        //apo.Room?.RemoveEntity(apo);
     }
 
     public void RepositionPearls()

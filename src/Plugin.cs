@@ -9,7 +9,7 @@ using RainMeadow;
 [module: UnverifiableCode]
 [assembly: SecurityPermission(SecurityAction.RequestMinimum, SkipVerification = true)]
 
-namespace CaptureThePearl; //rename this with ctrl + r
+namespace CaptureThePearl;
 
 //dependencies:
 //Rain Meadow:
@@ -21,7 +21,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.CaptureThePearl";
     public const string MOD_NAME = "Capture the Pearl";
-    public const string MOD_VERSION = "0.0.4";
+    public const string MOD_VERSION = "0.0.5";
 
     //made static for easy access. Hopefully this mod should never be initiated twice anyway...
     public static CTPConfigOptions Options;

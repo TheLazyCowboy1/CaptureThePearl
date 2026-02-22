@@ -13,9 +13,9 @@ public class CTPConfigOptions : OptionInterface
         Logger = logger;
 
         TeamShelterCloseness = this.config.Bind<float>("TeamShelterCloseness", 0.4f, new ConfigAcceptableRange<float>(0f, 1f));
-        TargetShelterDistance = this.config.Bind<float>("TargetShelterDistance", 600f, new ConfigAcceptableRange<float>(0f, 3000f));
-        RespawnCloseness = this.config.Bind<float>("RespawnCloseness", 0.3f, new ConfigAcceptableRange<float>(0f, 1f));
-        TargetRespawnDistance = this.config.Bind<float>("TargetRespawnDistance", 600f, new ConfigAcceptableRange<float>(0f, 3000f));
+        TargetShelterDistance = this.config.Bind<float>("TargetShelterDistance", 1000f, new ConfigAcceptableRange<float>(0f, 5000f));
+        RespawnCloseness = this.config.Bind<float>("RespawnCloseness", 0.6f, new ConfigAcceptableRange<float>(0f, 1f));
+        TargetRespawnDistance = this.config.Bind<float>("TargetRespawnDistance", 800f, new ConfigAcceptableRange<float>(0f, 5000f));
         PearlHeldSpeed = this.config.Bind<float>("PearlHeldSpeed", 0.7f, new ConfigAcceptableRange<float>(0.1f, 2f));
         ArmPlayers = this.config.Bind<bool>("ArmPlayers", true);
 
