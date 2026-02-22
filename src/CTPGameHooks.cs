@@ -886,7 +886,7 @@ public static class CTPGameHooks
             {
                 byte myTeam = gamemode.PlayerTeams[OnlineManager.mePlayer];
                 string denPos = gamemode.hasSpawnedIn
-                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), gamemode.ShelterRespawnCloseness, gamemode.TargetShelterDistance)
+                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), gamemode.ShelterRespawnCloseness, gamemode.TargetRespawnDistance)
                     : gamemode.TeamShelters[myTeam];
                 gamemode.hasSpawnedIn = true;
 

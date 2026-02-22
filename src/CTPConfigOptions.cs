@@ -12,9 +12,10 @@ public class CTPConfigOptions : OptionInterface
     {
         Logger = logger;
 
-        TeamShelterCloseness = this.config.Bind<float>("TeamShelterCloseness", 0.5f, new ConfigAcceptableRange<float>(0f, 1f));
+        TeamShelterCloseness = this.config.Bind<float>("TeamShelterCloseness", 0.4f, new ConfigAcceptableRange<float>(0f, 1f));
         TargetShelterDistance = this.config.Bind<float>("TargetShelterDistance", 600f, new ConfigAcceptableRange<float>(0f, 3000f));
-        RespawnCloseness = this.config.Bind<float>("RespawnCloseness", 0.75f, new ConfigAcceptableRange<float>(0f, 1f));
+        RespawnCloseness = this.config.Bind<float>("RespawnCloseness", 0.3f, new ConfigAcceptableRange<float>(0f, 1f));
+        TargetRespawnDistance = this.config.Bind<float>("TargetRespawnDistance", 600f, new ConfigAcceptableRange<float>(0f, 3000f));
         PearlHeldSpeed = this.config.Bind<float>("PearlHeldSpeed", 0.7f, new ConfigAcceptableRange<float>(0.1f, 2f));
         ArmPlayers = this.config.Bind<bool>("ArmPlayers", true);
 
@@ -24,6 +25,7 @@ public class CTPConfigOptions : OptionInterface
     public readonly Configurable<float> TeamShelterCloseness;
     public readonly Configurable<float> TargetShelterDistance;
     public readonly Configurable<float> RespawnCloseness;
+    public readonly Configurable<float> TargetRespawnDistance;
     public readonly Configurable<float> PearlHeldSpeed;
     public readonly Configurable<bool> ArmPlayers;
 
@@ -47,8 +49,10 @@ public class CTPConfigOptions : OptionInterface
             new OpUpdown(TeamShelterCloseness, new Vector2(l, y), w, 2) { description = "How randomly team shelters are chosen.\n0 = always same positions, 1 = completely random."},
             new OpLabel(t, y -= s, "Target Shelter Distance"),
             new OpUpdown(TargetShelterDistance, new Vector2(l, y), w, 0) { description = "How far apart team shelters are supposed to be.\nFor reference, Outskirts is a bit over 1000 wide." },
-            new OpLabel(t, y-=s, "Respawn Closeness"),
-            new OpUpdown(RespawnCloseness, new Vector2(l, y), w, 2) { description = "How close to another team's shelter players can respawn.\n0 = as far away as possible, 1 = anywhere."},
+            new OpLabel(t, y-=s, "Respawn Randomness"),
+            new OpUpdown(RespawnCloseness, new Vector2(l, y), w, 2) { description = "How randomly respawn positions are chosen.\n0 = always same positions, 1 = completely random." },
+            new OpLabel(t, y -= s, "Target Respawn Distance"),
+            new OpUpdown(TargetRespawnDistance, new Vector2(l, y), w, 0) { description = "How far away players are supposed to spawn from other teams' shelters.\nFor reference, Outskirts is a bit over 1000 wide." },
             new OpLabel(t, y -= s, "Pearl Speed Penalty"),
             new OpUpdown(PearlHeldSpeed, new Vector2(l, y), w, 2) { description = "Multiplies a player's speed when holding a pearl. Makes it easier to catch players running with a team pearl." },
             new OpLabel(t, y -= s, "Immediately Arm Players"),

@@ -57,7 +57,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 timerLength = gamemode.TimerLength;
                 spawnCreatures = gamemode.SpawnCreatures;
                 respawnCloseness = gamemode.ShelterRespawnCloseness;
-                targetDistance = gamemode.TargetShelterDistance;
+                targetDistance = gamemode.TargetRespawnDistance;
                 pearlHeldSpeed = gamemode.PearlHeldSpeed;
                 armPlayers = gamemode.ArmPlayers;
 
@@ -117,7 +117,7 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 gamemode.SpawnCreatures = spawnCreatures;
 
                 gamemode.ShelterRespawnCloseness = respawnCloseness;
-                gamemode.TargetShelterDistance = targetDistance;
+                gamemode.TargetRespawnDistance = targetDistance;
                 gamemode.PearlHeldSpeed = pearlHeldSpeed;
                 gamemode.ArmPlayers = armPlayers;
 

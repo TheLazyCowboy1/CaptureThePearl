@@ -293,7 +293,11 @@ public partial class CTPGameMode
         else if (amHost)
         {
             RainMeadow.RainMeadow.Debug($"[CTP]: Host trying to destroy pearl {opo}");
-            opo.owner.InvokeRPC(CTPRPCs.TryDestroyPearl, opo);
+            opo.owner.InvokeRPC(CTPRPCs.TryDestroyPearl, opo).Then(result =>
+            {
+                if (opo?.apo != null)
+                    opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
+            });
         }
         else
             RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl {opo}, but I don't own it and I am not the host!");

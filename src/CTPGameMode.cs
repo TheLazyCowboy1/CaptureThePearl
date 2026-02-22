@@ -25,7 +25,7 @@ public partial class CTPGameMode : StoryGameMode
     public bool SpawnCreatures = true;
     public bool ShouldMuteOtherTeams = false; //should probably be true by default; synced among everyone
     public float ShelterRespawnCloseness = Plugin.Options.RespawnCloseness.Value;
-    public float TargetShelterDistance = Plugin.Options.TargetShelterDistance.Value;
+    public float TargetRespawnDistance = Plugin.Options.TargetRespawnDistance.Value;
     public float PearlHeldSpeed = Plugin.Options.PearlHeldSpeed.Value;
     public bool ArmPlayers = Plugin.Options.ArmPlayers.Value;
 
