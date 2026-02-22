@@ -195,6 +195,9 @@ public class CTPMenu : StoryOnlineMenu
     {
         bool needRefresh = storyGameMode.needMenuSaveUpdate;
 
+        if (!OnlineManager.lobby.isOwner && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
+            slugcatPageIndex = base.indexFromColor(gameMode.currentCampaign); //weird hack to prevent client page scrolling animation
+
         base.Update();
 
         if (needRefresh)

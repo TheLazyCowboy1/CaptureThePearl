@@ -293,20 +293,29 @@ public partial class CTPGameMode
 
         if (opo.isMine)
         {
-            DestroyPearl(opo.apo);
-            opo.Deactivated(opo.primaryResource);
-            opo.Release(); //I don't want management of this please
+            //DestroyPearl(opo.apo);
+            //opo.Deactivated(opo.primaryResource);
+            //opo.Release(); //I don't want management of this please
+            opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
             return true;
         }
         else if (amHost)
         {
             RainMeadow.RainMeadow.Debug($"[CTP]: Host trying to destroy pearl {opo}");
-            opo.owner.InvokeRPC(CTPRPCs.TryDestroyPearl, opo);
-            /*.Then(result =>
-            {
-                if (opo?.apo != null)
-                    opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
-            });*/
+            opo.owner.InvokeRPC(CTPRPCs.TryDestroyPearl, opo)
+                .Then(result =>
+                {
+                    if (result is GenericResult.Ok)
+                    {
+                        if (opo?.apo != null) //backup
+                            opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
+                    }
+                    else
+                    {
+                        opo.Request();
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Client failed to destroy pearl {opo}, so I'm requesting it to hopefully destroy it myself.");
+                    }
+                });
         }
         else
             RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl {opo}, but I don't own it and I am not the host!");
@@ -314,10 +323,11 @@ public partial class CTPGameMode
     }
     public void TryDestroyPearl(AbstractPhysicalObject pearl)
     {
-        if (pearl.IsLocal())
+        OnlinePhysicalObject opo = pearl.GetOnlineObject();
+        if (opo == null)
             DestroyPearl(pearl);
         else
-            TryDestroyPearl(pearl.GetOnlineObject(), true);
+            TryDestroyPearl(opo, true);
     }
 
     private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);
