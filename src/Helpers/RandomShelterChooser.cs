@@ -154,25 +154,6 @@ public static class RandomShelterFilter
         "WSUR_A02" //Crumbling Fringes room
     };
 
-    public static string[] BLOCKED_ROOMS = new string[] //this needs to get moved to another file
-    {
-        "SU_CAVE01", //gives Saint access to OE area
-        "LC_FINAL", //scav king fight
-        "OE_CAVE03", //grants access to OE_SU area
-        "OE_FINAL03", //alt ending room
-        "HR_AI", //just block it off; don't want people crawing into there or achieving Saint's ending
-        "SH_LEDGE", //accessible only to a few slugcats; way to GW gate
-        "SL_C14", //way to MS gate
-        "UW_H01", //the way to roof; difficult to access for most slugcats + far removed area
-        "SI_SAINTINTRO", //difficult to get back from
-        "MS_MEM06", //gives Saint access to Submerged Superstructure proper
-        "SB_D06", //gives access to the Depths
-        "SB_F03", //the ravine; over-powered for Saint, who can climb up it easily
-        "RM_D07", //above RM_AI; mostly inaccessible
-        "RM_CORE", //grants access to the core
-        "HI_W02" //Watcher entrance to Hydroponics
-    };
-
     public static string[] shelterNames = new string[0];
     public static Vector2[] shelterPositions = new Vector2[0];
 

@@ -26,7 +26,9 @@ public partial class CTPGameMode : StoryGameMode
     public bool ShouldMuteOtherTeams = false; //should probably be true by default; synced among everyone
     public float ShelterRespawnCloseness = Plugin.Options.RespawnCloseness.Value;
     public float TargetRespawnDistance = Plugin.Options.TargetRespawnDistance.Value;
+    public float MapBorderDistance = Plugin.Options.MapBorderDistance.Value;
     public float PearlHeldSpeed = Plugin.Options.PearlHeldSpeed.Value;
+    public float PlayerSpeedBonus = Plugin.Options.SpeedBonus.Value;
     public bool ArmPlayers = Plugin.Options.ArmPlayers.Value;
 
     //Non-synced variables

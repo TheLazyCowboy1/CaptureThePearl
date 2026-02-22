@@ -75,7 +75,7 @@ public static class CTPGameHooks
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
         //IL.PlayerGraphics.ApplyPalette += PlayerGraphics_ApplyPalette;
 
-        On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
+        //On.WorldLoader.CreatingWorld += WorldLoader_CreatingWorld;
         //On.Room.TrySpawnWarpPoint += Room_TrySpawnWarpPoint;
         On.Room.TrySpawnWarpPoint_PlacedObject_bool += Room_TrySpawnWarpPoint;
 
@@ -100,6 +100,7 @@ public static class CTPGameHooks
         spectateButtonHook = new Hook(typeof(SpectatorOverlay).GetMethod(nameof(SpectatorOverlay.Update)), SpectatorOverlay_Update);
 
         playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.Draw)), OnlinePlayerDisplay_Draw);
+        On.SlugcatStats.ctor += SlugcatStats_ctor;
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp += Player_ReleaseGrasp;
 
@@ -165,7 +166,7 @@ public static class CTPGameHooks
         On.SSOracleBehavior.UnconciousUpdate -= SSOracleBehavior_UnconciousUpdate;
         IteratorUnconsciousHook?.Undo();
 
-        On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;
+        //On.WorldLoader.CreatingWorld -= WorldLoader_CreatingWorld;
         On.Room.TrySpawnWarpPoint_PlacedObject_bool -= Room_TrySpawnWarpPoint;
         On.GhostWorldPresence.SpawnGhost -= GhostWorldPresence_SpawnGhost;
         //On.World.SpawnGhost -= World_SpawnGhost;
@@ -176,6 +177,8 @@ public static class CTPGameHooks
         playerDisplayHook?.Undo();
         spectateButtonHook?.Undo();
         chatColourHook?.Undo();
+
+        On.SlugcatStats.ctor -= SlugcatStats_ctor;
         On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp -= Player_ReleaseGrasp;
 
@@ -434,6 +437,19 @@ public static class CTPGameHooks
                 }
                 catch { }// (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
+        }
+    }
+
+    //Increase player speed
+    private static void SlugcatStats_ctor(On.SlugcatStats.orig_ctor orig, SlugcatStats self, SlugcatStats.Name slugcat, bool malnourished)
+    {
+        orig(self, slugcat, malnourished);
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            self.runspeedFac += gamemode.PlayerSpeedBonus;
+            self.poleClimbSpeedFac += gamemode.PlayerSpeedBonus;
+            self.corridorClimbSpeedFac += gamemode.PlayerSpeedBonus;
         }
     }
 
@@ -969,11 +985,18 @@ public static class CTPGameHooks
     {
         return;
     }
+
     //Ensures ALL shelters are marked on the map!
+    //ALSO blacklist rooms!
     private static void World_LoadMapConfig(On.World.orig_LoadMapConfig_Timeline orig, World self, SlugcatStats.Timeline timelinePosition)
     {
         orig(self, timelinePosition);
         for (int i = 0; i < self.brokenShelters.Length; i++) self.brokenShelters[i] = false;
+
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            RoomBlacklister.BlacklistRooms(self, gamemode.TeamShelters, gamemode.MapBorderDistance);
+        }
     }
 
     //Colorizes team shelters on the map; a helpful little bonus!
@@ -1157,27 +1180,27 @@ public static class CTPGameHooks
         self.oracle.room.gravity = 0f;
     }
 
+    [Obsolete]
     //Remove connections to blocked rooms
     private static void WorldLoader_CreatingWorld(On.WorldLoader.orig_CreatingWorld orig, WorldLoader self)
     {
-        //add list of indices to block
-        List<int> blockedConnections = new();
-        foreach (var room in self.abstractRooms)
-        {
-            if (RandomShelterFilter.BLOCKED_ROOMS.Contains(room.name))
-                blockedConnections.Add(room.index);
-        }
-
-        foreach (var room in self.abstractRooms)
-        {
-            for (int i = 0; i < room.connections.Length; i++)
-            {
-                if (blockedConnections.Contains(room.connections[i]))
-                    room.connections[i] = -1;
-            }
-        }
-
+        //ORIGINALLY orig was placed AFTER blocking the connections, but it has to be before in order to read map pos for rooms
         orig(self);
+
+        /*if (CTPGameMode.IsCTPGameMode(out var gamemode))
+        {
+            //add list of indices to block
+            List<int> blockedConnections = RoomBlacklister.BlacklistedRooms(self.world, gamemode.TeamShelters, 500);
+
+            foreach (var room in self.abstractRooms)
+            {
+                for (int i = 0; i < room.connections.Length; i++)
+                {
+                    if (blockedConnections.Contains(room.connections[i]))
+                        room.connections[i] = -1;
+                }
+            }
+        }*/
     }
     #endregion
     #region conditional weak tables

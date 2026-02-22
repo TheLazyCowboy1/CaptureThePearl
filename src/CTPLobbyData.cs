@@ -58,7 +58,9 @@ public class CTPLobbyData : OnlineResource.ResourceData
                 spawnCreatures = gamemode.SpawnCreatures;
                 respawnCloseness = gamemode.ShelterRespawnCloseness;
                 targetDistance = gamemode.TargetRespawnDistance;
+                borderDistance = gamemode.MapBorderDistance;
                 pearlHeldSpeed = gamemode.PearlHeldSpeed;
+                speedBonus = gamemode.PlayerSpeedBonus;
                 armPlayers = gamemode.ArmPlayers;
 
                 teamPearls = gamemode.TeamPearls.Select(opo => opo == null ? NullEntityID : opo.id).ToArray();
@@ -91,7 +93,11 @@ public class CTPLobbyData : OnlineResource.ResourceData
         [OnlineField(group = "configs")]
         private float targetDistance;
         [OnlineField(group = "configs")]
+        private float borderDistance;
+        [OnlineField(group = "configs")]
         private float pearlHeldSpeed;
+        [OnlineField(group = "configs")]
+        private float speedBonus;
         [OnlineField(group = "configs")]
         private bool armPlayers;
 
@@ -118,7 +124,9 @@ public class CTPLobbyData : OnlineResource.ResourceData
 
                 gamemode.ShelterRespawnCloseness = respawnCloseness;
                 gamemode.TargetRespawnDistance = targetDistance;
+                gamemode.MapBorderDistance = borderDistance;
                 gamemode.PearlHeldSpeed = pearlHeldSpeed;
+                gamemode.PlayerSpeedBonus = speedBonus;
                 gamemode.ArmPlayers = armPlayers;
 
                 gamemode.TeamPoints = teamPoints;

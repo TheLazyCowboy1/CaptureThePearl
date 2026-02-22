@@ -339,13 +339,15 @@ public partial class CTPGameMode
     public static void DestroyPearl(AbstractPhysicalObject apo)
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Destroying local pearl {apo}");
-        apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
-        apo.realizedObject?.room.CleanOutObjectNotInThisRoom(apo.realizedObject);
+        if (apo.realizedObject != null)
+        {
+            apo.realizedObject.AllGraspsLetGoOfThisObject(true);
+            apo.realizedObject.room.CleanOutObjectNotInThisRoom(apo.realizedObject);
+        }
 
         apo.Abstractize(apo.pos);
         apo.Destroy();
-
-        //apo.Room?.RemoveEntity(apo);
+        apo.Room?.RemoveEntity(apo); //ensure it's not in the room
     }
 
     public void RepositionPearls()

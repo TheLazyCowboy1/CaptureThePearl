@@ -16,7 +16,9 @@ public class CTPConfigOptions : OptionInterface
         TargetShelterDistance = this.config.Bind<float>("TargetShelterDistance", 1000f, new ConfigAcceptableRange<float>(0f, 5000f));
         RespawnCloseness = this.config.Bind<float>("RespawnCloseness", 0.6f, new ConfigAcceptableRange<float>(0f, 1f));
         TargetRespawnDistance = this.config.Bind<float>("TargetRespawnDistance", 800f, new ConfigAcceptableRange<float>(0f, 5000f));
+        MapBorderDistance = this.config.Bind<float>("MapBorderDistance", 500f, new ConfigAcceptableRange<float>(100f, 5000f));
         PearlHeldSpeed = this.config.Bind<float>("PearlHeldSpeed", 0.7f, new ConfigAcceptableRange<float>(0.1f, 2f));
+        SpeedBonus = this.config.Bind<float>("SpeedBonus", 0.1f, new ConfigAcceptableRange<float>(-0.5f, 1f));
         ArmPlayers = this.config.Bind<bool>("ArmPlayers", true);
 
     }
@@ -26,7 +28,9 @@ public class CTPConfigOptions : OptionInterface
     public readonly Configurable<float> TargetShelterDistance;
     public readonly Configurable<float> RespawnCloseness;
     public readonly Configurable<float> TargetRespawnDistance;
+    public readonly Configurable<float> MapBorderDistance;
     public readonly Configurable<float> PearlHeldSpeed;
+    public readonly Configurable<float> SpeedBonus;
     public readonly Configurable<bool> ArmPlayers;
 
     public override void Initialize()
@@ -53,8 +57,12 @@ public class CTPConfigOptions : OptionInterface
             new OpUpdown(RespawnCloseness, new Vector2(l, y), w, 2) { description = "How randomly respawn positions are chosen.\n0 = always same positions, 1 = completely random." },
             new OpLabel(t, y -= s, "Target Respawn Distance"),
             new OpUpdown(TargetRespawnDistance, new Vector2(l, y), w, 0) { description = "How far away players are supposed to spawn from other teams' shelters.\nFor reference, Outskirts is a bit over 1000 wide." },
+            new OpLabel(t, y -= s, "Map Border Size"),
+            new OpUpdown(MapBorderDistance, new Vector2(l, y), w, 0) { description = "How much of the map is allowed to be entered.\n500 ~= size of Outskirts?" },
             new OpLabel(t, y -= s, "Pearl Speed Penalty"),
             new OpUpdown(PearlHeldSpeed, new Vector2(l, y), w, 2) { description = "Multiplies a player's speed when holding a pearl. Makes it easier to catch players running with a team pearl." },
+            new OpLabel(t, y -= s, "Bonus Player Speed"),
+            new OpUpdown(SpeedBonus, new Vector2(l, y), w, 2) { description = "Adds a fixed amount of speed to all players, just to make the game feel more fast-paced." },
             new OpLabel(t, y -= s, "Immediately Arm Players"),
             new OpCheckBox(ArmPlayers, l, y) { description = "Immediately gives players a spear and a rock upon spawning into the game." }
         );
