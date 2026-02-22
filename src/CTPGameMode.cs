@@ -99,6 +99,7 @@ public partial class CTPGameMode : StoryGameMode
         if (!lobby.isOwner) return;
 
         //remove players that have quit
+        bool removedAny = false;
         var playerKeys = PlayerTeams.Keys.ToArray(); //make it a separate array
         foreach (var player in playerKeys)
         {
@@ -106,11 +107,12 @@ public partial class CTPGameMode : StoryGameMode
             {
                 RainMeadow.RainMeadow.Debug($"[CTP]: Removing player {player}");
                 PlayerTeams.Remove(player);
+                removedAny = true;
             }
         }
 
         //check if we can skip all these over-complicated checks
-        if (PlayerTeams.Count == OnlineManager.players.Count)
+        if (!removedAny && PlayerTeams.Count == OnlineManager.players.Count)
             return;
 
         //add players that are not currently in the team list

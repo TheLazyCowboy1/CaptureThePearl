@@ -69,7 +69,7 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor += DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor += DataPearl_UniquePearlHighLightColor;
         On.DataPearl.ctor += DataPearl_ctor;
-        On.DataPearl.AbstractDataPearl.ctor += AbstractDataPearl_ctor;
+        //On.DataPearl.AbstractDataPearl.ctor += AbstractDataPearl_ctor;
 
         On.Menu.ArenaOverlay.PlayerPressedContinue += ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate += PlayerResultBox_GrafUpdate;
@@ -154,7 +154,7 @@ public static class CTPGameHooks
         On.DataPearl.UniquePearlMainColor -= DataPearl_UniquePearlMainColor;
         On.DataPearl.UniquePearlHighLightColor -= DataPearl_UniquePearlHighLightColor;
         On.DataPearl.ctor -= DataPearl_ctor;
-        On.DataPearl.AbstractDataPearl.ctor -= AbstractDataPearl_ctor;
+        //On.DataPearl.AbstractDataPearl.ctor -= AbstractDataPearl_ctor;
 
         On.Menu.ArenaOverlay.PlayerPressedContinue -= ArenaOverlay_PlayerPressedContinue;
         On.Menu.PlayerResultBox.GrafUpdate -= PlayerResultBox_GrafUpdate;
@@ -1081,6 +1081,7 @@ public static class CTPGameHooks
         self.buoyancy = 1.5f; //hopefully this is enough...?
 
         //ALSO destroy if there's already a team pearl of this color, or if it can't be a team pearl
+        /*
         if (CTPGameMode.IsCTPGameMode(out var gamemode) && self.IsLocal()) { //don't destroy others' pearls
             if (!gamemode.CanBeTeamPearl(self.AbstractPearl))
             {
@@ -1093,8 +1094,10 @@ public static class CTPGameHooks
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
         }
+        */
     }
 
+    [Obsolete]
 
     private static void AbstractDataPearl_ctor(On.DataPearl.AbstractDataPearl.orig_ctor orig, DataPearl.AbstractDataPearl self, World world, AbstractPhysicalObject.AbstractObjectType objType, PhysicalObject realizedObject, WorldCoordinate pos, EntityID ID, int originRoom, int placedObjectIndex, PlacedObject.ConsumableObjectData consumableData, DataPearl.AbstractDataPearl.DataPearlType dataPearlType)
     {

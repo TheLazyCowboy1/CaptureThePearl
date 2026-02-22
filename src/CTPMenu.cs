@@ -52,7 +52,7 @@ public class CTPMenu : StoryOnlineMenu
         pages[0].subObjects.Add(tabWrapper);
 
         //remove "match save" option
-        //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been renamed, so I'm not sure what this is removing
+        //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been renamed/moved; it is now labeled "Sync Save" in game
         RemoveMenuObject(restartCheckbox);
         newSessionText = Translate("NEW SESSION");
 
@@ -257,9 +257,14 @@ public class CTPMenu : StoryOnlineMenu
     }
     private string[] SpecialIncludedRegions(SlugcatStats.Name slugcat)
     {
-        /*if (slugcat == Watcher.WatcherEnums.SlugcatStatsName.Watcher)
+        if (slugcat == Watcher.WatcherEnums.SlugcatStatsName.Watcher)
             return new string[]
             {
+                "SU", //Outskirts, obviously
+                "HI", //Industrial Complex
+                "SH", //Shaded Citadel
+                "CC" //Chimney Canopy
+                /*
                 "WARB", //Salination
                 "WARC", //Fetid Glen
                 "WARD", //Cold Storage
@@ -282,7 +287,8 @@ public class CTPMenu : StoryOnlineMenu
                 "WTDA", //Torrid Desert
                 "WTDB", //Desolate Tract
                 "WVWA" //Verdant Waterways
-            };*/
+                */
+            };
         return new string[0];
     }
     //Partially sorts the region list, in order to make more fun regions easier to find
