@@ -173,21 +173,6 @@ public partial class CTPGameMode
     /// </summary>
     public void SearchForPearls()
     {
-        try
-        {
-            //remove pearls that don't actually exist
-            for (int i = 0; i < TeamPearls.Length; i++)
-            {
-                if (TeamPearls[i] == null) continue;
-                var apo = TeamPearls[i].apo;
-                if (apo == null || apo.slatedForDeletion || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
-                {
-                    RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
-                    TeamPearls[i] = null; //the pearl doesn't actually exist
-                }
-            }
-        }
-        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         try
         {
@@ -200,6 +185,18 @@ public partial class CTPGameMode
             {
                 RainMeadow.RainMeadow.Error("[CTP]: World is null!");
                 return;
+            }
+
+            //remove pearls that don't actually exist
+            for (int i = 0; i < TeamPearls.Length; i++)
+            {
+                if (TeamPearls[i] == null) continue;
+                var apo = TeamPearls[i].apo;
+                if (apo == null || apo.slatedForDeletion || apo.world != world || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
+                {
+                    RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
+                    TeamPearls[i] = null; //the pearl doesn't actually exist
+                }
             }
 
             //go through every room in the world (slow maybe? yeah; probably)
@@ -297,7 +294,8 @@ public partial class CTPGameMode
         if (opo.isMine)
         {
             DestroyPearl(opo.apo);
-            //opo.Deactivated(opo.primaryResource);
+            opo.Deactivated(opo.primaryResource);
+            opo.Release(); //I don't want management of this please
             return true;
         }
         else if (amHost)
