@@ -886,7 +886,7 @@ public static class CTPGameHooks
             {
                 byte myTeam = gamemode.PlayerTeams[OnlineManager.mePlayer];
                 string denPos = gamemode.hasSpawnedIn
-                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), gamemode.ShelterRespawnCloseness)
+                    ? RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters.Where((s, i) => (byte)i != myTeam).ToArray(), gamemode.ShelterRespawnCloseness, gamemode.TargetShelterDistance)
                     : gamemode.TeamShelters[myTeam];
                 gamemode.hasSpawnedIn = true;
 
@@ -1087,7 +1087,8 @@ public static class CTPGameHooks
                 //destroy the pearl
                 //try { CTPGameMode.DestroyPearl(ref opo); } catch { }
                 try {
-                    CTPGameMode.DestroyPearl(self.AbstractPearl);
+                    RainMeadow.RainMeadow.Debug("[CTP]: Destroying newly realized pearl");
+                    gamemode.TryDestroyPearl(self.AbstractPearl);
                 }
                 catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
             }
@@ -1104,7 +1105,8 @@ public static class CTPGameHooks
             //destroy the pearl
             try
             {
-                CTPGameMode.DestroyPearl(self);
+                RainMeadow.RainMeadow.Debug("[CTP]: Destroying newly-created pearl");
+                gamemode.TryDestroyPearl(self);
             }
             catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
         }

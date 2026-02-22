@@ -257,7 +257,7 @@ public class CTPMenu : StoryOnlineMenu
     }
     private string[] SpecialIncludedRegions(SlugcatStats.Name slugcat)
     {
-        if (slugcat == Watcher.WatcherEnums.SlugcatStatsName.Watcher)
+        /*if (slugcat == Watcher.WatcherEnums.SlugcatStatsName.Watcher)
             return new string[]
             {
                 "WARB", //Salination
@@ -282,7 +282,7 @@ public class CTPMenu : StoryOnlineMenu
                 "WTDA", //Torrid Desert
                 "WTDB", //Desolate Tract
                 "WVWA" //Verdant Waterways
-            };
+            };*/
         return new string[0];
     }
     //Partially sorts the region list, in order to make more fun regions easier to find

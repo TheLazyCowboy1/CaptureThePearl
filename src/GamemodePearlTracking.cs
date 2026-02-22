@@ -21,7 +21,7 @@ public partial class CTPGameMode
     public bool[] blockedScores = new bool[0];
 
     //TODO: make this a config instead of a constant!
-    public const float UNTENDED_PEARL_RESPAWN_TIME = 5f; //5 seconds of map open
+    public float untendedPearlRespawnTime = 5f; //5 seconds of map open
 
     public void SanitizeTracker()
     {
@@ -76,7 +76,8 @@ public partial class CTPGameMode
         }
         pearlIndicators[team] = null;
 
-        pearlUntouchedTicks[team] = 0;
+        //pearlUntouchedTicks[team] = 0;
+        RainMeadow.RainMeadow.Debug($"[CTP]: Removed pearl indicator for team {team}");
     }
 
     public void ManageIndicators()
@@ -155,7 +156,7 @@ public partial class CTPGameMode
                             //RespawnTeamPearl(i);
                         }
 
-                        TryDestroyPearl(i, true); //always destroy when in enemy shelters
+                        TryDestroyPearl(TeamPearls[i], true); //always destroy when in enemy shelters
                     }
                 }
             }
@@ -204,10 +205,10 @@ public partial class CTPGameMode
                 //go through every entity in the room
                 foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
                 {
-                    if (abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
-                    if (!CanBeTeamPearl(abPearl) || abPearl.slatedForDeletion) //not a team pearl = destroy
+                    if (abEnt.slatedForDeletion || abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
+                    if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
                     {
-                        DestroyPearl(abPearl);
+                        TryDestroyPearl(abPearl);
                         continue;
                     }
                     int team = PearlIdxToTeam(abPearl.dataPearlType.index);
@@ -276,30 +277,33 @@ public partial class CTPGameMode
     /// <summary>
     /// HOST ONLY
     /// </summary>
-    public void TryDestroyPearl(byte team, bool amHost)
+    //public void TryDestroyPearl(byte team, bool amHost)
+    public void TryDestroyPearl(OnlinePhysicalObject opo, bool amHost)
     {
-        if (TeamPearls[team] == null)
+        if (opo == null)
         {
-            RainMeadow.RainMeadow.Error($"[CTP]: Cannot destroy the pearl for team {team} because it is already destroyed.");
+            RainMeadow.RainMeadow.Error($"[CTP]: Cannot destroy pearl {opo} because it does not exist");
             return;
         }
-        RainMeadow.RainMeadow.Debug($"[CTP]: Host trying to destroy pearl for team {team}.");
 
-        if (TeamPearls[team].isMine)
+        if (opo.isMine)
         {
-            DestroyPearl(TeamPearls[team].apo as DataPearl.AbstractDataPearl);
-            //TeamPearls[team].Deregister();
-            //TeamPearls[team].Deactivated(TeamPearls[team].primaryResource); //used a while ago in my old implementation
-            //TeamPearls[team] = null;
-
-            //RemoveIndicator(team); //just let ManageIndicators deal with it
+            DestroyPearl(opo.apo);
         }
         else if (amHost)
         {
-            TeamPearls[team].owner.InvokeRPC(CTPRPCs.TryDestroyPearl, team);
+            RainMeadow.RainMeadow.Debug($"[CTP]: Host trying to destroy pearl {opo}");
+            opo.owner.InvokeRPC(CTPRPCs.TryDestroyPearl, opo);
         }
         else
-            RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl for team {team}, but I don't own it and I am not the host!");
+            RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl {opo}, but I don't own it and I am not the host!");
+    }
+    public void TryDestroyPearl(AbstractPhysicalObject pearl)
+    {
+        if (pearl.IsLocal())
+            DestroyPearl(pearl);
+        else
+            TryDestroyPearl(pearl.GetOnlineObject(), true);
     }
 
     private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);
@@ -318,7 +322,7 @@ public partial class CTPGameMode
         return -1;
     }
 
-    public static void DestroyPearl(DataPearl.AbstractDataPearl apo)
+    public static void DestroyPearl(AbstractPhysicalObject apo)
     {
         RainMeadow.RainMeadow.Debug($"[CTP]: Destroying local pearl {apo}");
         apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
@@ -351,7 +355,7 @@ public partial class CTPGameMode
                 else if (pearlUntouchedTicks[i] >= 0) //everything is fine with the pearl
                 {
                     //manage pearl timer
-                    if (UNTENDED_PEARL_RESPAWN_TIME <= 0 //if the mechanic is disabled
+                    if (untendedPearlRespawnTime <= 0 //if the mechanic is disabled
                         || player == null || TeamPearls[i].apo.pos.room != player.pos.room //not in the same room
                         || (TeamPearls[i].apo.realizedObject != null && TeamPearls[i].apo.realizedObject.grabbedBy.Count > 0)) //or is held by something
                         pearlUntouchedTicks[i] = 0; //reset timer
@@ -399,7 +403,7 @@ public partial class CTPGameMode
                     string moveReason = "";
                     if (!pearl.realized || pearl.apo.realizedObject == null) moveReason = "null";
                     else if (pearl.apo.InDen) moveReason = "in a den";
-                    else if (UNTENDED_PEARL_RESPAWN_TIME > 0 && pearlUntouchedTicks[i] > UNTENDED_PEARL_RESPAWN_TIME * 200f) moveReason = "due for a manual reposition.";
+                    else if (untendedPearlRespawnTime > 0 && pearlUntouchedTicks[i] > untendedPearlRespawnTime * 200f) moveReason = "due for a manual reposition.";
                     else if (pearl.apo.pos.Tile.y < 0 || pearl.apo.pos.Tile.x < 0
                         || pearl.apo.pos.Tile.y > pearl.apo.Room.size.y || pearl.apo.pos.Tile.x > pearl.apo.Room.size.x)
                         moveReason = "out of bounds";

@@ -31,10 +31,10 @@ public static class CTPRPCs
     }
 
     [RPCMethod]
-    public static void TryDestroyPearl(byte team)
+    public static void TryDestroyPearl(OnlinePhysicalObject opo)
     {
-        if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.worldSession != null)
-            gamemode.TryDestroyPearl(team, false);
+        if (CTPGameMode.IsCTPGameMode(out var gamemode))
+            gamemode.TryDestroyPearl(opo, false);
     }
 
     /* Deprecated

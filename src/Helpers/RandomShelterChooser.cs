@@ -30,7 +30,7 @@ public static class RandomShelterChooser
     /// <param name="distanceLeniency">How far away the shelter CAN be. 0 = MUST be furthest possible shelter; 1 = ANY possible shelter.</param>
     /// <returns></returns>
     /// <exception cref="IndexOutOfRangeException">Thrown if not enough shelters in the region to support the number of teams.</exception>
-    public static string GetRespawnShelter(string region, SlugcatStats.Name slugcat, string[] otherTeamShelters, float distanceLeniency = 0.5f)
+    public static string GetRespawnShelter(string region, SlugcatStats.Name slugcat, string[] otherTeamShelters, float distanceLeniency = 0.5f, float targetDistance = 600)
     {
         RandomShelterFilter.FindValidShelterPositions(region, slugcat);
 
@@ -65,7 +65,8 @@ public static class RandomShelterChooser
         List<(string, float)> orderedShelters = new(unorderedShelters.Count());
         foreach (var s in unorderedShelters)
         {
-            float score = MIN_DISTANCE(s.Item2, otherShelterLocs) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
+            //float score = MIN_DISTANCE(s.Item2, otherShelterLocs) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
+            float score = ShelterScore(s.Item2, otherShelterLocs, targetDistance) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
             int idx = orderedShelters.FindIndex(s => s.Item2 < score); //index of first shelter with a worse score
             if (idx < 0) orderedShelters.Add((s.n, score)); //this is the worst; add to the end
             else orderedShelters.Insert(idx, (s.n, score)); //insert in front of worse shelter
@@ -87,6 +88,24 @@ public static class RandomShelterChooser
         float dist = float.PositiveInfinity;
         foreach (Vector2 v in b) dist = Mathf.Min(dist, (a - v).SqrMagnitude());
         return dist;
+    }
+    private static float MAX_DISTANCE(Vector2 a, List<Vector2> b)
+    {
+        if (b.Count < 1) return 0;
+        float dist = 0;
+        foreach (Vector2 v in b) dist = Mathf.Min(dist, (a - v).SqrMagnitude());
+        return dist;
+    }
+    private static float ShelterScore(Vector2 shelterPos, List<Vector2> otherShelters, float targetDistance)
+    {
+        if (otherShelters.Count < 1) return 0;
+        float total = 0;
+        foreach (Vector2 v in otherShelters)
+        {
+            float dist = Vector2.Distance(shelterPos, v);
+            total += (dist < targetDistance) ? dist*dist : -(dist-targetDistance)*(dist-targetDistance);
+        }
+        return total;
     }
 }
 
