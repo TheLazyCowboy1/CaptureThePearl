@@ -16,10 +16,10 @@ public static class MeadowHooks
 {
     public static void ApplyHooks()
     {
-        lobbySelectHook = new Hook(
+        /*lobbySelectHook = new Hook(
             typeof(LobbySelectMenu).GetConstructors()[0],
             LobbySelectMenu_ctor
-            );
+            );*/
         deathScreenRPCHook = new Hook(
             typeof(StoryRPCs).GetMethod(nameof(StoryRPCs.GoToDeathScreen)),
             StoryRPCs_GoToDeathScreen
@@ -51,7 +51,7 @@ public static class MeadowHooks
 
     public static void RemoveHooks()
     {
-        lobbySelectHook?.Undo();
+        //lobbySelectHook?.Undo();
         deathScreenRPCHook?.Undo();
         leaveLobbyHook?.Undo();
         chatMessageHook?.Undo();
@@ -62,6 +62,7 @@ public static class MeadowHooks
 
     //Add Capture the Pearl to lobby filter
     private delegate void LobbySelectMenu_ctor_orig(LobbySelectMenu self, ProcessManager manager);
+    [Obsolete("Meadow now does this automatically")]
     private static void LobbySelectMenu_ctor(LobbySelectMenu_ctor_orig orig, LobbySelectMenu self, ProcessManager manager)
     {
         orig(self, manager);

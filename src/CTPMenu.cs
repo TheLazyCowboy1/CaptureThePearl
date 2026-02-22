@@ -200,6 +200,21 @@ public class CTPMenu : StoryOnlineMenu
         if (needRefresh)
             RefreshMenu();
 
+        
+        //Change background if host changes region or client changes slugcat
+        if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
+        {
+            clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+            
+            if (!OnlineManager.lobby.isOwner) //client only
+            {
+                ChangePageBackground();
+                //ensure the new region selected is actually in my region list
+                if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
+                    RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+            }
+        }
+
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
             //Update region dropdown list
@@ -243,27 +258,15 @@ public class CTPMenu : StoryOnlineMenu
         }
         else //client update stuff
         {
-            //Change background if host changes region or client changes slugcat
-            if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
-            {
-                ChangePageBackground();
-                clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
-
-                //ensure the new region selected is actually in my region list
-                if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
-                    RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
-            }
-            //if (base.onlineDifficultyLabel != null)
-            //base.onlineDifficultyLabel.text = clientDescription;
-            if (base.lobbyLabel != null)
-                base.lobbyLabel.text = clientDescription;
-
             //set custom settings
             RegionDropdownBox.value = storyGameMode.region;
             TeamUpdown.SetValueInt(gameMode.NumberOfTeams);
             TimerUpdown.SetValueInt(gameMode.TimerLength);
             CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
         }
+
+        if (base.infoLabel != null)
+            base.infoLabel.text = clientDescription;
     }
 
     public void SetupCustomUIElements()
