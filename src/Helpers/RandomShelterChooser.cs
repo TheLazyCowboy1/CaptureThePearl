@@ -17,7 +17,7 @@ namespace CaptureThePearl.Helpers;
 public static class RandomShelterChooser
 {
     //public const float MINIMUM_SHELTER_DISTANCE = 500f; //regions are typically 2000-4000 wide, so this is pretty small
-                                                        //todo: make this configurable, not constant
+
     /// <summary>
     /// Gets a shelter to respawn at!
     /// What is this mess... this sort is totally ridiculous;
@@ -26,47 +26,54 @@ public static class RandomShelterChooser
     /// </summary>
     /// <param name="region">The region name.</param>
     /// <param name="slugcat">The slugcat.</param>
-    /// <param name="otherTeamShelters">A list of shelters assigned to other teams.</param>
+    /// <param name="teamShelters">A list of shelters assigned to other teams.</param>
+    /// <param name="team">The team the player is on.</param>
     /// <param name="distanceLeniency">How far away the shelter CAN be. 0 = MUST be furthest possible shelter; 1 = ANY possible shelter.</param>
     /// <returns></returns>
     /// <exception cref="IndexOutOfRangeException">Thrown if not enough shelters in the region to support the number of teams.</exception>
-    public static string GetRespawnShelter(string region, SlugcatStats.Name slugcat, string[] otherTeamShelters, float distanceLeniency = 0.5f, float targetDistance = 600)
+    public static string GetRespawnShelter(string region, SlugcatStats.Name slugcat, string[] teamShelters, int team, float distanceLeniency = 0.5f, float targetDistance = 600, float mapBorderDistance = 100)
     {
         RandomShelterFilter.FindValidShelterPositions(region, slugcat);
 
-        if (otherTeamShelters.Length >= RandomShelterFilter.shelterNames.Length + RandomShelterFilter.secondaryShelterNames.Length)
+        if (teamShelters.Length >= RandomShelterFilter.shelterNames.Length + RandomShelterFilter.secondaryShelterNames.Length)
             throw new IndexOutOfRangeException("There are more team shelters than there are shelters in the region!!!!");
 
-        List<Vector2> otherShelterLocs = new();
-        foreach (var s in otherTeamShelters)
+        List<Vector2> shelterLocs = new();
+        foreach (var s in teamShelters)
         {
             int idx = Array.IndexOf(RandomShelterFilter.shelterNames, s);
-            if (idx >= 0) otherShelterLocs.Add(RandomShelterFilter.shelterPositions[idx]);
+            if (idx >= 0) shelterLocs.Add(RandomShelterFilter.shelterPositions[idx]);
             else
             {
                 idx = Array.IndexOf(RandomShelterFilter.secondaryShelterNames, s);
-                if (idx >= 0) otherShelterLocs.Add(RandomShelterFilter.secondaryShelterPositions[idx]);
+                if (idx >= 0) shelterLocs.Add(RandomShelterFilter.secondaryShelterPositions[idx]);
+                else throw new Exception($"[CTP]: Cannot find position of shelter {s}!");
             }
         }
 
         var unorderedShelters = RandomShelterFilter.shelterNames
-            .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]));
+            .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]))
+            .Where(v => team >= teamShelters.Length || RoomBlacklister.InBounds(v.Item2, shelterLocs, mapBorderDistance)); //don't allow shelters out of range
 
         //optionally add secondary shelters, if necessary
-        if (otherTeamShelters.Length >= RandomShelterFilter.shelterNames.Length)
+        if (teamShelters.Length >= RandomShelterFilter.shelterNames.Length)
             unorderedShelters = unorderedShelters.Concat(
                     RandomShelterFilter.secondaryShelterNames
                     .Select((n, i) => (n, RandomShelterFilter.secondaryShelterPositions[i]))
+                    .Where(v => team >= teamShelters.Length || RoomBlacklister.InBounds(v.Item2, shelterLocs, mapBorderDistance)) //don't allow shelters out of range
                 );
         unorderedShelters = unorderedShelters
-            .Where(kvp => !otherTeamShelters.Contains(kvp.n)); //don't spawn in other teams' shelters!!!
+            .Where(kvp => !teamShelters.Contains(kvp.n)); //don't spawn in other teams' shelters!!!
+
+        if (team < teamShelters.Length)
+            shelterLocs.RemoveAt(team); //only consider other teams' shelters
 
         //manual sort... :(
         List<(string, float)> orderedShelters = new(unorderedShelters.Count());
         foreach (var s in unorderedShelters)
         {
             //float score = MIN_DISTANCE(s.Item2, otherShelterLocs) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
-            float score = ShelterScore(s.Item2, otherShelterLocs, targetDistance) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
+            float score = ShelterScore(s.Item2, shelterLocs, targetDistance) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
             int idx = orderedShelters.FindIndex(s => s.Item2 < score); //index of first shelter with a worse score
             if (idx < 0) orderedShelters.Add((s.n, score)); //this is the worst; add to the end
             else orderedShelters.Insert(idx, (s.n, score)); //insert in front of worse shelter
@@ -103,7 +110,9 @@ public static class RandomShelterChooser
         foreach (Vector2 v in otherShelters)
         {
             float dist = Vector2.Distance(shelterPos, v);
-            total += (dist < targetDistance) ? dist*dist : -(dist-targetDistance)*(dist-targetDistance);
+            total += dist * dist;
+            if (dist > targetDistance)
+                total -= (dist-targetDistance)*(dist-targetDistance);
         }
         return total;
     }

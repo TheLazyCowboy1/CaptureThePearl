@@ -78,7 +78,7 @@ public partial class CTPGameMode : StoryGameMode
         {
             try
             {
-                tempShelters.Add(Helpers.RandomShelterChooser.GetRespawnShelter(region, currentCampaign, tempShelters.ToArray(), Plugin.Options.TeamShelterCloseness.Value, Plugin.Options.TargetShelterDistance.Value));
+                tempShelters.Add(Helpers.RandomShelterChooser.GetRespawnShelter(region, currentCampaign, tempShelters.ToArray(), tempShelters.Count, Plugin.Options.TeamShelterCloseness.Value, Plugin.Options.TargetShelterDistance.Value));
             }
             catch (Exception ex) //if there aren't enough shelters in the region for all the teams
             {
