@@ -51,8 +51,31 @@ public class CTPMenu : StoryOnlineMenu
         tabWrapper = new MenuTabWrapper(this, pages[0]);
         pages[0].subObjects.Add(tabWrapper);
 
+        previousPageIdx = slugcatPageIndex;
+
+        storyGameMode = (CTPGameMode)OnlineManager.lobby.gameMode;
+
+        storyGameMode.Sanitize();
+        gameMode.SanitizeCTP();
+        storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
+
+
+        //add region dropdowns
+        regionConfig = new(storyGameMode.region == null ? lastRegion : storyGameMode.region);
+        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4)); //cap at 4 teams
+        timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 60));
+        creaturesConfig = new(gameMode.SpawnCreatures);
+        SetupCustomUIElements();
+
+        MatchmakingManager.OnPlayerListReceived += MatchmakingManager_OnPlayerListReceived;
+
+        RefreshMenu();
+    }
+
+    public void RefreshMenu()
+    {
         //remove "match save" option
-        //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been renamed/moved; it is now labeled "Sync Save" in game
+        //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been changed to simply use the restartCheckbox
         RemoveMenuObject(restartCheckbox);
         newSessionText = Translate("NEW SESSION");
 
@@ -76,27 +99,7 @@ public class CTPMenu : StoryOnlineMenu
             }
         }
 
-        previousPageIdx = slugcatPageIndex;
-
-        storyGameMode = (CTPGameMode)OnlineManager.lobby.gameMode;
-
-        storyGameMode.Sanitize();
-        gameMode.SanitizeCTP();
-        storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
-
-
-        //add region dropdowns
-        regionConfig = new(storyGameMode.region == null ? lastRegion : storyGameMode.region);
-        teamConfig = new(gameMode.NumberOfTeams, new ConfigAcceptableRange<int>(2, 4)); //cap at 4 teams
-        timerConfig = new(gameMode.TimerLength, new ConfigAcceptableRange<int>(1, 60));
-        creaturesConfig = new(gameMode.SpawnCreatures);
-        SetupCustomUIElements();
-
-
-        //To-do: Dropdown for slugcats for host
         AddTeamSelectButtons();
-
-        MatchmakingManager.OnPlayerListReceived += MatchmakingManager_OnPlayerListReceived;
     }
 
     private void MatchmakingManager_OnPlayerListReceived(PlayerInfo[] players)
@@ -108,9 +111,9 @@ public class CTPMenu : StoryOnlineMenu
     {
         if (OnlineManager.lobby.isOwner)
         {
-            var tempList = playerScrollBox.buttons.ToArray();
+            //var tempList = playerScrollBox.buttons.ToArray();
             int totalAdded = 0;
-            foreach (var button in tempList)
+            foreach (var button in playerScrollBox.buttons)
             {
                 if (button is StoryMenuPlayerButton playerButton)
                 {
@@ -125,7 +128,7 @@ public class CTPMenu : StoryOnlineMenu
                             gameMode.HostAssignedTeams.Add(player, 0);
                     }
 
-                    TeamSelectButton newBut = new(this, playerButton, new Vector2(playerButton.size.x + 20, 0), new(50, playerButton.size.y), player, team);
+                    TeamSelectButton newBut = new(this, playerButton, new(playerButton.size.x + 30, 0), new(50, playerButton.size.y), player, team);
                     //playerScrollBox.AddScrollObjects(newBut);
                     playerButton.subObjects.Add(newBut);
                     totalAdded++;
@@ -181,6 +184,12 @@ public class CTPMenu : StoryOnlineMenu
     private Task dropdownUpdateTask;
     public override void Update()
     {
+        if (storyGameMode.needMenuSaveUpdate)
+        {
+            RefreshMenu();
+            previousRegion = "fake region";
+        }
+
         base.Update();
 
         if (OnlineManager.lobby.isOwner) //host update stuff
