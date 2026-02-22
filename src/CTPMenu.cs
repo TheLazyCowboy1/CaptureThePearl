@@ -125,7 +125,7 @@ public class CTPMenu : StoryOnlineMenu
                             gameMode.HostAssignedTeams.Add(player, 0);
                     }
 
-                    TeamSelectButton newBut = new(this, playerScrollBox, new Vector2(playerButton.size.x + 20, 0), new(50, playerButton.size.y), player, team);
+                    TeamSelectButton newBut = new(this, playerButton, new Vector2(playerButton.size.x + 20, 0), new(50, playerButton.size.y), player, team);
                     //playerScrollBox.AddScrollObjects(newBut);
                     playerButton.subObjects.Add(newBut);
                     totalAdded++;
@@ -135,11 +135,11 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
-    private class TeamSelectButton : SimpleButton
+    private class TeamSelectButton : SimplerButton
     {
         public int Team = 0;
         public OnlinePlayer Player;
-        public TeamSelectButton(Menu.Menu menu, MenuObject owner, Vector2 pos, Vector2 size, OnlinePlayer player, int team = 0) : base(menu, owner, "", "", pos, size)
+        public TeamSelectButton(Menu.Menu menu, MenuObject owner, Vector2 pos, Vector2 size, OnlinePlayer player, int team = 0) : base(menu, owner, "error", pos, size, "error")
         {
             Team = team;
             Player = player;
@@ -168,11 +168,11 @@ public class CTPMenu : StoryOnlineMenu
                 0 => "Any",
                 _ => "Team" + Team
             };
-            /*base.Description = Team switch
+            base.Description = Team switch
             {
                 0 => "Player will be assigned to the team with the least number of players.",
                 _ => "Player will be assigned to team " + Team + " if it is available."
-            };*/
+            };
         }
     }
 
