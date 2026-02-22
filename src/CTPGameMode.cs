@@ -13,6 +13,8 @@ public partial class CTPGameMode : StoryGameMode
     public const string GameModeName = "Capture the Pearl";
     public const string GameModeDescription = "Team up with other players to steal the opposing team's pearls and bring them\nback to your home shelter!";
 
+    public Dictionary<OnlinePlayer, byte> HostAssignedTeams = new(); //used by the lobby
+
     //Synced variables
     public Dictionary<OnlinePlayer, byte> PlayerTeams = new();
 
@@ -50,6 +52,7 @@ public partial class CTPGameMode : StoryGameMode
         SanitizeTracker();
 
         PlayerTeams.Clear();
+        HostAssignedTeams.Clear();
         TeamShelters = new string[0];
         TeamPoints = new int[0];
         gameSetup = false;
@@ -129,28 +132,37 @@ public partial class CTPGameMode : StoryGameMode
             tempPlayers.RemoveAt(idx);
         }
 
+        //assign teams
         foreach (var player in shuffledPlayers)
         {
-            if (!PlayerTeams.ContainsKey(player))
+            if (!PlayerTeams.ContainsKey(player)) //only assign teams to players who don't have one
             {
                 RainMeadow.RainMeadow.Debug($"[CTP]: Adding player {player}");
-                //get team counts
-                int[] teamCounts = new int[NumberOfTeams];
-                int minCount = Int32.MaxValue;
-                for (byte i = 0; i < NumberOfTeams; i++)
+
+                if (HostAssignedTeams.TryGetValue(player, out byte team) && team > 0) //use the assigned team if applicable
                 {
-                    teamCounts[i] = PlayerTeams.Count(kvp => kvp.Value == i) + TeamPoints[i]; //add TeamPoints, to favor losing teams with new players
-                    minCount = Math.Min(minCount, teamCounts[i]);
+                    PlayerTeams.Add(player, (byte)(team - 1));
                 }
-                //get the list of teams that are valid options (team has the least number of players)
-                List<byte> validTeams = new(NumberOfTeams);
-                for (byte i = 0; i < NumberOfTeams; i++)
+                else
                 {
-                    if (teamCounts[i] == minCount)
-                        validTeams.Add(i);
+                    //get team counts
+                    int[] teamCounts = new int[NumberOfTeams];
+                    int minCount = Int32.MaxValue;
+                    for (byte i = 0; i < NumberOfTeams; i++)
+                    {
+                        teamCounts[i] = PlayerTeams.Count(kvp => kvp.Value == i) + TeamPoints[i]; //add TeamPoints, to favor losing teams with new players
+                        minCount = Math.Min(minCount, teamCounts[i]);
+                    }
+                    //get the list of teams that are valid options (team has the least number of players)
+                    List<byte> validTeams = new(NumberOfTeams);
+                    for (byte i = 0; i < NumberOfTeams; i++)
+                    {
+                        if (teamCounts[i] == minCount)
+                            validTeams.Add(i);
+                    }
+                    //actually add the player to a random valid team
+                    PlayerTeams.Add(player, validTeams[UnityEngine.Random.Range(0, validTeams.Count)]);
                 }
-                //actually add the player to a random valid team
-                PlayerTeams.Add(player, validTeams[UnityEngine.Random.Range(0, validTeams.Count)]);
             }
         }
 
@@ -309,7 +321,7 @@ public partial class CTPGameMode : StoryGameMode
     public static byte PearlIdxToTeam(int idx) => (byte)(idx - 2);
 
     
-    public Color GetTeamColor(int team)
+    public static Color GetTeamColor(int team)
     {
         if (team == 0) return Custom.hexToColor("EE0000");//red
         else if (team == 1) return Custom.hexToColor("0000EE");//blue

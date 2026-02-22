@@ -412,7 +412,7 @@ public static class CTPGameHooks
 
                     //set player colors here???
                     //symbol.myColor = player.GetData<SlugcatCustomization>().bodyColor;
-                    symbol.myColor = gamemode.GetTeamColor(gamemode.PlayerTeams.TryGetValue(player.owner, out byte team) ? team : 0);
+                    symbol.myColor = CTPGameMode.GetTeamColor(gamemode.PlayerTeams.TryGetValue(player.owner, out byte team) ? team : 0);
                     symbol.symbolSprite.alpha = 0.9f;
 
                     //shrink dead or indeterminate players (probably distant ones)
@@ -608,7 +608,7 @@ public static class CTPGameHooks
                             {
                                 var player = OnlineManager.players.Find(p => p.id.name == username);
                                 if (player != null && gamemode.PlayerTeams.TryGetValue(player, out byte team))
-                                    label.label.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(team));
+                                    label.label.color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(team));
                                 lastFoundIdx = i;
                                 break;
                             }
@@ -630,7 +630,7 @@ public static class CTPGameHooks
 
         if (mode.PlayerTeams.ContainsKey(self.player))
         {
-            self.color = mode.GetTeamColor(mode.PlayerTeams[self.player]);
+            self.color = CTPGameMode.GetTeamColor(mode.PlayerTeams[self.player]);
             self.lighter_color = self.color;
 
 
@@ -1012,7 +1012,7 @@ public static class CTPGameHooks
             string name = map.mapData.NameOfRoom(room);
             int idx = Array.IndexOf(gamemode.TeamShelters, name);
             if (idx >= 0)
-                self.symbolSprite.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(idx));
+                self.symbolSprite.color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(idx));
         }
     }
 
@@ -1043,7 +1043,7 @@ public static class CTPGameHooks
                         string shelterName = self.room.world.GetAbstractRoom(self.room.abstractRoom.connections[destNode])?.name;
                         int idx = Array.IndexOf(gamemode.TeamShelters, shelterName);
                         if (idx >= 0)
-                            sprite.color = CTPGameMode.LighterTeamColor(gamemode.GetTeamColor(idx));
+                            sprite.color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(idx));
                     }
                 }
             }
@@ -1086,7 +1086,7 @@ public static class CTPGameHooks
     private static Color DataPearl_UniquePearlMainColor(On.DataPearl.orig_UniquePearlMainColor orig, DataPearl.AbstractDataPearl.DataPearlType pearlType)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            return gamemode.GetTeamColor(CTPGameMode.PearlIdxToTeam(pearlType.index));
+            return CTPGameMode.GetTeamColor(CTPGameMode.PearlIdxToTeam(pearlType.index));
             //return Color.HSVToRGB((float)CTPGameMode.PearlIdxToTeam(pearlType.index) / (float)gamemode.NumberOfTeams, 1f, 0.9f);
         return orig(pearlType);
     }
@@ -1158,7 +1158,7 @@ public static class CTPGameHooks
         orig(self, timeStacker);
 
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
-            self.playerNameLabel.label.color = gamemode.GetTeamColor(self.player.playerNumber);
+            self.playerNameLabel.label.color = CTPGameMode.GetTeamColor(self.player.playerNumber);
     }
 
     //Shove iterators into wall, where they'll be out of sight (a stupid solution, but it seems to work pretty well)

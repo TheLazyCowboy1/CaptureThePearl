@@ -94,6 +94,82 @@ public class CTPMenu : StoryOnlineMenu
 
 
         //To-do: Dropdown for slugcats for host
+        AddTeamSelectButtons();
+
+        MatchmakingManager.OnPlayerListReceived += MatchmakingManager_OnPlayerListReceived;
+    }
+
+    private void MatchmakingManager_OnPlayerListReceived(PlayerInfo[] players)
+    {
+        AddTeamSelectButtons();
+    }
+
+    private void AddTeamSelectButtons()
+    {
+        if (OnlineManager.lobby.isOwner)
+        {
+            var tempList = playerScrollBox.buttons.ToArray();
+            foreach (var button in tempList)
+            {
+                if (button is StoryMenuPlayerButton playerButton)
+                {
+                    //find associated player
+                    OnlinePlayer player = OnlineManager.players.FirstOrDefault(p => p.id.name == playerButton.menuLabel.text);
+                    int team = 0;
+                    if (player != null)
+                    {
+                        if (gameMode.HostAssignedTeams.TryGetValue(player, out byte newTeam))
+                            team = newTeam;
+                        else
+                            gameMode.HostAssignedTeams.Add(player, 0);
+                    }
+
+                    TeamSelectButton newBut = new(this, playerScrollBox, playerButton.pos + new Vector2(playerButton.size.x, 0), new(100, playerButton.size.y), player, team);
+                    playerScrollBox.AddScrollObjects(newBut);
+                }
+            }
+        }
+    }
+
+    private class TeamSelectButton : ButtonScroller.ScrollerButton
+    {
+        public int Team = 0;
+        public OnlinePlayer Player;
+        public TeamSelectButton(Menu.Menu menu, MenuObject owner, Vector2 pos, Vector2 size, OnlinePlayer player, int team = 0) : base(menu, owner, "", pos, size, "")
+        {
+            Team = team;
+            Player = player;
+            UpdateLabel();
+        }
+
+        public override void Clicked()
+        {
+            base.Clicked();
+            Team++;
+            if (Team > 4) Team = 0;
+            if (Player != null && CTPGameMode.IsCTPGameMode(out var gamemode))
+                gamemode.HostAssignedTeams[Player] = (byte)Team;
+
+            UpdateLabel();
+        }
+        public void UpdateLabel()
+        {
+            base.labelColor = Team switch
+            {
+                0 => new(0, 0, 1),
+                _ => CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(Team - 1)).ToHSL()
+            };
+            base.menuLabel.text = Team switch
+            {
+                0 => "Any",
+                _ => "Team" + Team
+            };
+            base.Description = Team switch
+            {
+                0 => "Player will be assigned to the team with the least number of players.",
+                _ => "Player will be assigned to team " + Team + " if it is available."
+            };
+        }
     }
 
     private int previousPageIdx;
