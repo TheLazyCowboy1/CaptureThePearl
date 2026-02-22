@@ -342,7 +342,7 @@ public partial class CTPGameMode
         if (apo.realizedObject != null)
         {
             apo.realizedObject.AllGraspsLetGoOfThisObject(true);
-            apo.realizedObject.room.CleanOutObjectNotInThisRoom(apo.realizedObject);
+            apo.realizedObject.room?.CleanOutObjectNotInThisRoom(apo.realizedObject);
         }
 
         apo.Abstractize(apo.pos);

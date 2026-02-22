@@ -124,8 +124,9 @@ public class CTPMenu : StoryOnlineMenu
                             gameMode.HostAssignedTeams.Add(player, 0);
                     }
 
-                    TeamSelectButton newBut = new(this, playerScrollBox, playerButton.pos + new Vector2(playerButton.size.x, 0), new(100, playerButton.size.y), player, team);
-                    playerScrollBox.AddScrollObjects(newBut);
+                    TeamSelectButton newBut = new(this, playerScrollBox, new Vector2(playerButton.size.x + 20, 0), new(50, playerButton.size.y), player, team);
+                    //playerScrollBox.AddScrollObjects(newBut);
+                    playerButton.subObjects.Add(newBut);
                 }
             }
         }

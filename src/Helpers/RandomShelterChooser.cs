@@ -110,9 +110,12 @@ public static class RandomShelterChooser
         foreach (Vector2 v in otherShelters)
         {
             float dist = Vector2.Distance(shelterPos, v);
-            total += dist * dist;
             if (dist > targetDistance)
-                total -= (dist-targetDistance)*(dist-targetDistance);
+            {
+                total -= (dist - targetDistance) * (dist - targetDistance); //penalize the excess
+                dist = targetDistance; //cap the benefit
+            }
+            total += dist * dist;
         }
         return total;
     }
