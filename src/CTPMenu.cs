@@ -69,37 +69,43 @@ public class CTPMenu : StoryOnlineMenu
 
         MatchmakingManager.OnPlayerListReceived += MatchmakingManager_OnPlayerListReceived;
 
-        RefreshMenu();
+        //RefreshMenu();
     }
 
     public void RefreshMenu()
     {
-        //remove "match save" option
-        //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been changed to simply use the restartCheckbox
-        RemoveMenuObject(restartCheckbox);
-        newSessionText = Translate("NEW SESSION");
-
-        //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
-        if (OnlineManager.lobby.isOwner) //messes up client menu
+        try
         {
-            for (int k = 0; k < slugcatPages.Count; k++)
-            {
-                slugcatPages[k]?.RemoveSprites(); //otherwise can leave annoying remnants
-                this.pages.Remove(this.slugcatPages[k]);
-                slugcatPages[k] = null;
-            }
-            slugcatPages.Clear();
-            redIsDead = false;
-            artificerIsDead = false;
-            saintIsDead = false;
-            for (int j = 0; j < slugcatColorOrder.Count; j++)
-            {
-                slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
-                pages.Add(slugcatPages[j]);
-            }
-        }
+            //remove "match save" option
+            //RemoveMenuObject(base.clientWantsToOverwriteSave); //this has been changed to simply use the restartCheckbox
+            RemoveMenuObject(restartCheckbox);
+            newSessionText = Translate("NEW SESSION");
 
-        AddTeamSelectButtons();
+            //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
+            if (OnlineManager.lobby.isOwner) //messes up client menu
+            {
+                /*for (int k = 0; k < slugcatPages.Count; k++)
+                {
+                    slugcatPages[k]?.RemoveSprites(); //otherwise can leave annoying remnants
+                    this.pages.Remove(this.slugcatPages[k]);
+                    slugcatPages[k] = null;
+                }
+                slugcatPages.Clear();*/
+                redIsDead = false;
+                artificerIsDead = false;
+                saintIsDead = false;
+                for (int j = 0; j < slugcatColorOrder.Count; j++)
+                {
+                    //slugcatPages.Add(new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]));
+                    //pages.Add(slugcatPages[j]);
+                    slugcatPages[j]?.RemoveSprites(); //clear out old page
+                    slugcatPages[j] = new SlugcatSelectMenu.SlugcatPageNewGame(this, null, 1 + j, slugcatColorOrder[j]);
+                }
+            }
+
+            AddTeamSelectButtons();
+        }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
 
     private void MatchmakingManager_OnPlayerListReceived(PlayerInfo[] players)
@@ -184,13 +190,12 @@ public class CTPMenu : StoryOnlineMenu
     private Task dropdownUpdateTask;
     public override void Update()
     {
-        if (storyGameMode.needMenuSaveUpdate)
-        {
-            RefreshMenu();
-            previousRegion = "fake region";
-        }
+        bool needRefresh = storyGameMode.needMenuSaveUpdate;
 
         base.Update();
+
+        if (needRefresh)
+            RefreshMenu();
 
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
@@ -236,7 +241,7 @@ public class CTPMenu : StoryOnlineMenu
         else //client update stuff
         {
             //Change background if host changes region or client changes slugcat
-            if ((storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex))
+            if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
             {
                 ChangePageBackground();
                 clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
