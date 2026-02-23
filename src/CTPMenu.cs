@@ -206,21 +206,6 @@ public class CTPMenu : StoryOnlineMenu
         if (needRefresh)
             RefreshMenu();
 
-        
-        //Change background if host changes region or client changes slugcat
-        if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
-        {
-            clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
-            
-            if (!OnlineManager.lobby.isOwner) //client only
-            {
-                ChangePageBackground();
-                //ensure the new region selected is actually in my region list
-                if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
-                    RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
-            }
-        }
-
         if (OnlineManager.lobby.isOwner) //host update stuff
         {
             //Update region dropdown list
@@ -271,8 +256,26 @@ public class CTPMenu : StoryOnlineMenu
             CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
         }
 
+
+        //Change background if host changes region or client changes slugcat
+        if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
+        {
+            clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+
+            if (!OnlineManager.lobby.isOwner) //client only
+            {
+                ChangePageBackground();
+                //ensure the new region selected is actually in my region list
+                if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
+                    RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+            }
+
+            previousRegion = storyGameMode.region;
+            previousPageIdx = slugcatPageIndex;
+        }
+
         //if (base.infoLabel != null)
-            //base.infoLabel.text = clientDescription;
+        //base.infoLabel.text = clientDescription;
         if (slugcatPages[slugcatPageIndex] is SlugcatSelectMenu.SlugcatPageNewGame newGamePage)
         {
             newGamePage.difficultyLabel.text = clientDescription;
@@ -483,8 +486,6 @@ public class CTPMenu : StoryOnlineMenu
             else
                 RainMeadow.RainMeadow.Debug($"[CTP]: Failed to load background for {storyGameMode.region}.");
 
-            previousRegion = storyGameMode.region;
-            previousPageIdx = slugcatPageIndex;
         } 
         catch (Exception ex) 
         {

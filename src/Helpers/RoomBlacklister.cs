@@ -79,6 +79,6 @@ public static class RoomBlacklister
     {
         float maxTotalDistance = Mathf.Max(teamShelterPos.Select(p => teamShelterPos.Sum(o => Vector2.Distance(p, o))).ToArray())
             + additionalDistance * teamShelterPos.Count; //add additionalDistance
-        return teamShelterPos.Sum(p => Vector2.Distance(pos, p)) > maxTotalDistance;
+        return teamShelterPos.Sum(p => Vector2.Distance(pos, p)) <= maxTotalDistance;
     }
 }
