@@ -13,6 +13,7 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using Color = UnityEngine.Color;
 using Exception = System.Exception;
+using RainMeadow.UI.Components;
 
 namespace CaptureThePearl;
 
@@ -499,105 +500,37 @@ public static class CTPGameHooks
     private delegate void UpdateLogDisplay_orig(ChatLogOverlay self);
     private static void ChatLogOverlay_UpdateLogDisplay(UpdateLogDisplay_orig orig, ChatLogOverlay self)
     {
-        /*if (CTPGameMode.IsCTPGameMode(out var mode))
-        {
-            if (self.chatHud.chatLog.Count > 0)
-            {
-                var logsToRemove = new List<MenuObject>();
+        //int lastFoundIdx = self.myChatLog.Length;
+        int oldLength = self.scroller.subObjects.Count;
 
-                // First, collect all the logs to remove
-                foreach (var log in self.pages[0].subObjects)
-                {
-                    log.RemoveSprites();
-                    logsToRemove.Add(log);
-                }
-
-                // Now remove the logs from the original collection
-                foreach (var log in logsToRemove)
-                {
-                    self.pages[0].RemoveSubObject(log);
-                }
-
-                // username:color
-                foreach (var playerAvatar in OnlineManager.lobby.playerAvatars.Select(kv => kv.Value))
-                {
-                    if (playerAvatar.FindEntity(true) is OnlinePhysicalObject opo)
-                    {
-                        if (!self.colorDictionary.ContainsKey(opo.owner.id.name) && opo.TryGetData<SlugcatCustomization>(out var customization))
-                        {
-                            self.colorDictionary.Add(opo.owner.id.name, customization.bodyColor);
-                        }
-                    }
-                }
-
-                float yOffSet = 0;
-                foreach (var (username, message) in self.chatHud.chatLog)
-                {
-                    if (username is null or "")
-                    {
-                        // system message
-                        var messageLabel = new MenuLabel(self, self.pages[0], message,
-                            new Vector2((1366f - self.manager.rainWorld.options.ScreenSize.x) / 2f - 660f, 330f - yOffSet),
-                            new Vector2(self.manager.rainWorld.options.ScreenSize.x, 30f), false);
-                        messageLabel.label.alignment = FLabelAlignment.Left;
-                        messageLabel.label.color = self.SYSTEM_COLOR;
-                        self.pages[0].subObjects.Add(messageLabel);
-                    }
-                    else
-                    {
-                        float H = 0f;
-                        float S = 0f;
-                        float V = 0f;
-
-                        var color = self.colorDictionary.TryGetValue(username, out var colorOrig) ? colorOrig : Color.white;
-                        var colorNew = color;
-
-                        Color.RGBToHSV(color, out H, out S, out V);
-                        if (V < 0.8f) { colorNew = Color.HSVToRGB(H, S, 0.8f); }
-
-                        var usernameLabel = new MenuLabel(self, self.pages[0], username,
-                            new Vector2((1366f - self.manager.rainWorld.options.ScreenSize.x) / 2f - 660f, 330f - yOffSet),
-                            new Vector2(self.manager.rainWorld.options.ScreenSize.x, 30f), false);
-                        usernameLabel.label.alignment = FLabelAlignment.Left;
-                        usernameLabel.label.color = colorNew;
-                        self.pages[0].subObjects.Add(usernameLabel);
-
-                        var usernameWidth = LabelTest.GetWidth(usernameLabel.label.text);
-                        var messageLabel = new MenuLabel(self, self.pages[0], $": {message}",
-                            new Vector2((1366f - self.manager.rainWorld.options.ScreenSize.x) / 2f - 660f + usernameWidth + 2f, 330f - yOffSet),
-                            new Vector2(self.manager.rainWorld.options.ScreenSize.x, 30f), false);
-                        messageLabel.label.alignment = FLabelAlignment.Left;
-
-                        foreach (var onPl in OnlineManager.players)
-                        {
-                            if (onPl.id.name == username)
-                            {
-                                //find myself in playerteams
-                                var teamNum = -1;
-                                if (mode.PlayerTeams.ContainsKey(onPl)) teamNum = mode.PlayerTeams[onPl];
-
-                                messageLabel.label.color = Color.Lerp(Color.white, mode.GetTeamColor(teamNum), 0.5f);
-                                break;
-                            }
-                        }
-
-                        self.pages[0].subObjects.Add(messageLabel);
-                    }
-
-                    yOffSet += 20f;
-                }
-            }
-        }
-        else orig(self);*/
         orig(self);
 
         if (CTPGameMode.IsCTPGameMode(out var gamemode))
         {
+            Color color = Color.white;
+            for (int i = oldLength + 1; i < self.scroller.subObjects.Count; i++) //loop through NEW subobjects
+            {
+                if (self.scroller.subObjects[i] is UsernameMenuLabel userLabel) //look for username labels
+                {
+                    var playerInfo = gamemode.PlayerTeams.FirstOrDefault(p => p.Key.id.name == userLabel.text); //match them to players
+                    if (playerInfo.Key != null)
+                        color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(playerInfo.Value));
+                    else
+                        RainMeadow.RainMeadow.Error($"[CTP]: Could not find player {userLabel.text} in team player list");
+                }
+                else if (self.scroller.subObjects[i] is AlignedMenuLabel messageLabel)
+                {
+                    if (messageLabel.label.color != ChatLogManager.defaultSystemColor)
+                        messageLabel.label.color = color; //set color to the color of whatever player was last found in the list
+                }
+            }
+
+            /*
             int lastFoundIdx = -1; //optimization AND prevents miscoloring
             foreach (var obj in self.pages[0].subObjects)
             {
                 //var obj = self.pages[0].subObjects[i];
-                if (obj is MenuLabel label)
+                if (obj is MenuLabel label) //should be an AlignedMenuLabel in theory
                 {
                     if (label.label.color == Futile.white && label.label.text.StartsWith(": "))
                     {
@@ -605,7 +538,8 @@ public static class CTPGameHooks
                         //foreach (var (username, message) in self.chatHud.chatLog)
                         for (int i = lastFoundIdx + 1; i < self.chatHud.chatLog.Count; i++)
                         {
-                            string username = self.chatHud.chatLog[i].Item1, message = self.chatHud.chatLog[i].Item2;
+                            string username = self.chatHud.chatLog[i].Item1,
+                                message = self.chatHud.chatLog[i].Item2;
                             if (label.label.text == ": " + message)
                             {
                                 var player = OnlineManager.players.Find(p => p.id.name == username);
@@ -618,6 +552,7 @@ public static class CTPGameHooks
                     }
                 }
             }
+            */
         }
 
     }
