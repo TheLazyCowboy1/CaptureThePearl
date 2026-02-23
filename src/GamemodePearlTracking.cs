@@ -179,7 +179,7 @@ public partial class CTPGameMode
             WorldSession ws = worldSession;
             if (ws == null || (ws.worldLoader != null && !ws.worldLoader.Finished))
             { //wait until world is actually loaded, stupid
-                RainMeadow.RainMeadow.Debug("[CTP]: ...host awaiting finished world loader...");
+                RainMeadow.RainMeadow.Debug("[CTP]: Can't search for pearls: Awaiting world loader...");
                 return;
             }
 
