@@ -126,6 +126,9 @@ public class CTPMenu : StoryOnlineMenu
             {
                 if (button is StoryMenuPlayerButton playerButton)
                 {
+                    if (playerButton.kickButton != null)
+                        playerButton.kickButton.Pos = playerButton.kickButton.Pos - new Vector2(10, 0); //shift kick button to the left to make room
+
                     //find associated player
                     OnlinePlayer player = OnlineManager.players.FirstOrDefault(p => p.id.name == playerButton.menuLabel.text);
                     int team = 0;
@@ -268,8 +271,12 @@ public class CTPMenu : StoryOnlineMenu
             CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
         }
 
-        if (base.infoLabel != null)
-            base.infoLabel.text = clientDescription;
+        //if (base.infoLabel != null)
+            //base.infoLabel.text = clientDescription;
+        if (slugcatPages[slugcatPageIndex] is SlugcatSelectMenu.SlugcatPageNewGame newGamePage)
+        {
+            newGamePage.difficultyLabel.text = clientDescription;
+        }
     }
 
     public void SetupCustomUIElements()
@@ -454,6 +461,8 @@ public class CTPMenu : StoryOnlineMenu
                 page.RemoveSubObject(page.slugcatImage);
                 page.slugcatImage.RemoveSprites();
             }
+            page.glowOffset.y += 10000; //move it out of the way
+            page.markOffset.y += 10000; //get it out of my sight
 
             backgroundSprite?.RemoveFromContainer(); //remove its old self from its container
 
