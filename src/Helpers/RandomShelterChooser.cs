@@ -51,19 +51,21 @@ public static class RandomShelterChooser
             }
         }
 
+        string myShelter = team >= teamShelters.Length ? null : teamShelters[team];
+
         var unorderedShelters = RandomShelterFilter.shelterNames
             .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]))
-            .Where(v => team >= teamShelters.Length || RoomBlacklister.InBounds(v.Item2, shelterLocs, mapBorderDistance)); //don't allow shelters out of range
+            .Where(kvp => myShelter == null || kvp.n == myShelter || RoomBlacklister.InBounds(kvp.Item2, shelterLocs, mapBorderDistance)); //don't allow shelters out of range when respawning
 
         //optionally add secondary shelters, if necessary
         if (teamShelters.Length >= RandomShelterFilter.shelterNames.Length)
             unorderedShelters = unorderedShelters.Concat(
                     RandomShelterFilter.secondaryShelterNames
                     .Select((n, i) => (n, RandomShelterFilter.secondaryShelterPositions[i]))
-                    .Where(v => team >= teamShelters.Length || RoomBlacklister.InBounds(v.Item2, shelterLocs, mapBorderDistance)) //don't allow shelters out of range
+                    .Where(kvp => myShelter == null || kvp.n == myShelter || RoomBlacklister.InBounds(kvp.Item2, shelterLocs, mapBorderDistance)) //don't allow shelters out of range when respawning
                 );
         unorderedShelters = unorderedShelters
-            .Where(kvp => !teamShelters.Contains(kvp.n)); //don't spawn in other teams' shelters!!!
+            .Where(kvp => kvp.n == myShelter || !teamShelters.Contains(kvp.n)); //don't spawn in other teams' shelters!!!
 
         if (team < teamShelters.Length)
             shelterLocs.RemoveAt(team); //only consider other teams' shelters

@@ -42,7 +42,7 @@ public static class RoomBlacklister
         List<int> blacklistedRooms = new();
         foreach (var room in world.abstractRooms)
         {
-            if (room == null) continue;
+            if (room == null || room.offScreenDen) continue; //don't blacklist the offScreenDen; doing so removes all vultures and scavs
 
             if (BLOCKED_ROOMS.Contains(room.name) //automatically blacklist rooms specified above
                 || shelterPos.Sum(p => Vector2.Distance(room.mapPos, p)) > maxTotalDistance) //room is too far from shelters
