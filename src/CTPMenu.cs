@@ -82,7 +82,7 @@ public class CTPMenu : StoryOnlineMenu
             newSessionText = Translate("NEW SESSION");
 
             //make scug saves fresh, WORKS BUT NEEDD TO FIX LAYERING
-            if (OnlineManager.lobby.isOwner) //messes up client menu
+            if (IsHost) //messes up client menu
             {
                 int properPageIdx = slugcatPageIndex;
                 slugcatPageIndex = -1;
@@ -116,9 +116,11 @@ public class CTPMenu : StoryOnlineMenu
         AddTeamSelectButtons();
     }
 
+    private bool IsHost => OnlineManager.lobby != null && OnlineManager.lobby.isOwner;
+
     private void AddTeamSelectButtons()
     {
-        if (OnlineManager.lobby.isOwner)
+        if (IsHost)
         {
             //var tempList = playerScrollBox.buttons.ToArray();
             int totalAdded = 0;
@@ -198,7 +200,7 @@ public class CTPMenu : StoryOnlineMenu
     {
         bool needRefresh = storyGameMode.needMenuSaveUpdate;
 
-        if (!OnlineManager.lobby.isOwner && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
+        if (!IsHost && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
             slugcatPageIndex = base.indexFromColor(gameMode.currentCampaign); //weird hack to prevent client page scrolling animation
 
         base.Update();
@@ -206,7 +208,7 @@ public class CTPMenu : StoryOnlineMenu
         if (needRefresh)
             RefreshMenu();
 
-        if (OnlineManager.lobby.isOwner) //host update stuff
+        if (IsHost) //host update stuff
         {
             //Update region dropdown list
             //  made into a Task because apparently it is very slow (why??) and it was restarting while still active (HOW????)
@@ -262,7 +264,7 @@ public class CTPMenu : StoryOnlineMenu
         {
             clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
 
-            if (!OnlineManager.lobby.isOwner) //client only
+            if (!IsHost) //client only
             {
                 ChangePageBackground();
                 //ensure the new region selected is actually in my region list
@@ -284,7 +286,7 @@ public class CTPMenu : StoryOnlineMenu
 
     public void SetupCustomUIElements()
     {
-        //if (!OnlineManager.lobby.isOwner) return;
+        //if (!IsHost) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Setting up custom UI elements.");
 
         RegionDropdownBox = new(
@@ -314,7 +316,7 @@ public class CTPMenu : StoryOnlineMenu
         CreatureCheckbox = new(creaturesConfig, this.nextButton.pos + new Vector2(100, 400));
         CreatureCheckbox.description = "\n\nWhether creatures should spawn in the world.";
         //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
-        //if (OnlineManager.lobby.isOwner) CreatureCheckbox.selectable = true;
+        //if (IsHost) CreatureCheckbox.selectable = true;
         //pages[0].subObjects.Add(CreatureCheckbox);
         //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
         //if (gameMode.SpawnCreatures) CreatureCheckbox.Clicked();
@@ -349,6 +351,8 @@ public class CTPMenu : StoryOnlineMenu
         lastRegion = storyGameMode.region; //so that if we end a round, it tries to keep the same region selected
         lastSlugcat = storyGameMode.currentCampaign; //tries to keep same slugcat
         UpdateConfigs();
+
+        MatchmakingManager.OnPlayerListReceived -= MatchmakingManager_OnPlayerListReceived;
 
         base.ShutDownProcess();
     }
@@ -453,7 +457,7 @@ public class CTPMenu : StoryOnlineMenu
     public void ChangePageBackground()
     {
         //RainMeadow.RainMeadow.Debug($"[CTP]: Attempting background change for {storyGameMode.region}");
-        if (OnlineManager.lobby.isOwner) return; //owner gets default background scene
+        if (IsHost) return; //owner gets default background scene
         if (string.IsNullOrEmpty(storyGameMode.region)) return; //don't process false regions
         try
         {
@@ -529,7 +533,7 @@ public class CTPMenu : StoryOnlineMenu
     //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
     public new void StartGame(SlugcatStats.Name storyGameCharacter)
     {
-        if (OnlineManager.lobby.isOwner)
+        if (IsHost)
         {
             personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
         }

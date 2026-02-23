@@ -139,11 +139,11 @@ public partial class CTPGameMode : StoryGameMode
             {
                 RainMeadow.RainMeadow.Debug($"[CTP]: Adding player {player}");
 
-                if (HostAssignedTeams.TryGetValue(player, out byte team) && team > 0) //use the assigned team if applicable
+                if (HostAssignedTeams.TryGetValue(player, out byte team) && team > 0 && team <= NumberOfTeams)
                 {
-                    PlayerTeams.Add(player, (byte)(team - 1));
+                    PlayerTeams.Add(player, (byte)(team - 1)); //use the assigned team if applicable
                 }
-                else
+                else //assign a random team
                 {
                     //get team counts
                     int[] teamCounts = new int[NumberOfTeams];
@@ -185,20 +185,20 @@ public partial class CTPGameMode : StoryGameMode
 
         if (gameSetup && lobby.isOwner) //isOwner should always be true
         {
-            HostTick();
+            AssignPlayerTeams(); //add other players to the team if they join in; ensures team list is up to date
+            //HostTick();
         }
     }
 
-    public void HostTick()
+    public void HostGameTick()
     {
-        AssignPlayerTeams(); //add other players to the team if they join in; ensures team list is up to date
 
         //ScorePoints(); //instead handled by SearchForPearls
         //if (teamPearls.All(p => p == null))
         //SpawnPearls(true); //can cause desyncs
 
         SearchForPearls();
-        TestForScore();
+        //TestForScore(); //done in SearchForPearls now
     }
 
     public void ClientGameTick()

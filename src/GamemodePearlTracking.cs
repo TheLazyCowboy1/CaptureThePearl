@@ -177,13 +177,23 @@ public partial class CTPGameMode
         try
         {
             WorldSession ws = worldSession;
-            if (ws == null || ws.worldLoader != null && !ws.worldLoader.Finished) //wait until world is actually loaded, stupid
+            if (ws == null || (ws.worldLoader != null && !ws.worldLoader.Finished))
+            { //wait until world is actually loaded, stupid
+                RainMeadow.RainMeadow.Debug("[CTP]: ...host awaiting finished world loader...");
                 return;
+            }
 
             World world = ws.world;
             if (world == null || world.abstractRooms == null)
             {
-                RainMeadow.RainMeadow.Error("[CTP]: World is null!");
+                RainMeadow.RainMeadow.Error("[CTP]: Can't search for pearls: World is null!");
+                return;
+            }
+
+            var player = GetMyPlayer();
+            if (player?.realizedObject == null || player.realizedObject.room == null)
+            {
+                RainMeadow.RainMeadow.Error("[CTP]: Can't search for pearls: Player is null!");
                 return;
             }
 
@@ -216,7 +226,26 @@ public partial class CTPGameMode
                     if (TeamPearls[team] == null)
                     {
                         TeamPearls[team] = abPearl.GetOnlineObject(); //need a team pearl = use this one
-                        RainMeadow.RainMeadow.Debug($"[CTP]: Found a new pearl for team {team} in room {room.name}!");
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Found a new local pearl for team {team} in room {room.name}!");
+                    }
+                }
+            }
+
+            //go through roomSession and worldSession entities
+            foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs.activeEntities).Concat(ws.activeEntities)) //go through rs first, then ws
+            {
+                if (ent is OnlinePhysicalObject opo && opo.apo is DataPearl.AbstractDataPearl abPearl)
+                {
+                    if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                    {
+                        TryDestroyPearl(opo, true);
+                        continue;
+                    }
+                    int team = PearlIdxToTeam(abPearl.dataPearlType.index);
+                    if (TeamPearls[team] == null)
+                    {
+                        TeamPearls[team] = opo; //need a team pearl = use this one
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Found a new online pearl for team {team} in room {abPearl.Room?.name}!");
                     }
                 }
             }
@@ -227,6 +256,9 @@ public partial class CTPGameMode
                 if (TeamPearls[i] != null) continue;
                 TrySpawnPearl(i, world, true);
             }
+
+
+            TestForScore();
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
@@ -271,7 +303,8 @@ public partial class CTPGameMode
             -1, null, new(DataPearl.AbstractDataPearl.DataPearlType.values.GetEntry(TeamToPearlIdx(team)), false));
 
         room.AddEntity(abPearl);
-        abPearl.RealizeInRoom(); //I'm not sure if this will work...
+        if (room.realizedRoom != null) //only force realize pearl if the room is already realized
+            abPearl.RealizeInRoom(); //I'm not sure if this will work...
 
         //TrackedPearls[team].pearl = abPearl.GetOnlineObject();
         TeamPearls[team] = abPearl.GetOnlineObject();

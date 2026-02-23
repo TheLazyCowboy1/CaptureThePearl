@@ -238,12 +238,14 @@ public static class CTPGameHooks
                 //spawn a spear
                 var abSpear = new AbstractSpear(world, null, abstractCreature.pos, world.game.GetNewID(), false);
                 abstractCreature.Room.AddEntity(abSpear);
-                abSpear.RealizeInRoom();
+                if (abSpear.Room.realizedRoom != null) //only force realize if room is already realized
+                    abSpear.RealizeInRoom();
 
                 //spawn a rock
                 var abRock = new AbstractPhysicalObject(world, AbstractPhysicalObject.AbstractObjectType.Rock, null, abstractCreature.pos, world.game.GetNewID());
                 abstractCreature.Room.AddEntity(abRock);
-                abRock.RealizeInRoom();
+                if (abRock.Room.realizedRoom != null) //only force realize if room is already realized
+                    abRock.RealizeInRoom();
 
                 //attempt to grab them
                 self.Grab(abSpear.realizedObject, 0, 0, Creature.Grasp.Shareability.CanNotShare, 0, false, true);
@@ -734,6 +736,8 @@ public static class CTPGameHooks
             if (CTPGameMode.IsCTPGameMode(out var gamemode))
             {
                 gamemode.ClientGameTick();
+                if (gamemode.lobby.isOwner)
+                    gamemode.HostGameTick();
 
                 //should game end?
                 if (gamemode.gameSetup && self.world != null && self.world.rainCycle != null
