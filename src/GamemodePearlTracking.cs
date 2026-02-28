@@ -202,8 +202,7 @@ public partial class CTPGameMode
             for (int i = 0; i < TeamPearls.Length; i++)
             {
                 if (TeamPearls[i] == null) continue;
-                var apo = TeamPearls[i].apo;
-                if (apo == null || apo.slatedForDeletion || apo.world != world || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo)) //apo is null or apo is not in its own room
+                if (ApoActuallyExists(TeamPearls[i].apo, world)) //apo is null or apo is not in its own room
                 {
                     RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
                     TeamPearls[i] = null; //the pearl doesn't actually exist
@@ -237,7 +236,7 @@ public partial class CTPGameMode
             {
                 if (ent is OnlinePhysicalObject opo && opo.apo is DataPearl.AbstractDataPearl abPearl)
                 {
-                    if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                    if (!CanBeTeamPearl(abPearl) || !ApoActuallyExists(abPearl, world)) //not a team pearl = destroy
                     {
                         TryDestroyPearl(opo, true);
                         continue;
@@ -264,6 +263,9 @@ public partial class CTPGameMode
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
     }
+
+    private static bool ApoActuallyExists(AbstractPhysicalObject apo, World world = null)
+        => apo == null || apo.slatedForDeletion || (world != null && apo.world != world) || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo);
 
     /// <summary>
     /// Host OR by request
@@ -335,6 +337,7 @@ public partial class CTPGameMode
                 foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws and error
             }
             opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
+            opo.Deactivated(opo.primaryResource);
             return true;
         }
         else if (amHost)
