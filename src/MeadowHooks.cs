@@ -148,7 +148,6 @@ public static class MeadowHooks
     private delegate void UpdateLogDisplay_orig(ChatLogOverlay self);
     private static void ChatLogOverlay_UpdateLogDisplay(UpdateLogDisplay_orig orig, ChatLogOverlay self)
     {
-        //int lastFoundIdx = self.myChatLog.Length;
         int oldLength = self.scroller.subObjects.Count;
 
         orig(self);
@@ -162,7 +161,11 @@ public static class MeadowHooks
                 {
                     var playerInfo = gamemode.PlayerTeams.FirstOrDefault(p => p.Key.id.name == userLabel.text); //match them to players
                     if (playerInfo.Key != null)
-                        color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(playerInfo.Value));
+                    {
+                        color = Color.Lerp(Color.white, CTPGameMode.GetTeamColor(playerInfo.Value), 0.5f); //whiten the color a bit for readability
+                        if (userLabel.subObjects.Last() is AlignedMenuLabel messageLabel)
+                            messageLabel.label.color = color; //set message label color next to username
+                    }
                     else
                         RainMeadow.RainMeadow.Error($"[CTP]: Could not find player {userLabel.text} in team player list");
                 }
@@ -172,35 +175,6 @@ public static class MeadowHooks
                         messageLabel.label.color = color; //set color to the color of whatever player was last found in the list
                 }
             }
-
-            /*
-            int lastFoundIdx = -1; //optimization AND prevents miscoloring
-            foreach (var obj in self.pages[0].subObjects)
-            {
-                //var obj = self.pages[0].subObjects[i];
-                if (obj is MenuLabel label) //should be an AlignedMenuLabel in theory
-                {
-                    if (label.label.color == Futile.white && label.label.text.StartsWith(": "))
-                    {
-                        //try to find corresponding chatLog
-                        //foreach (var (username, message) in self.chatHud.chatLog)
-                        for (int i = lastFoundIdx + 1; i < self.chatHud.chatLog.Count; i++)
-                        {
-                            string username = self.chatHud.chatLog[i].Item1,
-                                message = self.chatHud.chatLog[i].Item2;
-                            if (label.label.text == ": " + message)
-                            {
-                                var player = OnlineManager.players.Find(p => p.id.name == username);
-                                if (player != null && gamemode.PlayerTeams.TryGetValue(player, out byte team))
-                                    label.label.color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(team));
-                                lastFoundIdx = i;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            */
         }
 
     }
@@ -233,7 +207,7 @@ public static class MeadowHooks
             //recolour everything ahhhhhhhhhh
             self.arrowSprite.color = self.color;
             self.gradient.color = self.color;
-            foreach (var msgLbl in self.messageLabels) msgLbl.color = CTPGameMode.LighterTeamColor(self.color);//Color.Lerp(Color.white, self.color, 0.5f);
+            foreach (var msgLbl in self.messageLabels) msgLbl.color = Color.Lerp(Color.white, self.color, 0.5f);
             self.slugIcon.color = self.color;
             self.username.color = self.color;
         }

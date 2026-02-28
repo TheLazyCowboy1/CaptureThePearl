@@ -123,14 +123,16 @@ public partial class CTPGameMode : StoryGameMode
         //add players that are not currently in the team list
 
         //shuffle player list, so we don't get the same teams every time
-        List<OnlinePlayer> tempPlayers = OnlineManager.players.ToList(); //make it distinct
+        OnlinePlayer[] shuffledPlayers = OnlineManager.players.OrderBy(p => UnityEngine.Random.value).ToArray(); //shuffle and convert to array
+
+        /*List<OnlinePlayer> tempPlayers = OnlineManager.players.ToList(); //make it distinct
         List<OnlinePlayer> shuffledPlayers = new(OnlineManager.players.Count);
         while (tempPlayers.Count > 0)
         {
             int idx = UnityEngine.Random.Range(0, tempPlayers.Count);
             shuffledPlayers.Add(tempPlayers[idx]);
             tempPlayers.RemoveAt(idx);
-        }
+        }*/
 
         //assign teams
         foreach (var player in shuffledPlayers)

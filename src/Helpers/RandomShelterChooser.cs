@@ -53,35 +53,38 @@ public static class RandomShelterChooser
 
         string myShelter = team >= teamShelters.Length ? null : teamShelters[team];
 
-        var unorderedShelters = RandomShelterFilter.shelterNames
+        IEnumerable<(string shelter, Vector2 pos)> unorderedShelters = RandomShelterFilter.shelterNames
             .Select((n, i) => (n, RandomShelterFilter.shelterPositions[i]))
             .Where(kvp => myShelter == null || kvp.n == myShelter || RoomBlacklister.InBounds(kvp.Item2, shelterLocs, mapBorderDistance)); //don't allow shelters out of range when respawning
 
         //optionally add secondary shelters, if necessary
         if (teamShelters.Length >= RandomShelterFilter.shelterNames.Length)
+        {
             unorderedShelters = unorderedShelters.Concat(
                     RandomShelterFilter.secondaryShelterNames
                     .Select((n, i) => (n, RandomShelterFilter.secondaryShelterPositions[i]))
                     .Where(kvp => myShelter == null || kvp.n == myShelter || RoomBlacklister.InBounds(kvp.Item2, shelterLocs, mapBorderDistance)) //don't allow shelters out of range when respawning
                 );
+        }
         unorderedShelters = unorderedShelters
-            .Where(kvp => kvp.n == myShelter || !teamShelters.Contains(kvp.n)); //don't spawn in other teams' shelters!!!
+            .Where(kvp => kvp.shelter == myShelter || !teamShelters.Contains(kvp.shelter)) //don't spawn in other teams' shelters!!!
+            .OrderBy(kvp => UnityEngine.Random.value); //shuffle list
 
         if (team < teamShelters.Length)
             shelterLocs.RemoveAt(team); //only consider other teams' shelters
 
         //manual sort... :(
-        List<(string, float)> orderedShelters = new(unorderedShelters.Count());
+        List<(string shelter, float score)> orderedShelters = new(unorderedShelters.Count());
         foreach (var s in unorderedShelters)
         {
             //float score = MIN_DISTANCE(s.Item2, otherShelterLocs) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
-            float score = ShelterScore(s.Item2, shelterLocs, targetDistance) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.n) ? 100000000 : 0); //higher score = better
-            int idx = orderedShelters.FindIndex(s => s.Item2 < score); //index of first shelter with a worse score
-            if (idx < 0) orderedShelters.Add((s.n, score)); //this is the worst; add to the end
-            else orderedShelters.Insert(idx, (s.n, score)); //insert in front of worse shelter
+            float score = ShelterScore(s.pos, shelterLocs, targetDistance) - (RandomShelterFilter.PENALIZED_SHELTERS.Contains(s.shelter) ? 100000000 : 0); //higher score = better
+            int idx = orderedShelters.FindIndex(os => os.score < score); //index of first shelter with a worse score
+            if (idx < 0) orderedShelters.Add((s.shelter, score)); //this is the worst; add to the end
+            else orderedShelters.Insert(idx, (s.shelter, score)); //insert in front of worse shelter
         }
 
-        var shelterArr = orderedShelters.Select(s => s.Item1).ToArray();
+        var shelterArr = orderedShelters.Select(s => s.shelter).ToArray();
         //RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", shelterArr)}");
         RainMeadow.RainMeadow.Debug($"[CTP]: Choosing top {distanceLeniency} of shelters: {string.Join(", ", orderedShelters.Select(s => $"({s.Item1},{s.Item2})").ToArray())}");
 
