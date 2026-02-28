@@ -232,9 +232,10 @@ public partial class CTPGameMode
             }
 
             //go through roomSession and worldSession entities
-            foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities)) //go through rs first, then ws
+            //foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities).ToArray()) //go through rs first, then ws
+            foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a lazy way to make it a distinct list
             {
-                if (ent is OnlinePhysicalObject opo && opo.apo is DataPearl.AbstractDataPearl abPearl)
+                if (ent is OnlinePhysicalObject opo && !opo.isPending && opo.apo is DataPearl.AbstractDataPearl abPearl)
                 {
                     if (!CanBeTeamPearl(abPearl) || !ApoActuallyExists(abPearl, world)) //not a team pearl = destroy
                     {
@@ -265,7 +266,7 @@ public partial class CTPGameMode
     }
 
     private static bool ApoActuallyExists(AbstractPhysicalObject apo, World world = null)
-        => apo == null || apo.slatedForDeletion || (world != null && apo.world != world) || !apo.Room.entities.Concat(apo.Room.entitiesInDens).Contains(apo);
+        => apo == null || apo.slatedForDeletion || (world != null && apo.world != world) || (!apo.Room.entities.Contains(apo) && !apo.Room.entitiesInDens.Contains(apo));
 
     /// <summary>
     /// Host OR by request
@@ -334,7 +335,7 @@ public partial class CTPGameMode
             //opo.Release(); //I don't want management of this please
             if (opo.apo.realizedObject is PhysicalObject po)
             {
-                foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws and error
+                foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws an error
             }
             opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
             opo.Deactivated(opo.primaryResource);
@@ -350,6 +351,7 @@ public partial class CTPGameMode
                     {
                         if (opo?.apo != null) //backup
                             opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
+                        opo?.Deregister(); //pretend it doesn't exist
                     }
                     else
                     {
