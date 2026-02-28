@@ -192,7 +192,7 @@ public partial class CTPGameMode
             }
 
             var player = GetMyPlayer();
-            if (player?.realizedObject == null || player.realizedObject.room == null)
+            if (player?.realizedObject == null || (player.realizedObject.room == null && !player.realizedCreature.inShortcut))
             {
                 RainMeadow.RainMeadow.Error("[CTP]: Can't search for pearls: Player is null!");
                 return;
@@ -330,6 +330,10 @@ public partial class CTPGameMode
             //DestroyPearl(opo.apo);
             //opo.Deactivated(opo.primaryResource);
             //opo.Release(); //I don't want management of this please
+            if (opo.apo.realizedObject is PhysicalObject po)
+            {
+                foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws and error
+            }
             opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
             return true;
         }

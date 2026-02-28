@@ -377,7 +377,7 @@ public partial class CTPGameMode : StoryGameMode
     {
         //return (lobby.playerAvatars.Find(kvp => kvp.Key == OnlineManager.mePlayer).Value.FindEntity() as OnlinePhysicalObject).apo;
         //return avatars.Find(c => c.isMine)?.apo as AbstractCreature;
-        return avatars[0].abstractCreature;
+        return avatars.Count == 0 ? null : avatars[0].abstractCreature;
     }
 
     public string GetTeamProperName(int team)
