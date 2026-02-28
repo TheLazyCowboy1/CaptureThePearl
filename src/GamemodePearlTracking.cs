@@ -143,10 +143,6 @@ public partial class CTPGameMode
                     {
                         if (!blockedScores[i])// && TeamPearls[i].apo.realizedObject != null)
                         {
-                            //if (pearlTrackerOwner != OnlineManager.mePlayer) //inform host
-                            //pearlTrackerOwner?.InvokeRPC(CTPRPCs.DestroyTeamPearl, TeamPearls[i], (byte)i);
-                            //DestroyPearl(ref TeamPearls[i]); //if it's in someone else's shelter... bye-bye!
-                            //RemoveIndicator(i);
                             TeamScored(idx, i);
                             //tell everyone that a point was scored!
                             foreach (var p in OnlineManager.players)
