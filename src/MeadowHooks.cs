@@ -1,11 +1,6 @@
-﻿using BepInEx.Logging;
-using MonoMod.RuntimeDetour;
+﻿using MonoMod.RuntimeDetour;
 using RainMeadow;
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
 
 namespace CaptureThePearl;
 
