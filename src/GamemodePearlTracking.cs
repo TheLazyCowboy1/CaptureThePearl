@@ -237,7 +237,7 @@ public partial class CTPGameMode
             }
 
             //go through roomSession and worldSession entities
-            foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs.activeEntities).Concat(ws.activeEntities)) //go through rs first, then ws
+            foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities)) //go through rs first, then ws
             {
                 if (ent is OnlinePhysicalObject opo && opo.apo is DataPearl.AbstractDataPearl abPearl)
                 {
