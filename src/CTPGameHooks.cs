@@ -2,7 +2,6 @@
 using HUD;
 using Watcher;
 using Menu;
-using Menu.Remix.MixedUI;
 using MonoMod.Cil;
 using MonoMod.RuntimeDetour;
 using RainMeadow;
@@ -13,7 +12,6 @@ using System.Runtime.CompilerServices;
 using UnityEngine;
 using Color = UnityEngine.Color;
 using Exception = System.Exception;
-using RainMeadow.UI.Components;
 
 namespace CaptureThePearl;
 
@@ -24,15 +22,12 @@ namespace CaptureThePearl;
 public static class CTPGameHooks
 {
     public static bool HooksApplied = false;
-    public static Hook playerDisplayHook;
-    public static Hook chatColourHook;
-    public static Hook spectateButtonHook;
-    public static Hook newOPOHook;
-    public static Hook resourceFeedHook;
     public static void ApplyHooks()
     {
         if (HooksApplied) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Applying CTPGameHooks");
+
+        MeadowHooks.ApplyHooks();
 
         On.RainWorldGame.Update += RainWorldGame_Update;
 
@@ -96,11 +91,7 @@ public static class CTPGameHooks
         On.Watcher.SpinningTop.ctor += SpinningTop_ctor;
         On.GhostWorldPresence.ctor_World_GhostID_int += GhostWorldPresence_ctor_World_GhostID_int;
         if(ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript += MSCRoomSpecificScript_AddRoomSpecificScript;
-        chatColourHook = new Hook(typeof(ChatLogOverlay).GetMethod(nameof(ChatLogOverlay.UpdateLogDisplay)), ChatLogOverlay_UpdateLogDisplay);
 
-        spectateButtonHook = new Hook(typeof(SpectatorOverlay).GetMethod(nameof(SpectatorOverlay.Update)), SpectatorOverlay_Update);
-
-        playerDisplayHook = new Hook(typeof(OnlinePlayerDisplay).GetMethod(nameof(OnlinePlayerDisplay.Draw)), OnlinePlayerDisplay_Draw);
         On.SlugcatStats.ctor += SlugcatStats_ctor;
         On.PhysicalObject.Grabbed += PhysicalObject_Grabbed;
         On.Player.ReleaseGrasp += Player_ReleaseGrasp;
@@ -125,6 +116,8 @@ public static class CTPGameHooks
     {
         if (!HooksApplied) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Removing CTPGameHooks");
+
+        MeadowHooks.RemoveHooks();
 
         On.RainWorldGame.Update -= RainWorldGame_Update;
 
@@ -175,9 +168,6 @@ public static class CTPGameHooks
         On.GhostWorldPresence.ctor_World_GhostID_int -= GhostWorldPresence_ctor_World_GhostID_int;
         //On.HUD.Map.ResetNotRevealedMarkers -= Map_ResetNotRevealedMarkers;
         if (ModManager.MSC) On.MoreSlugcats.MSCRoomSpecificScript.AddRoomSpecificScript -= MSCRoomSpecificScript_AddRoomSpecificScript;
-        playerDisplayHook?.Undo();
-        spectateButtonHook?.Undo();
-        chatColourHook?.Undo();
 
         On.SlugcatStats.ctor -= SlugcatStats_ctor;
         On.PhysicalObject.Grabbed -= PhysicalObject_Grabbed;
@@ -254,39 +244,6 @@ public static class CTPGameHooks
             }
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
-    }
-
-    //sync world state less often
-    private delegate void ResourceSubscription_ctor_orig(ResourceSubscription self, OnlineResource resource, OnlinePlayer player);
-    private static void ResourceSubscription_ctor(ResourceSubscription_ctor_orig orig, ResourceSubscription self, OnlineResource resource, OnlinePlayer player)
-    {
-        orig(self, resource, player);
-
-        if (self.basecooldown > 0 && resource is WorldSession)
-            self.basecooldown = 11; //sync WorldSession half as often as normal, to slightly reduce lag
-    }
-
-    private delegate OnlinePhysicalObject OnlinePhysicalObject_NewFromApo_ctor(AbstractPhysicalObject apo);
-    private static OnlinePhysicalObject OnlinePhysicalObject_NewFromApo(OnlinePhysicalObject_NewFromApo_ctor orig, AbstractPhysicalObject apo)
-    {
-        if (!(apo is AbstractCreature ac))
-            return orig(apo);
-
-        var opo = orig(apo);
-        opo.AddData(new CreatureSpawnData(ac));
-        return opo;
-    }
-
-    private delegate void SpectatorOverlay_Update_orig(SpectatorOverlay self);
-    private static void SpectatorOverlay_Update(SpectatorOverlay_Update_orig orig, SpectatorOverlay self)
-    {
-        orig(self);
-
-        foreach (var button in self.PlayerButtons)
-        {
-            if (CTPGameMode.IsCTPGameMode(out var gamemode) && !gamemode.OnMyTeam(button.player))
-                button.buttonBehav.greyedOut = true; //grey out spectate button for players on other team
-        }
     }
 
     private static List<AbstractCreature> CreaturesToAbstractize = new();
@@ -497,88 +454,6 @@ public static class CTPGameHooks
         }
     }
 
-    private delegate void UpdateLogDisplay_orig(ChatLogOverlay self);
-    private static void ChatLogOverlay_UpdateLogDisplay(UpdateLogDisplay_orig orig, ChatLogOverlay self)
-    {
-        //int lastFoundIdx = self.myChatLog.Length;
-        int oldLength = self.scroller.subObjects.Count;
-
-        orig(self);
-
-        if (CTPGameMode.IsCTPGameMode(out var gamemode))
-        {
-            Color color = Color.white;
-            for (int i = oldLength + 1; i < self.scroller.subObjects.Count; i++) //loop through NEW subobjects
-            {
-                if (self.scroller.subObjects[i] is UsernameMenuLabel userLabel) //look for username labels
-                {
-                    var playerInfo = gamemode.PlayerTeams.FirstOrDefault(p => p.Key.id.name == userLabel.text); //match them to players
-                    if (playerInfo.Key != null)
-                        color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(playerInfo.Value));
-                    else
-                        RainMeadow.RainMeadow.Error($"[CTP]: Could not find player {userLabel.text} in team player list");
-                }
-                else if (self.scroller.subObjects[i] is AlignedMenuLabel messageLabel)
-                {
-                    if (messageLabel.label.color != ChatLogManager.defaultSystemColor)
-                        messageLabel.label.color = color; //set color to the color of whatever player was last found in the list
-                }
-            }
-
-            /*
-            int lastFoundIdx = -1; //optimization AND prevents miscoloring
-            foreach (var obj in self.pages[0].subObjects)
-            {
-                //var obj = self.pages[0].subObjects[i];
-                if (obj is MenuLabel label) //should be an AlignedMenuLabel in theory
-                {
-                    if (label.label.color == Futile.white && label.label.text.StartsWith(": "))
-                    {
-                        //try to find corresponding chatLog
-                        //foreach (var (username, message) in self.chatHud.chatLog)
-                        for (int i = lastFoundIdx + 1; i < self.chatHud.chatLog.Count; i++)
-                        {
-                            string username = self.chatHud.chatLog[i].Item1,
-                                message = self.chatHud.chatLog[i].Item2;
-                            if (label.label.text == ": " + message)
-                            {
-                                var player = OnlineManager.players.Find(p => p.id.name == username);
-                                if (player != null && gamemode.PlayerTeams.TryGetValue(player, out byte team))
-                                    label.label.color = CTPGameMode.LighterTeamColor(CTPGameMode.GetTeamColor(team));
-                                lastFoundIdx = i;
-                                break;
-                            }
-                        }
-                    }
-                }
-            }
-            */
-        }
-
-    }
-
-
-    public delegate void OnlinePlayerDisplay_Draw_orig(OnlinePlayerDisplay self, float tStacker);
-    public static void OnlinePlayerDisplay_Draw(OnlinePlayerDisplay_Draw_orig orig, OnlinePlayerDisplay self, float tStacker)
-    {
-        orig(self, tStacker);
-
-        if (!CTPGameMode.IsCTPGameMode(out var mode)) return;
-
-        if (mode.PlayerTeams.ContainsKey(self.player))
-        {
-            self.color = CTPGameMode.GetTeamColor(mode.PlayerTeams[self.player]);
-            self.lighter_color = self.color;
-
-
-            //recolour everything ahhhhhhhhhh
-            self.arrowSprite.color = self.color;
-            self.gradient.color = self.color;
-            foreach (var msgLbl in self.messageLabels) msgLbl.color = Color.Lerp(Color.white, self.color, 0.5f);
-            self.slugIcon.color = self.color;
-            self.username.color = self.color;
-        }
-    }
     private static void MSCRoomSpecificScript_AddRoomSpecificScript(On.MoreSlugcats.MSCRoomSpecificScript.orig_AddRoomSpecificScript orig, Room room)
     {
         string name = room.abstractRoom.name;

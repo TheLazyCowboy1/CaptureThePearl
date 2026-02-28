@@ -187,8 +187,8 @@ public class CTPMenu : StoryOnlineMenu
             };
             base.Description = Team switch
             {
-                0 => "Player will be assigned to the team with the least number of players.",
-                _ => "Player will be assigned to team " + Team + " if it is available."
+                0 => $"Player {Player.id.DisplayName} will be assigned to the team with the least number of players.",
+                _ => $"Player {Player.id.DisplayName} will be assigned to team " + Team + " if it is available."
             };
         }
     }

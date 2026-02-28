@@ -49,7 +49,7 @@ public class Plugin : BaseUnityPlugin
 
         if (IsInit)
         {
-            MeadowHooks.RemoveHooks();
+            //MeadowHooks.RemoveHooks();
             CTPMenuHooks.RemoveHooks();
 
             IsInit = false;
@@ -67,7 +67,7 @@ public class Plugin : BaseUnityPlugin
             //set up ExtEnums first!!!
             SetupExtEnums();
 
-            MeadowHooks.ApplyHooks();
+            //MeadowHooks.ApplyHooks();
             CTPMenuHooks.ApplyHooks();
 
             MachineConnector.SetRegisteredOI(MOD_ID, Options);
