@@ -164,6 +164,7 @@ public partial class CTPGameMode
         }
     }
 
+    private List<OnlinePhysicalObject> SusOPOs = new(0);
     /// <summary>
     /// HOST ONLY
     /// </summary>
@@ -232,6 +233,7 @@ public partial class CTPGameMode
             }
 
             //go through roomSession and worldSession entities
+            List<OnlinePhysicalObject> newSusOPOs = new();
             //foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities).ToArray()) //go through rs first, then ws
             foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a lazy way to make it a distinct list
             {
@@ -239,7 +241,13 @@ public partial class CTPGameMode
                 {
                     if (!CanBeTeamPearl(abPearl) || !ApoActuallyExists(abPearl, world)) //not a team pearl = destroy
                     {
-                        TryDestroyPearl(opo, true);
+                        if (SusOPOs.Contains(opo)) //only destroy it if we wanted to destroy it last time
+                        {
+                            RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy online pearl {opo} in room {abPearl.Room?.name}!");
+                            TryDestroyPearl(opo, true);
+                        }
+                        else
+                            newSusOPOs.Add(opo);
                         continue;
                     }
                     int team = PearlIdxToTeam(abPearl.dataPearlType.index);
@@ -250,6 +258,8 @@ public partial class CTPGameMode
                     }
                 }
             }
+            SusOPOs.Clear();
+            SusOPOs = newSusOPOs;
 
             //try to spawn pearls that are needed
             for (byte i = 0; i < TeamPearls.Length; i++)
