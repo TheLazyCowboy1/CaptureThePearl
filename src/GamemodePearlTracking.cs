@@ -166,6 +166,7 @@ public partial class CTPGameMode
         }
     }
 
+    private Dictionary<AbstractPhysicalObject, int> SusAPOs = new(4);
     private Dictionary<OnlinePhysicalObject, int> SusOPOs = new(4);
     /// <summary>
     /// HOST ONLY
@@ -213,6 +214,7 @@ public partial class CTPGameMode
             }
 
             //go through every room in the world (slow maybe? yeah; probably)
+            List<AbstractPhysicalObject> newSusAPOs = new();
             foreach (AbstractRoom room in world.abstractRooms)
             {
                 if (room == null) continue;
@@ -222,7 +224,20 @@ public partial class CTPGameMode
                     if (abEnt.slatedForDeletion || abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
                     if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
                     {
-                        TryDestroyPearl(abPearl);
+                        newSusAPOs.Add(abPearl);
+                        if (SusAPOs.TryGetValue(abPearl, out int counter))
+                        {
+                            if (counter >= MAX_PROBLEMATIC_OPO_TIME)
+                            {
+                                RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy local pearl {abPearl} in room {abPearl.Room?.name}!");
+                                TryDestroyPearl(abPearl);
+                                SusAPOs[abPearl] = 0;
+                            }
+                            else
+                                SusAPOs[abPearl] = counter + 1;
+                        }
+                        else
+                            SusAPOs.Add(abPearl, 0);
                         continue;
                     }
                     int team = PearlIdxToTeam(abPearl.dataPearlType.index);
@@ -233,14 +248,19 @@ public partial class CTPGameMode
                     }
                 }
             }
+            foreach (AbstractPhysicalObject apo in SusAPOs.Keys.Except(newSusAPOs).ToArray())
+                SusAPOs.Remove(apo); //if the apo wasn't "sus" this time, remove it from the list
 
             //go through roomSession and worldSession entities
             List<OnlinePhysicalObject> newSusOPOs = new();
             //foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities).ToArray()) //go through rs first, then ws
-            foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a lazy way to make it a distinct list
+            foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a Lazy way to make it a distinct list
             {
                 if (ent is OnlinePhysicalObject opo && !opo.isPending && opo.apo is DataPearl.AbstractDataPearl abPearl)
                 {
+                    if (SusAPOs.ContainsKey(abPearl))
+                        continue; //if we're already sus of this, don't examine it
+
                     if (!CanBeTeamPearl(abPearl) || !ApoActuallyExists(abPearl, world)) //not a team pearl = destroy
                     {
                         newSusOPOs.Add(opo);
@@ -250,6 +270,7 @@ public partial class CTPGameMode
                             {
                                 RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy online pearl {opo} in room {abPearl.Room?.name}!");
                                 TryDestroyPearl(opo, true);
+                                SusOPOs[opo] = 0; //give it some time before attempting to destroy again
                             }
                             else
                                 SusOPOs[opo] = counter + 1;
@@ -285,7 +306,7 @@ public partial class CTPGameMode
     }
 
     private static bool ApoActuallyExists(AbstractPhysicalObject apo, World world = null)
-        => apo != null && (world == null || apo.world == world) && apo.Room != null && (apo.Room.entities.Contains(apo) || apo.Room.entitiesInDens.Contains(apo));
+        => apo != null && !apo.slatedForDeletion && (world == null ? apo.world != null : apo.world == world) && apo.Room != null && (apo.Room.entities.Contains(apo) || apo.Room.entitiesInDens.Contains(apo));
 
     /// <summary>
     /// Host OR by request
