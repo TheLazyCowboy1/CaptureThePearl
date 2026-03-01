@@ -7,6 +7,7 @@ namespace CaptureThePearl;
 
 public partial class CTPGameMode
 {
+    #region Setup
     public const int MAX_PROBLEMATIC_OPO_TIME = 40;
 
     //public TrackedPearl[] TrackedPearls = new TrackedPearl[0];
@@ -44,7 +45,9 @@ public partial class CTPGameMode
         pearlUntouchedTicks = new long[NumberOfTeams];
         blockedScores = new bool[NumberOfTeams];
     }
+    #endregion
 
+    #region Indicators
     public void ClearIndicators()
     {
         for (int i = 0; i < pearlIndicators.Length; i++) RemoveIndicator(i);
@@ -109,7 +112,9 @@ public partial class CTPGameMode
 
         ClearIndicators(); //the hud is being destroyed, so we'll have to re-add the indicators after respawning
     }
+    #endregion
 
+    #region PearlTesting
     /// <summary>
     /// HOST ONLY
     /// </summary>
@@ -307,7 +312,9 @@ public partial class CTPGameMode
 
     private static bool ApoActuallyExists(AbstractPhysicalObject apo, World world = null)
         => apo != null && !apo.slatedForDeletion && (world == null ? apo.world != null : apo.world == world) && apo.Room != null && (apo.Room.entities.Contains(apo) || apo.Room.entitiesInDens.Contains(apo));
+    #endregion
 
+    #region PearlSpawning
     /// <summary>
     /// Host OR by request
     /// </summary>
@@ -356,6 +363,10 @@ public partial class CTPGameMode
         RainMeadow.RainMeadow.Debug($"[CTP]: Spawned pearl {TeamPearls[team]} for team {team} in {world.name}");
     }
 
+    private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);
+    #endregion
+
+    #region PearlDestroying
     /// <summary>
     /// HOST ONLY
     /// </summary>
@@ -378,7 +389,8 @@ public partial class CTPGameMode
                 foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws an error
             }
             opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
-            opo.OnLeftResource(opo.primaryResource);
+            opo.primaryResource.EntityLeftResource(opo); //properly remove entity from world resource (and all subresources)
+            //opo.OnLeftResource(opo.primaryResource);
             //opo.Deactivated(opo.primaryResource); //just causes confusion between clients
             return true;
         }
@@ -390,9 +402,18 @@ public partial class CTPGameMode
                 {
                     if (result is GenericResult.Ok)
                     {
-                        if (opo?.apo != null) //backup
+                        if (opo == null) return;
+
+                        if (opo.apo != null) //backup
                             opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
-                        opo?.Deregister(); //pretend it doesn't exist
+
+                        OnlineResource r = opo.primaryResource;
+                        if (r != null)
+                        {
+                            RainMeadow.RainMeadow.Error($"[CTP]: Allegedly destroyed pearl {opo} still in resource {r}!");
+                            r.EntityLeftResource(opo); //get it out of here please please please
+                        }
+                        opo.Deregister(); //pretend it doesn't exist
                     }
                     else
                     {
@@ -409,12 +430,25 @@ public partial class CTPGameMode
     {
         OnlinePhysicalObject opo = pearl.GetOnlineObject();
         if (opo == null)
-            DestroyPearl(pearl);
+            DestroyLocalPearl(pearl);
         else
             TryDestroyPearl(opo, true);
     }
 
-    private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);
+    public static void DestroyLocalPearl(AbstractPhysicalObject apo)
+    {
+        RainMeadow.RainMeadow.Debug($"[CTP]: Destroying local pearl {apo}");
+        if (apo.realizedObject != null)
+        {
+            apo.realizedObject.AllGraspsLetGoOfThisObject(true);
+            apo.realizedObject.room?.CleanOutObjectNotInThisRoom(apo.realizedObject);
+        }
+
+        apo.Abstractize(apo.pos);
+        apo.Destroy();
+        apo.Room?.RemoveEntity(apo); //ensure it's not in the room
+    }
+    #endregion
 
     public bool CanBeTeamPearl(DataPearl.AbstractDataPearl abPearl)
     {
@@ -428,20 +462,6 @@ public partial class CTPGameMode
         if (idx >= 0 && idx != team) //it's in a team den, but not its own team den!
             return idx;
         return -1;
-    }
-
-    public static void DestroyPearl(AbstractPhysicalObject apo)
-    {
-        RainMeadow.RainMeadow.Debug($"[CTP]: Destroying local pearl {apo}");
-        if (apo.realizedObject != null)
-        {
-            apo.realizedObject.AllGraspsLetGoOfThisObject(true);
-            apo.realizedObject.room?.CleanOutObjectNotInThisRoom(apo.realizedObject);
-        }
-
-        apo.Abstractize(apo.pos);
-        apo.Destroy();
-        apo.Room?.RemoveEntity(apo); //ensure it's not in the room
     }
 
     public void RepositionPearls()
