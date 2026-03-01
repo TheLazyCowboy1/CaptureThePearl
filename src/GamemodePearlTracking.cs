@@ -7,6 +7,8 @@ namespace CaptureThePearl;
 
 public partial class CTPGameMode
 {
+    public const int MAX_PROBLEMATIC_OPO_TIME = 40;
+
     //public TrackedPearl[] TrackedPearls = new TrackedPearl[0];
     public OnlinePhysicalObject[] TeamPearls = new OnlinePhysicalObject[0];
     //public OnlinePlayer pearlTrackerOwner = null;
@@ -164,7 +166,7 @@ public partial class CTPGameMode
         }
     }
 
-    private List<OnlinePhysicalObject> SusOPOs = new(0);
+    private Dictionary<OnlinePhysicalObject, int> SusOPOs = new(4);
     /// <summary>
     /// HOST ONLY
     /// </summary>
@@ -241,13 +243,19 @@ public partial class CTPGameMode
                 {
                     if (!CanBeTeamPearl(abPearl) || !ApoActuallyExists(abPearl, world)) //not a team pearl = destroy
                     {
-                        if (SusOPOs.Contains(opo)) //only destroy it if we wanted to destroy it last time
+                        newSusOPOs.Add(opo);
+                        if (SusOPOs.TryGetValue(opo, out int counter))
                         {
-                            RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy online pearl {opo} in room {abPearl.Room?.name}!");
-                            TryDestroyPearl(opo, true);
+                            if (counter >= MAX_PROBLEMATIC_OPO_TIME)
+                            {
+                                RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy online pearl {opo} in room {abPearl.Room?.name}!");
+                                TryDestroyPearl(opo, true);
+                            }
+                            else
+                                SusOPOs[opo] = counter + 1;
                         }
                         else
-                            newSusOPOs.Add(opo);
+                            SusOPOs.Add(opo, 0);
                         continue;
                     }
                     int team = PearlIdxToTeam(abPearl.dataPearlType.index);
@@ -258,8 +266,9 @@ public partial class CTPGameMode
                     }
                 }
             }
-            SusOPOs.Clear();
-            SusOPOs = newSusOPOs;
+            foreach (OnlinePhysicalObject opo in SusOPOs.Keys.Except(newSusOPOs))
+                SusOPOs.Remove(opo); //if the opo wasn't "sus" this time, remove it from the list
+            newSusOPOs.Clear();
 
             //try to spawn pearls that are needed
             for (byte i = 0; i < TeamPearls.Length; i++)

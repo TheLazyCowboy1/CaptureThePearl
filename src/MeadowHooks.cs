@@ -61,12 +61,12 @@ public static class MeadowHooks
     }
 
     //Don't go to death screen while in the Capture the Pearl gamemode!!
-    //This probably ought to go in CTPGameHooks, but I'm keeping it here to keep all the Meadow and Rain World stuff separated.
     private delegate void EmptyDelegate();
     private static void StoryRPCs_GoToDeathScreen(EmptyDelegate orig)
     {
+        //don't let the function run at all
         //if (CTPGameMode.IsCTPGameMode(out var _)) return;
-        orig();
+        //orig();
     }
 
     private static void OnlineManager_LeaveLobby(EmptyDelegate orig)
