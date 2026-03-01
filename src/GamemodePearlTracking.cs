@@ -173,6 +173,45 @@ public partial class CTPGameMode
 
     private Dictionary<AbstractPhysicalObject, int> SusAPOs = new(4);
     private Dictionary<OnlinePhysicalObject, int> SusOPOs = new(4);
+    public void SearchForPearlsInRooms(IEnumerable<AbstractRoom> rooms)
+    {
+        List<AbstractPhysicalObject> newSusAPOs = new(4);
+        foreach (AbstractRoom room in rooms)
+        {
+            if (room == null) continue;
+            //go through every entity in the room
+            foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
+            {
+                if (abEnt.slatedForDeletion || abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
+                if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
+                {
+                    newSusAPOs.Add(abPearl);
+                    if (SusAPOs.TryGetValue(abPearl, out int counter))
+                    {
+                        if (counter >= MAX_PROBLEMATIC_OPO_TIME)
+                        {
+                            RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy local pearl {abPearl} in room {abPearl.Room?.name}!");
+                            TryDestroyPearl(abPearl);
+                            SusAPOs[abPearl] = 0;
+                        }
+                        else
+                            SusAPOs[abPearl] = counter + 1;
+                    }
+                    else
+                        SusAPOs.Add(abPearl, 0);
+                    continue;
+                }
+                int team = PearlIdxToTeam(abPearl.dataPearlType.index);
+                if (TeamPearls[team] == null)
+                {
+                    TeamPearls[team] = abPearl.GetOnlineObject(); //need a team pearl = use this one
+                    RainMeadow.RainMeadow.Debug($"[CTP]: Found a new local pearl for team {team} in room {room.name}!");
+                }
+            }
+        }
+        foreach (AbstractPhysicalObject apo in SusAPOs.Keys.Except(newSusAPOs).ToArray())
+            SusAPOs.Remove(apo); //if the apo wasn't "sus" this time, remove it from the list
+    }
     /// <summary>
     /// HOST ONLY
     /// </summary>
@@ -219,45 +258,10 @@ public partial class CTPGameMode
             }
 
             //go through every room in the world (slow maybe? yeah; probably)
-            List<AbstractPhysicalObject> newSusAPOs = new();
-            foreach (AbstractRoom room in world.abstractRooms)
-            {
-                if (room == null) continue;
-                //go through every entity in the room
-                foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
-                {
-                    if (abEnt.slatedForDeletion || abEnt is not DataPearl.AbstractDataPearl abPearl) continue;
-                    if (!CanBeTeamPearl(abPearl)) //not a team pearl = destroy
-                    {
-                        newSusAPOs.Add(abPearl);
-                        if (SusAPOs.TryGetValue(abPearl, out int counter))
-                        {
-                            if (counter >= MAX_PROBLEMATIC_OPO_TIME)
-                            {
-                                RainMeadow.RainMeadow.Debug($"[CTP]: Trying to destroy local pearl {abPearl} in room {abPearl.Room?.name}!");
-                                TryDestroyPearl(abPearl);
-                                SusAPOs[abPearl] = 0;
-                            }
-                            else
-                                SusAPOs[abPearl] = counter + 1;
-                        }
-                        else
-                            SusAPOs.Add(abPearl, 0);
-                        continue;
-                    }
-                    int team = PearlIdxToTeam(abPearl.dataPearlType.index);
-                    if (TeamPearls[team] == null)
-                    {
-                        TeamPearls[team] = abPearl.GetOnlineObject(); //need a team pearl = use this one
-                        RainMeadow.RainMeadow.Debug($"[CTP]: Found a new local pearl for team {team} in room {room.name}!");
-                    }
-                }
-            }
-            foreach (AbstractPhysicalObject apo in SusAPOs.Keys.Except(newSusAPOs).ToArray())
-                SusAPOs.Remove(apo); //if the apo wasn't "sus" this time, remove it from the list
+            SearchForPearlsInRooms(world.abstractRooms);
 
             //go through roomSession and worldSession entities
-            List<OnlinePhysicalObject> newSusOPOs = new();
+            List<OnlinePhysicalObject> newSusOPOs = new(4);
             foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities).ToArray()) //go through rs first, then ws
             //foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a Lazy way to make it a distinct list
             {
@@ -367,9 +371,6 @@ public partial class CTPGameMode
     #endregion
 
     #region PearlDestroying
-    /// <summary>
-    /// HOST ONLY
-    /// </summary>
     //public void TryDestroyPearl(byte team, bool amHost)
     public bool TryDestroyPearl(OnlinePhysicalObject opo, bool amHost)
     {
@@ -433,8 +434,21 @@ public partial class CTPGameMode
         OnlinePhysicalObject opo = pearl.GetOnlineObject();
         if (opo == null)
             DestroyLocalPearl(pearl);
-        else
+        else if (lobby.isOwner) //host can go ahead and try to destroy
             TryDestroyPearl(opo, true);
+        else //client must request permission first
+        {
+            RainMeadow.RainMeadow.Debug($"[CTP]: Requesting permission from host to destroy pearl {opo}; {pearl}");
+            lobby.owner.InvokeRPC(CTPRPCs.RequestDestroyPearl, opo)
+                .Then(result =>
+                {
+                    if (result is GenericResult.Ok)
+                    {
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Permission granted from host to destroy pearl {opo}; {pearl}");
+                        TryDestroyPearl(opo, true); //try to destroy it as if I am host; maybe dangerous...
+                    }
+                });
+        }
     }
 
     public static void DestroyLocalPearl(AbstractPhysicalObject apo)
@@ -474,6 +488,7 @@ public partial class CTPGameMode
             ClearIndicators(); //just in case
             return;
         }
+        var myPlayers = GetMyPlayers();
 
         //EnsureTrackerExists(player.world);
 
@@ -482,6 +497,18 @@ public partial class CTPGameMode
             var pearl = TeamPearls[i];
             try
             {
+                if (pearl != null && pearl.apo.pos.room != player.pos.room) //if I'm not in the room, see if I do have another player in the room
+                {
+                    foreach (var p in myPlayers)
+                    {
+                        if (p.pos.room == pearl.apo.pos.room)
+                        {
+                            player = p; //find the first player of mine in the room
+                            break;
+                        }
+                    }
+                }
+
                 //manage pearl untouched timer
                 if (pearl == null)
                     pearlUntouchedTicks[i] = 0;

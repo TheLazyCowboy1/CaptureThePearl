@@ -213,6 +213,8 @@ public partial class CTPGameMode : StoryGameMode
             return;
         }
 
+        if (!lobby.isOwner) //for clients ONLY (would be redundant for host), clean up pearls the host has missed
+            SearchForPearlsInRooms(GetMyPlayers().Select(p => p?.Room));
         //SearchForPearls();
         //SpawnPearls();
         RepositionPearls();
@@ -264,16 +266,20 @@ public partial class CTPGameMode : StoryGameMode
         if (gameSetup)
         {
             //kill myself, like a good slugcat!
-            var me = GetMyPlayer();
-            if (me?.realizedObject is Player mePlayer && !mePlayer.dead)
-                mePlayer.Die();
+            World world = null;
+            foreach (var me in GetMyPlayers())
+            {
+                world = me?.world;
+                if (me?.realizedObject is Player mePlayer && !mePlayer.dead)
+                    mePlayer.Die();
+            }
 
             //attempt to make an arena-style overlay... this probably won't go well...
             try
             {
-                if (me?.world != null)
+                if (world != null)
                 {
-                    var game = me.world.game;
+                    var game = world.game;
 
                     //create phony arena sitting
                     var setup = new ArenaSetup.GameTypeSetup();
@@ -378,6 +384,10 @@ public partial class CTPGameMode : StoryGameMode
         //return (lobby.playerAvatars.Find(kvp => kvp.Key == OnlineManager.mePlayer).Value.FindEntity() as OnlinePhysicalObject).apo;
         //return avatars.Find(c => c.isMine)?.apo as AbstractCreature;
         return avatars.Count == 0 ? null : avatars[0].abstractCreature;
+    }
+    private AbstractCreature[] GetMyPlayers() //for use with jolly-coop
+    {
+        return avatars.Where(a => a.isMine).Select(a => a.abstractCreature).ToArray();
     }
 
     public string GetTeamProperName(int team)

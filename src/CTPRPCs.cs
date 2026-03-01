@@ -39,6 +39,14 @@ public static class CTPRPCs
         e.Resolve(new GenericResult.Fail());
     }
 
+    [RPCMethod(runDeferred = true)] //run deferred because otherwise it seems to destroy it, boot it out of the resource, and then add it right back
+    public static void RequestDestroyPearl(RPCEvent e, OnlinePhysicalObject opo)
+    {
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && opo != null && opo.apo is DataPearl.AbstractDataPearl abPearl && gamemode.CanBeTeamPearl(abPearl))
+            e.Resolve(new GenericResult.Fail()); //wait! don't destroy this pearl!!!
+        e.Resolve(new GenericResult.Ok()); //okay you're good go ahead and destroy it
+    }
+
     /* Deprecated
     [RPCMethod]
     //Received only by the host
