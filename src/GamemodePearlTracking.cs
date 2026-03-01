@@ -205,7 +205,7 @@ public partial class CTPGameMode
             for (int i = 0; i < TeamPearls.Length; i++)
             {
                 if (TeamPearls[i] == null) continue;
-                if (ApoActuallyExists(TeamPearls[i].apo, world)) //apo is null or apo is not in its own room
+                if (!ApoActuallyExists(TeamPearls[i].apo, world)) //apo is null or apo is not in its own room
                 {
                     RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
                     TeamPearls[i] = null; //the pearl doesn't actually exist
@@ -266,7 +266,7 @@ public partial class CTPGameMode
                     }
                 }
             }
-            foreach (OnlinePhysicalObject opo in SusOPOs.Keys.Except(newSusOPOs))
+            foreach (OnlinePhysicalObject opo in SusOPOs.Keys.Except(newSusOPOs).ToArray())
                 SusOPOs.Remove(opo); //if the opo wasn't "sus" this time, remove it from the list
             newSusOPOs.Clear();
 
@@ -285,7 +285,7 @@ public partial class CTPGameMode
     }
 
     private static bool ApoActuallyExists(AbstractPhysicalObject apo, World world = null)
-        => apo == null || apo.slatedForDeletion || (world != null && apo.world != world) || (!apo.Room.entities.Contains(apo) && !apo.Room.entitiesInDens.Contains(apo));
+        => apo != null && (world == null || apo.world == world) && apo.Room != null && (apo.Room.entities.Contains(apo) || apo.Room.entitiesInDens.Contains(apo));
 
     /// <summary>
     /// Host OR by request
