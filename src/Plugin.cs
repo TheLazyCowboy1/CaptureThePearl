@@ -21,7 +21,7 @@ public class Plugin : BaseUnityPlugin
 {
     public const string MOD_ID = "LazyCowboy.CaptureThePearl";
     public const string MOD_NAME = "Capture the Pearl";
-    public const string MOD_VERSION = "0.0.7";
+    public const string MOD_VERSION = "0.0.8";
 
     //made static for easy access. Hopefully this mod should never be initiated twice anyway...
     public static CTPConfigOptions Options;
@@ -67,7 +67,7 @@ public class Plugin : BaseUnityPlugin
             //set up ExtEnums first!!!
             SetupExtEnums();
 
-            //MeadowHooks.ApplyHooks();
+            //MeadowHooks.ApplyHooks(); //actually, only apply these when the game starts
             CTPMenuHooks.ApplyHooks();
 
             MachineConnector.SetRegisteredOI(MOD_ID, Options);

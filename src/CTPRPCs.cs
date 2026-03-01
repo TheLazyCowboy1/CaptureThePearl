@@ -26,7 +26,7 @@ public static class CTPRPCs
     [RPCMethod(runDeferred = true)] //defer just in case there's some sort of weird race condition where it tries to spawn before it's destroyed?
     public static void TrySpawnPearl(RPCEvent e, byte team)
     {
-        if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.worldSession != null && gamemode.TrySpawnPearl(team, gamemode.worldSession.world, false))
+        if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.CurrentWorldSession != null && gamemode.TrySpawnPearl(team, gamemode.CurrentWorldSession.world, false))
             e.Resolve(new GenericResult.Ok());
         e.Resolve(new GenericResult.Fail());
     }

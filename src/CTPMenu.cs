@@ -6,8 +6,6 @@ using Menu.Remix.MixedUI;
 using UnityEngine;
 using Menu.Remix;
 using Menu;
-using System.Globalization;
-using RWCustom;
 using Menu.Remix.MixedUI.ValueTypes;
 using System.IO;
 using System.Threading.Tasks;
@@ -32,12 +30,14 @@ public class CTPMenu : StoryOnlineMenu
     private MenuTabWrapper tabWrapper; //what on earth is this mess...
 
     public CTPGameMode gameMode => storyGameMode as CTPGameMode;
+    private bool IsHost => OnlineManager.lobby != null && OnlineManager.lobby.isOwner;
 
     private static string lastRegion = "SU";
     private static SlugcatStats.Name lastSlugcat = null;
     private string newSessionText = "NEW SESSION";
     private string clientDescription = "ERROR LOADING LOBBY: PLEASE WAIT";
 
+    #region Setup
     public CTPMenu(ProcessManager manager) : base(manager)
     {
         RainMeadow.RainMeadow.Debug("[CTP]: Setting up menu");
@@ -111,12 +111,55 @@ public class CTPMenu : StoryOnlineMenu
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
 
+    public void SetupCustomUIElements()
+    {
+        //if (!IsHost) return;
+        RainMeadow.RainMeadow.Debug("[CTP]: Setting up custom UI elements.");
+
+        RegionDropdownBox = new(
+                regionConfig,
+                this.nextButton.pos + new Vector2(0, 300),
+                180,
+                GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber)
+                );
+        RegionDropdownBox.description = "\n\nThe region in which to play.";
+        //RegionDropdownBox.OnChange += UpdateConfigs;
+        new UIelementWrapper(tabWrapper, RegionDropdownBox);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Region:", RegionDropdownBox.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
+
+        TeamUpdown = new(teamConfig, this.nextButton.pos + new Vector2(0, 350), 60);
+        TeamUpdown.description = "\n\nThe number of teams to use. Make sure there are more shelters than teams!!";
+        //TeamUpdown.OnChange += UpdateConfigs;
+        new UIelementWrapper(tabWrapper, TeamUpdown);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Teams:", TeamUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
+
+        TimerUpdown = new(timerConfig, this.nextButton.pos + new Vector2(100, 350), 60);
+        TimerUpdown.description = "\n\nThe length of the game in minutes.";
+        //TimerUpdown.OnChange += UpdateConfigs;
+        new UIelementWrapper(tabWrapper, TimerUpdown);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Timer:", TimerUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
+
+        //CreatureCheckbox = new(this, pages[0], this, this.nextButton.pos + new Vector2(100, 400), 100f, "Creatures?", "CreatureCheckbox");//new(creaturesConfig, this.nextButton.pos + new Vector2(0, 450));
+        CreatureCheckbox = new(creaturesConfig, this.nextButton.pos + new Vector2(100, 400));
+        CreatureCheckbox.description = "\n\nWhether creatures should spawn in the world.";
+        //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
+        //if (IsHost) CreatureCheckbox.selectable = true;
+        //pages[0].subObjects.Add(CreatureCheckbox);
+        //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
+        //if (gameMode.SpawnCreatures) CreatureCheckbox.Clicked();
+        //CreatureCheckbox.OnChange += UpdateConfigs;
+        new UIelementWrapper(tabWrapper, CreatureCheckbox);
+        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Creatures?", CreatureCheckbox.pos + new Vector2(-100f, 0), new Vector2(100f, 30f), false));
+
+        SetGreyedOutConfigs(!storyGameMode.lobby.isOwner);
+    }
+    #endregion
+
+    #region TeamSelectButtons
     private void MatchmakingManager_OnPlayerListReceived(PlayerInfo[] players)
     {
         AddTeamSelectButtons();
     }
-
-    private bool IsHost => OnlineManager.lobby != null && OnlineManager.lobby.isOwner;
 
     private void AddTeamSelectButtons()
     {
@@ -192,7 +235,9 @@ public class CTPMenu : StoryOnlineMenu
             };
         }
     }
+    #endregion
 
+    #region UpdateLogic
     private int previousPageIdx;
     private string previousRegion = "";
     private Task dropdownUpdateTask;
@@ -256,6 +301,15 @@ public class CTPMenu : StoryOnlineMenu
             TeamUpdown.SetValueInt(gameMode.NumberOfTeams);
             TimerUpdown.SetValueInt(gameMode.TimerLength);
             CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
+
+            //remove slugcat image
+            var page = slugcatPages[slugcatPageIndex];
+            if (page.slugcatImage != null)
+            {
+                page.RemoveSubObject(page.slugcatImage);
+                page.slugcatImage.RemoveSprites();
+                page.slugcatImage = null; //so we don't try to destroy it again
+            }
         }
 
 
@@ -284,54 +338,15 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
-    public void SetupCustomUIElements()
-    {
-        //if (!IsHost) return;
-        RainMeadow.RainMeadow.Debug("[CTP]: Setting up custom UI elements.");
-
-        RegionDropdownBox = new(
-                regionConfig,
-                this.nextButton.pos + new Vector2(0, 300),
-                180,
-                GetRegionList(slugcatPages[slugcatPageIndex].slugcatNumber)
-                );
-        RegionDropdownBox.description = "\n\nThe region in which to play.";
-        //RegionDropdownBox.OnChange += UpdateConfigs;
-        new UIelementWrapper(tabWrapper, RegionDropdownBox);
-        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Region:", RegionDropdownBox.pos + new Vector2(0, 20f), new Vector2(100f, 30f), false));
-
-        TeamUpdown = new(teamConfig, this.nextButton.pos + new Vector2(0, 350), 60);
-        TeamUpdown.description = "\n\nThe number of teams to use. Make sure there are more shelters than teams!!";
-        //TeamUpdown.OnChange += UpdateConfigs;
-        new UIelementWrapper(tabWrapper, TeamUpdown);
-        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Teams:", TeamUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
-
-        TimerUpdown = new(timerConfig, this.nextButton.pos + new Vector2(100, 350), 60);
-        TimerUpdown.description = "\n\nThe length of the game in minutes.";
-        //TimerUpdown.OnChange += UpdateConfigs;
-        new UIelementWrapper(tabWrapper, TimerUpdown);
-        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Timer:", TimerUpdown.pos + new Vector2(-30, 25), new Vector2(100f, 30f), false));
-
-        //CreatureCheckbox = new(this, pages[0], this, this.nextButton.pos + new Vector2(100, 400), 100f, "Creatures?", "CreatureCheckbox");//new(creaturesConfig, this.nextButton.pos + new Vector2(0, 450));
-        CreatureCheckbox = new(creaturesConfig, this.nextButton.pos + new Vector2(100, 400));
-        CreatureCheckbox.description = "\n\nWhether creatures should spawn in the world.";
-        //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
-        //if (IsHost) CreatureCheckbox.selectable = true;
-        //pages[0].subObjects.Add(CreatureCheckbox);
-        //CreatureCheckbox.Checked = gameMode.SpawnCreatures;
-        //if (gameMode.SpawnCreatures) CreatureCheckbox.Clicked();
-        //CreatureCheckbox.OnChange += UpdateConfigs;
-        new UIelementWrapper(tabWrapper, CreatureCheckbox);
-        pages[0].subObjects.Add(new MenuLabel(this, pages[0], "Creatures?", CreatureCheckbox.pos + new Vector2(-100f, 0), new Vector2(100f, 30f), false));
-
-        SetGreyedOutConfigs(!storyGameMode.lobby.isOwner);
-    }
     public void SetGreyedOutConfigs(bool greyed)
     {
         RegionDropdownBox.greyedOut = greyed;
         TeamUpdown.greyedOut = greyed;
         TimerUpdown.greyedOut = greyed;
         CreatureCheckbox.greyedOut = greyed;
+
+        //set start game button as well to prevent the host trying to start a game before the region list updates
+        startButton.buttonBehav.greyedOut = greyed;
     }
 
     public void UpdateConfigs()
@@ -345,18 +360,10 @@ public class CTPMenu : StoryOnlineMenu
         }
         catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
+    #endregion
 
-    public override void ShutDownProcess()
-    {
-        lastRegion = storyGameMode.region; //so that if we end a round, it tries to keep the same region selected
-        lastSlugcat = storyGameMode.currentCampaign; //tries to keep same slugcat
-        UpdateConfigs();
-
-        MatchmakingManager.OnPlayerListReceived -= MatchmakingManager_OnPlayerListReceived;
-
-        base.ShutDownProcess();
-    }
-
+    #region RegionList
+    //This function is shockingly extremely slow; like it takes several seconds kind of slow
     private List<ListItem> GetRegionList(SlugcatStats.Name slugcat)
     {
         List<ListItem> list = new();
@@ -452,7 +459,9 @@ public class CTPMenu : StoryOnlineMenu
 
         return list.ToArray();
     }
+    #endregion
 
+    #region Background
     private FSprite backgroundSprite;
     public void ChangePageBackground()
     {
@@ -528,48 +537,20 @@ public class CTPMenu : StoryOnlineMenu
         sprite = scene.flatIllustrations[0].sprite;
         scene.flatIllustrations.Clear(); //remove its references to my stuff!!!!
         return sprite;
-    } 
-    /*
-    //HOOK TO SCUGSELECTMENU STARTGAME AND USE THIS INSTEAD IF ITS CTP MODE
-    public new void StartGame(SlugcatStats.Name storyGameCharacter)
-    {
-        if (IsHost)
-        {
-            personaSettings.playingAs = slugcatColorOrder[hostSlugIndex];
-        }
-
-        if (this.colorChecked)
-        {
-            List<Color> val = new();
-            for (int i = 0; i < manager.rainWorld.progression.miscProgressionData.colorChoices[slugcatColorOrder[hostSlugIndex].value].Count; i++)
-            {
-                Vector3 vector = new Vector3(1f, 1f, 1f);
-                if (manager.rainWorld.progression.miscProgressionData.colorChoices[slugcatColorOrder[hostSlugIndex].value][i].Contains(","))
-                {
-                    string[] array = manager.rainWorld.progression.miscProgressionData.colorChoices[slugcatColorOrder[hostSlugIndex].value][i].Split(new char[1] { ',' });
-                    vector = new Vector3(float.Parse(array[0], (NumberStyles)511, (IFormatProvider)(object)CultureInfo.InvariantCulture),
-                        float.Parse(array[1], (NumberStyles)511, (IFormatProvider)(object)CultureInfo.InvariantCulture), float.Parse(array[2],
-                        (NumberStyles)511, (IFormatProvider)(object)CultureInfo.InvariantCulture));
-                }
-                val.Add(RWCustom.Custom.HSL2RGB(vector[0], vector[1], vector[2]));
-            }
-
-            personaSettings.currentColors = val;
-        }
-        else
-        {
-            // Use the default colors for this slugcat when the checkbox is unchecked
-            personaSettings.currentColors = PlayerGraphics.DefaultBodyPartColorHex(slugcatColorOrder[hostSlugIndex]).Select(Custom.hexToColor).ToList();
-        }
-        manager.arenaSitting = null;
-
-        //manager.rainWorld.progression.WipeSaveState(storyGameMode.currentCampaign);//ALWAYS load a new game
-        manager.menuSetup.startGameCondition = ProcessManager.MenuSetup.StoryGameInitCondition.New;
-
-        manager.RequestMainProcessSwitch(ProcessManager.ProcessID.Game);
     }
-    */
+    #endregion
 
+    #region Cleanup
+    public override void ShutDownProcess()
+    {
+        lastRegion = storyGameMode.region; //so that if we end a round, it tries to keep the same region selected
+        lastSlugcat = storyGameMode.currentCampaign; //tries to keep same slugcat
+        UpdateConfigs();
+
+        MatchmakingManager.OnPlayerListReceived -= MatchmakingManager_OnPlayerListReceived;
+
+        base.ShutDownProcess();
+    }
     private static void RemoveMenuObject(MenuObject obj)
     {
         if (obj != null)
@@ -579,4 +560,6 @@ public class CTPMenu : StoryOnlineMenu
             obj.inactive = true;
         }
     }
+    #endregion
+
 }

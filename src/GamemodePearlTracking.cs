@@ -221,7 +221,7 @@ public partial class CTPGameMode
 
         try
         {
-            WorldSession ws = worldSession;
+            WorldSession ws = CurrentWorldSession;
             if (ws == null || ws.activeEntities == null)
             {
                 RainMeadow.RainMeadow.Debug("[CTP]: Can't search for pearls: Awaiting world session...");
@@ -373,7 +373,6 @@ public partial class CTPGameMode
     #endregion
 
     #region PearlDestroying
-    //public void TryDestroyPearl(byte team, bool amHost)
     public bool TryDestroyPearl(OnlinePhysicalObject opo, bool amHost)
     {
         if (opo == null)
@@ -398,12 +397,6 @@ public partial class CTPGameMode
             if (amHost) OnlineManager.RunDeferred(destroyEvent); //destroy the pearl as a deferred event
             else destroyEvent(); //destroy it immediately, because we received this as a deferred RPC anyway
 
-                //DestroyPearl(opo.apo);
-                //opo.Deactivated(opo.primaryResource);
-                //opo.Release(); //I don't want management of this please
-                //opo.primaryResource.EntityLeftResource(opo); //properly remove entity from world resource (and all subresources)
-                //opo.OnLeftResource(opo.primaryResource);
-                //opo.Deactivated(opo.primaryResource); //just causes confusion between clients
             return true;
         }
         else if (amHost)
@@ -474,39 +467,6 @@ public partial class CTPGameMode
         apo.Abstractize(apo.pos);
         apo.Destroy();
         apo.Room?.RemoveEntity(apo); //ensure it's not in the room
-    }
-    #endregion
-
-    #region PearlTransferring
-    public void RequestPearl(OnlinePhysicalObject opo)
-    {
-        if (opo.primaryResource.owner == null) return;
-        opo.isTransfering = true;
-        opo.pendingRequest = opo.primaryResource.owner.InvokeRPC(opo.Requested).Then(requestResult =>
-        {
-            //RainMeadow.Debug(this);
-            if (requestResult.referencedEvent == opo.pendingRequest) opo.pendingRequest = null;
-            else RainMeadow.RainMeadow.Error($"Weird event situation, pending is {opo.pendingRequest} and referenced is {requestResult.referencedEvent}");
-            if (requestResult is GenericResult.Ok) // I'm the new owner of this entity
-            {
-                // no op, comes as state in the same tick
-            }
-            else if (requestResult is GenericResult.Error) // Something went wrong, I should retry
-            {
-                // todo retry logic
-                RainMeadow.RainMeadow.Error("request failed for " + opo);
-                opo.isTransfering = false;
-            }
-            if (opo.isMine) opo.JoinOrLeavePending(); // keep ticking
-
-            OnlineManager.RunDeferred(() =>
-            {
-                opo.beingMoved = true;
-                opo.apo.MoveOnly(PearlSpawnCoord(opo.apo));
-                opo.beingMoved = false;
-                RainMeadow.RainMeadow.Debug($"[CTP]: Moved pearl {opo} to its team shelter! {opo.apo.Room.name}");
-            });
-        });
     }
     #endregion
 
@@ -682,7 +642,7 @@ public partial class CTPGameMode
         }
     }
 
-    public WorldSession worldSession => lobby.overworld.worldSessions.TryGetValue(region, out WorldSession worldSes) ? worldSes : null;
+    public WorldSession CurrentWorldSession => lobby.overworld.worldSessions.TryGetValue(region, out WorldSession worldSes) ? worldSes : null;
 
 
     //deprecated; archived:
