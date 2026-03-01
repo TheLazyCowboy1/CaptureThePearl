@@ -380,7 +380,7 @@ public partial class CTPGameMode
             return false;
         }
 
-        if (opo.isMine)
+        /*if (opo.isMine)
         {
             //DestroyPearl(opo.apo);
             //opo.Deactivated(opo.primaryResource);
@@ -424,6 +424,17 @@ public partial class CTPGameMode
                         RainMeadow.RainMeadow.Debug($"[CTP]: Client failed to destroy pearl {opo}, so I'm requesting it to hopefully destroy it myself.");
                     }
                 });
+        }
+        */
+
+        OnlineResource r = opo.primaryResource;
+        if (r.isOwner)
+        {
+            r.EntityLeftResource(opo);
+        }
+        else if (amHost)
+        {
+            r.RequestEntityLeave(opo);
         }
         else
             RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl {opo}, but I don't own it and I am not the host!");
