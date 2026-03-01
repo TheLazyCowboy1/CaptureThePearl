@@ -378,7 +378,8 @@ public partial class CTPGameMode
                 foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws an error
             }
             opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
-            opo.Deactivated(opo.primaryResource);
+            opo.OnLeftResource(opo.primaryResource);
+            //opo.Deactivated(opo.primaryResource); //just causes confusion between clients
             return true;
         }
         else if (amHost)
