@@ -258,12 +258,12 @@ public partial class CTPGameMode
 
             //go through roomSession and worldSession entities
             List<OnlinePhysicalObject> newSusOPOs = new();
-            //foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities).ToArray()) //go through rs first, then ws
-            foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a Lazy way to make it a distinct list
+            foreach (var ent in ws.roomSessions.Values.SelectMany(rs => rs?.activeEntities ?? new(0)).Concat(ws.activeEntities).ToArray()) //go through rs first, then ws
+            //foreach (var ent in OnlineManager.recentEntities.Values.ToArray()) //ToArray as a Lazy way to make it a distinct list
             {
                 if (ent is OnlinePhysicalObject opo && !opo.isPending && opo.apo is DataPearl.AbstractDataPearl abPearl)
                 {
-                    if (SusAPOs.ContainsKey(abPearl))
+                    if ((abPearl.slatedForDeletion && !opo.isMine) || SusAPOs.ContainsKey(abPearl))
                         continue; //if we're already sus of this, don't examine it
 
                     if (!CanBeTeamPearl(abPearl) || !ApoActuallyExists(abPearl, world)) //not a team pearl = destroy
@@ -404,14 +404,16 @@ public partial class CTPGameMode
                     {
                         if (opo == null) return;
 
-                        if (opo.apo != null) //backup
-                            opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
-
-                        OnlineResource r = opo.primaryResource;
-                        if (r != null)
+                        if (opo.apo != null)
                         {
-                            RainMeadow.RainMeadow.Error($"[CTP]: Allegedly destroyed pearl {opo} still in resource {r}!");
-                            r.EntityLeftResource(opo); //get it out of here please please please
+                            OnlineResource r = opo.primaryResource;
+                            if (r != null && !opo.apo.slatedForDeletion) //once we've marked it as slated for deletion, just leave it alone
+                            {
+                                RainMeadow.RainMeadow.Error($"[CTP]: Allegedly destroyed pearl {opo} still in resource {r}, yet it is still here!");
+                                //r.EntityLeftResource(opo); //get it out of here please please please
+                                opo.Request();
+                            }
+                            opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
                         }
                         opo.Deregister(); //pretend it doesn't exist
                     }

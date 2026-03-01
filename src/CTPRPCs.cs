@@ -31,7 +31,7 @@ public static class CTPRPCs
         e.Resolve(new GenericResult.Fail());
     }
 
-    [RPCMethod]
+    [RPCMethod(runDeferred = true)] //run deferred because otherwise it seems to destroy it, boot it out of the resource, and then add it right back
     public static void TryDestroyPearl(RPCEvent e, OnlinePhysicalObject opo)
     {
         if (CTPGameMode.IsCTPGameMode(out var gamemode) && gamemode.TryDestroyPearl(opo, false))
