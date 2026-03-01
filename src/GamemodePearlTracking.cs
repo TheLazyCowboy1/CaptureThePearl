@@ -1,4 +1,5 @@
 ﻿using RainMeadow;
+using Sony.PS4.SaveData;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -367,7 +368,8 @@ public partial class CTPGameMode
         RainMeadow.RainMeadow.Debug($"[CTP]: Spawned pearl {TeamPearls[team]} for team {team} in {world.name}");
     }
 
-    private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new WorldCoordinate(room.index, room.size.x / 2, room.size.y / 2, 0);
+    private static WorldCoordinate PearlSpawnCoord(AbstractRoom room) => new(room.index, room.size.x / 2, room.size.y / 2, 0);
+    private WorldCoordinate PearlSpawnCoord(AbstractPhysicalObject apo) => PearlSpawnCoord(PearlTeamRoom(apo));
     #endregion
 
     #region PearlDestroying
@@ -380,19 +382,28 @@ public partial class CTPGameMode
             return false;
         }
 
-        /*if (opo.isMine)
+        if (opo.isMine)
         {
-            //DestroyPearl(opo.apo);
-            //opo.Deactivated(opo.primaryResource);
-            //opo.Release(); //I don't want management of this please
-            if (opo.apo.realizedObject is PhysicalObject po)
+            Action destroyEvent = () =>
             {
-                foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws an error
-            }
-            opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
-            opo.primaryResource.EntityLeftResource(opo); //properly remove entity from world resource (and all subresources)
-            //opo.OnLeftResource(opo.primaryResource);
-            //opo.Deactivated(opo.primaryResource); //just causes confusion between clients
+                if (opo.apo.realizedObject is PhysicalObject po)
+                {
+                    foreach (Creature.Grasp grasp in po.grabbedBy.ToArray()) grasp.Release(); //because Meadow's implementation currently throws an error
+                }
+                opo.RemoveEntityFromGame(true); //THERE'S EXISTED A METHOD THIS WHOLE TIME AND I JUST DIDN'T KNOW ABOUT IT?????????
+                                                //leave resources
+                for (int i = opo.joinedResources.Count - 1; i >= 0; i--)
+                    opo.ExitResource(opo.joinedResources[i]); //PROPERLY exit resources?
+            };
+            if (amHost) OnlineManager.RunDeferred(destroyEvent); //destroy the pearl as a deferred event
+            else destroyEvent(); //destroy it immediately, because we received this as a deferred RPC anyway
+
+                //DestroyPearl(opo.apo);
+                //opo.Deactivated(opo.primaryResource);
+                //opo.Release(); //I don't want management of this please
+                //opo.primaryResource.EntityLeftResource(opo); //properly remove entity from world resource (and all subresources)
+                //opo.OnLeftResource(opo.primaryResource);
+                //opo.Deactivated(opo.primaryResource); //just causes confusion between clients
             return true;
         }
         else if (amHost)
@@ -424,17 +435,6 @@ public partial class CTPGameMode
                         RainMeadow.RainMeadow.Debug($"[CTP]: Client failed to destroy pearl {opo}, so I'm requesting it to hopefully destroy it myself.");
                     }
                 });
-        }
-        */
-
-        OnlineResource r = opo.primaryResource;
-        if (r.isOwner)
-        {
-            r.EntityLeftResource(opo);
-        }
-        else if (amHost)
-        {
-            r.RequestEntityLeave(opo);
         }
         else
             RainMeadow.RainMeadow.Error($"[CTP]: Requested to destroy pearl {opo}, but I don't own it and I am not the host!");
@@ -477,6 +477,39 @@ public partial class CTPGameMode
     }
     #endregion
 
+    #region PearlTransferring
+    public void RequestPearl(OnlinePhysicalObject opo)
+    {
+        if (opo.primaryResource.owner == null) return;
+        opo.isTransfering = true;
+        opo.pendingRequest = opo.primaryResource.owner.InvokeRPC(opo.Requested).Then(requestResult =>
+        {
+            //RainMeadow.Debug(this);
+            if (requestResult.referencedEvent == opo.pendingRequest) opo.pendingRequest = null;
+            else RainMeadow.RainMeadow.Error($"Weird event situation, pending is {opo.pendingRequest} and referenced is {requestResult.referencedEvent}");
+            if (requestResult is GenericResult.Ok) // I'm the new owner of this entity
+            {
+                // no op, comes as state in the same tick
+            }
+            else if (requestResult is GenericResult.Error) // Something went wrong, I should retry
+            {
+                // todo retry logic
+                RainMeadow.RainMeadow.Error("request failed for " + opo);
+                opo.isTransfering = false;
+            }
+            if (opo.isMine) opo.JoinOrLeavePending(); // keep ticking
+
+            OnlineManager.RunDeferred(() =>
+            {
+                opo.beingMoved = true;
+                opo.apo.MoveOnly(PearlSpawnCoord(opo.apo));
+                opo.beingMoved = false;
+                RainMeadow.RainMeadow.Debug($"[CTP]: Moved pearl {opo} to its team shelter! {opo.apo.Room.name}");
+            });
+        });
+    }
+    #endregion
+
     public bool CanBeTeamPearl(DataPearl.AbstractDataPearl abPearl)
     {
         int team = PearlIdxToTeam(abPearl.dataPearlType.index);
@@ -490,6 +523,7 @@ public partial class CTPGameMode
             return idx;
         return -1;
     }
+    private AbstractRoom PearlTeamRoom(AbstractPhysicalObject apo) => apo.world.GetAbstractRoom(TeamShelters[PearlIdxToTeam((apo as DataPearl.AbstractDataPearl).dataPearlType.index)]);
 
     public void RepositionPearls()
     {
