@@ -303,13 +303,7 @@ public class CTPMenu : StoryOnlineMenu
             CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
 
             //remove slugcat image
-            var page = slugcatPages[slugcatPageIndex];
-            if (page.slugcatImage != null)
-            {
-                page.RemoveSubObject(page.slugcatImage);
-                page.slugcatImage.RemoveSprites();
-                page.slugcatImage = null; //so we don't try to destroy it again
-            }
+            RemoveSlugcatImage();
         }
 
 
@@ -462,6 +456,18 @@ public class CTPMenu : StoryOnlineMenu
     #endregion
 
     #region Background
+    public void RemoveSlugcatImage()
+    {
+        var page = slugcatPages[slugcatPageIndex];
+        if (page.slugcatImage != null && !page.slugcatImage.inactive)
+        {
+            page.RemoveSubObject(page.slugcatImage);
+            page.slugcatImage.RemoveSprites();
+            //page.slugcatImage = null; //we are not allowed to make it null, but maybe we can do something else?
+            page.slugcatImage.inactive = true;
+        }
+    }
+
     private FSprite backgroundSprite;
     public void ChangePageBackground()
     {
@@ -472,11 +478,7 @@ public class CTPMenu : StoryOnlineMenu
         {
             var page = slugcatPages[slugcatPageIndex];
             //remove sprites
-            if (page.slugcatImage != null)
-            {
-                page.RemoveSubObject(page.slugcatImage);
-                page.slugcatImage.RemoveSprites();
-            }
+            RemoveSlugcatImage();
             page.glowOffset.y += 10000; //move it out of the way
             page.markOffset.y += 10000; //get it out of my sight
 
