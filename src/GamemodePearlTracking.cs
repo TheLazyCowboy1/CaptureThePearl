@@ -119,6 +119,7 @@ public partial class CTPGameMode
     /// <summary>
     /// HOST ONLY
     /// </summary>
+    private int destroyCooldown = 0;
     public void TestForScore()
     {
         if (blockedScores.Length != TeamShelters.Length)
@@ -158,13 +159,19 @@ public partial class CTPGameMode
                                 if (!p.isMe) p.InvokeOnceRPC(CTPRPCs.PointScored, (byte)idx, (byte)i);
                             }
                             blockedScores[i] = true; //prevent this from happening multiple times before it gets moved
+                            destroyCooldown = 0;
 
                             //respawn the pearl
                             //SpawnPearls(true);
                             //RespawnTeamPearl(i);
                         }
 
-                        TryDestroyPearl(TeamPearls[i], true); //always destroy when in enemy shelters
+                        if (destroyCooldown <= 0)
+                        {
+                            TryDestroyPearl(TeamPearls[i], true); //always destroy when in enemy shelters
+                            destroyCooldown = 5; //don't spam too fast
+                        }
+                        else destroyCooldown--;
                     }
                 }
             }
@@ -216,6 +223,7 @@ public partial class CTPGameMode
     /// <summary>
     /// HOST ONLY
     /// </summary>
+    private int spawnCooldown = 0;
     public void SearchForPearls()
     {
 
@@ -251,7 +259,7 @@ public partial class CTPGameMode
             for (int i = 0; i < TeamPearls.Length; i++)
             {
                 if (TeamPearls[i] == null) continue;
-                if (!ApoActuallyExists(TeamPearls[i].apo, world)) //apo is null or apo is not in its own room
+                if (!ApoActuallyExists(TeamPearls[i].apo, world) || TeamPearls[i].apo.GetOnlineObject() != TeamPearls[i]) //pearl doesn't exist or can't find its online object properly
                 {
                     RainMeadow.RainMeadow.Debug($"[CTP]: The pearl for team {i} doesn't actually exist!");
                     TeamPearls[i] = null; //the pearl doesn't actually exist
@@ -302,11 +310,16 @@ public partial class CTPGameMode
             newSusOPOs.Clear();
 
             //try to spawn pearls that are needed
-            for (byte i = 0; i < TeamPearls.Length; i++)
+            if (spawnCooldown <= 0)
             {
-                if (TeamPearls[i] != null) continue;
-                TrySpawnPearl(i, world, true);
+                for (byte i = 0; i < TeamPearls.Length; i++)
+                {
+                    if (TeamPearls[i] != null) continue;
+                    TrySpawnPearl(i, world, true);
+                }
+                spawnCooldown = 5; //don't spam too fast
             }
+            else spawnCooldown--;
 
 
             TestForScore();
@@ -393,6 +406,10 @@ public partial class CTPGameMode
                                                 //leave resources
                 for (int i = opo.joinedResources.Count - 1; i >= 0; i--)
                     opo.ExitResource(opo.joinedResources[i]); //PROPERLY exit resources?
+
+                opo.apo.slatedForDeletion = true; //pretend like the destruction worked
+                opo.apo.pos.y = -10; //shove under room
+                RainMeadow.RainMeadow.Debug("[CTP]: Hopefully destroyed pearl " + opo);
             };
             if (amHost) OnlineManager.RunDeferred(destroyEvent); //destroy the pearl as a deferred event
             else destroyEvent(); //destroy it immediately, because we received this as a deferred RPC anyway
@@ -419,8 +436,9 @@ public partial class CTPGameMode
                                 opo.Request();
                             }
                             opo.apo.slatedForDeletion = true; //mark it as slated for deletion so that we don't consider it an active pearl anymore
+                            opo.apo.pos.y = -10; //also put under room
                         }
-                        opo.Deregister(); //pretend it doesn't exist
+                        //opo.Deregister(); //pretend it doesn't exist //NO, don't do this actually
                     }
                     else
                     {
