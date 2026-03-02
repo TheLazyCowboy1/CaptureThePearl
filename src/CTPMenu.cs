@@ -51,7 +51,7 @@ public class CTPMenu : StoryOnlineMenu
         tabWrapper = new MenuTabWrapper(this, pages[0]);
         pages[0].subObjects.Add(tabWrapper);
 
-        previousPageIdx = slugcatPageIndex;
+        //previousPageIdx = slugcatPageIndex;
 
         storyGameMode = (CTPGameMode)OnlineManager.lobby.gameMode;
 
@@ -238,102 +238,103 @@ public class CTPMenu : StoryOnlineMenu
     #endregion
 
     #region UpdateLogic
-    private int previousPageIdx;
+    private int previousPageIdx = -1;
     private string previousRegion = "";
     private Task dropdownUpdateTask;
     public override void Update()
     {
-        bool needRefresh = storyGameMode.needMenuSaveUpdate;
-
-        //if (!IsHost && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
-        //slugcatPageIndex = base.indexFromColor(gameMode.currentCampaign); //weird hack to prevent client page scrolling animation
-
         try
         {
+            bool needRefresh = storyGameMode.needMenuSaveUpdate;
+
+            //if (!IsHost && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
+            //slugcatPageIndex = base.indexFromColor(gameMode.currentCampaign); //weird hack to prevent client page scrolling animation
+
             base.Update();
-        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
-        if (needRefresh)
-            RefreshMenu();
+            if (needRefresh)
+                RefreshMenu();
 
-        if (IsHost) //host update stuff
-        {
-            //Update region dropdown list
-            //  made into a Task because apparently it is very slow (why??) and it was restarting while still active (HOW????)
-            if (slugcatPageIndex != previousPageIdx && dropdownUpdateTask == null)
+            if (IsHost) //host update stuff
             {
-                dropdownUpdateTask = Task.Run(() =>
+                //Update region dropdown list
+                //  made into a Task because apparently it is very slow (why??) and it was restarting while still active (HOW????)
+                if (slugcatPageIndex != previousPageIdx && dropdownUpdateTask == null)
                 {
-                    var idx = slugcatPageIndex;
-                    try
+                    dropdownUpdateTask = Task.Run(() =>
                     {
-                        var oldItems = RegionDropdownBox._itemList;
-                        var newItems = GetRegionList(slugcatPages[idx].slugcatNumber);
-                        var removeList = oldItems.Except(newItems).Select(item => item.name).ToArray();
-                        if (removeList.Length < oldItems.Length)
+                        var idx = slugcatPageIndex;
+                        try
                         {
-                            RegionDropdownBox.RemoveItems(true, removeList);
-                            RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                            var oldItems = RegionDropdownBox._itemList;
+                            var newItems = GetRegionList(slugcatPages[idx].slugcatNumber);
+                            var removeList = oldItems.Except(newItems).Select(item => item.name).ToArray();
+                            if (removeList.Length < oldItems.Length)
+                            {
+                                RegionDropdownBox.RemoveItems(true, removeList);
+                                RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                            }
+                            else //cannot remove literally everything at once (for some annoying reason???), so if we have to do so, add THEN remove
+                            {
+                                RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
+                                RegionDropdownBox.RemoveItems(true, removeList);
+                            }
                         }
-                        else //cannot remove literally everything at once (for some annoying reason???), so if we have to do so, add THEN remove
-                        {
-                            RegionDropdownBox.AddItems(true, newItems.Except(oldItems).ToArray());
-                            RegionDropdownBox.RemoveItems(true, removeList);
-                        }
-                    }
-                    catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
-                    previousPageIdx = idx;
+                        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
+                        previousPageIdx = idx;
 
-                    RainMeadow.RainMeadow.Debug($"[CTP]: Updated region dropdown list for {idx} - {slugcatPages[slugcatPageIndex].slugcatNumber}");
-                    dropdownUpdateTask = null; //clear itself out
-                });
+                        RainMeadow.RainMeadow.Debug($"[CTP]: Updated region dropdown list for {idx} - {slugcatPages[slugcatPageIndex].slugcatNumber}");
+                        dropdownUpdateTask = null; //clear itself out
+                    });
+                }
+
+                SetGreyedOutConfigs(dropdownUpdateTask != null); //grey out configs if they're being reset; otherwise ensure not greyed out
+                if (this.scroll == 0 && this.lastScroll == 0 && dropdownUpdateTask == null) //don't ask; just trust
+                    UpdateConfigs();
+
+                //Set start text to always be "NEW SESSION"
+                startButton.menuLabel.text = newSessionText;
+
             }
-
-            SetGreyedOutConfigs(dropdownUpdateTask != null); //grey out configs if they're being reset; otherwise ensure not greyed out
-            if (this.scroll == 0 && this.lastScroll == 0 && dropdownUpdateTask == null) //don't ask; just trust
-                UpdateConfigs();
-
-            //Set start text to always be "NEW SESSION"
-            startButton.menuLabel.text = newSessionText;
-
-        }
-        else //client update stuff
-        {
-            //set custom settings
-            RegionDropdownBox.value = storyGameMode.region;
-            TeamUpdown.SetValueInt(gameMode.NumberOfTeams);
-            TimerUpdown.SetValueInt(gameMode.TimerLength);
-            CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
-
-            //remove slugcat image
-            //RemoveSlugcatImage();
-        }
-
-
-        //Change background if host changes region or client changes slugcat
-        if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
-        {
-            clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
-
-            ChangePageBackground(); //actually, what if we do it for host too?
-            if (!IsHost) //client only
+            else //client update stuff
             {
-                //ChangePageBackground();
-                //ensure the new region selected is actually in my region list
-                if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
-                    RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+                //set custom settings
+                RegionDropdownBox.value = storyGameMode.region;
+                TeamUpdown.SetValueInt(gameMode.NumberOfTeams);
+                TimerUpdown.SetValueInt(gameMode.TimerLength);
+                CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
+
+                //remove slugcat image
+                //RemoveSlugcatImage();
             }
 
-            previousRegion = storyGameMode.region;
-            previousPageIdx = slugcatPageIndex;
-        }
 
-        //if (base.infoLabel != null)
-        //base.infoLabel.text = clientDescription;
-        if (slugcatPages[slugcatPageIndex] is SlugcatSelectMenu.SlugcatPageNewGame newGamePage)
-        {
-            newGamePage.difficultyLabel.text = clientDescription;
+            //Change background if host changes region or client changes slugcat
+            if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
+            {
+                clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+
+                ChangePageBackground(); //actually, what if we do it for host too?
+                if (!IsHost) //client only
+                {
+                    //ChangePageBackground();
+                    //ensure the new region selected is actually in my region list
+                    if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
+                        RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
+                }
+
+                previousRegion = storyGameMode.region;
+                previousPageIdx = slugcatPageIndex;
+            }
+
+            //if (base.infoLabel != null)
+            //base.infoLabel.text = clientDescription;
+            if (slugcatPages[slugcatPageIndex] is SlugcatSelectMenu.SlugcatPageNewGame newGamePage)
+            {
+                newGamePage.difficultyLabel.text = clientDescription;
+            }
         }
+        catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
     }
 
     public void SetGreyedOutConfigs(bool greyed)
@@ -472,13 +473,13 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
-    //private FSprite backgroundSprite;
-    private bool[] HasAddedBackground = null;
+    private FSprite backgroundSprite;
+    //private bool[] HasAddedBackground = null;
     public void ChangePageBackground()
     {
         //RainMeadow.RainMeadow.Debug($"[CTP]: Attempting background change for {storyGameMode.region}");
-        if (IsHost) return; //owner gets default background scene
         if (string.IsNullOrEmpty(storyGameMode.region)) return; //don't process false regions
+
         try
         {
             var page = slugcatPages[slugcatPageIndex];
@@ -487,28 +488,26 @@ public class CTPMenu : StoryOnlineMenu
             page.glowOffset.y += 10000; //move it out of the way
             page.markOffset.y += 10000; //get it out of my sight
 
-            const int BACKGROUND_INDEX = 1; //not the very background, but close to it?
 
             //remove the old background from its container
-            //backgroundSprite?.RemoveFromContainer();
+
+            backgroundSprite?.RemoveFromContainer();
+            /*
+            const int BACKGROUND_INDEX = 1; //not the very background, but close to it?
             HasAddedBackground ??= new bool[slugcatPages.Count];
             if (HasAddedBackground[slugcatPageIndex])
-                page.slugcatImage.Container.RemoveChild(page.slugcatImage.Container.GetChildAt(BACKGROUND_INDEX));
-
-            FSprite backgroundSprite = GetRegionSprite();
-            if (backgroundSprite == null)
             {
-                RainMeadow.RainMeadow.Error("[CTP]: Failed to generate background for page " + slugcatPageIndex);
-                return;
-            }
+                RainMeadow.RainMeadow.Debug("[CTP]: Removing old background for page " + slugcatPageIndex);
+                page.Container.RemoveChild(page.Container.GetChildAt(BACKGROUND_INDEX));
+            }*/
 
-            //FSprite backgroundSprite = GetRegionSprite();
+            backgroundSprite = GetRegionSprite();
 
             if (backgroundSprite != null)
             {
                 //page.Container.AddChild(backgroundSprite);
                 //page.Container.AddChildAtIndex(backgroundSprite, 0);
-                page.slugcatImage.Container.AddChildAtIndex(backgroundSprite, BACKGROUND_INDEX);
+                page.Container.AddChildAtIndex(backgroundSprite, 1); //not the very background, but close to it?
 
                 RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {storyGameMode.region}.");
             }
@@ -540,9 +539,9 @@ public class CTPMenu : StoryOnlineMenu
                 Texture2D tex = new Texture2D(0, 0);
                 string path = AssetManager.ResolveFilePath("illustrations/" + reg + ".png");
                 if (File.Exists(path))
-                {
                     ImageConversion.LoadImage(tex, File.ReadAllBytes(path));
-                }
+                else
+                    return null; //don't try to load an image that doesn't exist
                 tex.filterMode = 0;
                 Futile.atlasManager.LoadAtlasFromTexture(reg, tex, false);
             }
