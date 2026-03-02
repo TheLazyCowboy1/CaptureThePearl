@@ -58,6 +58,7 @@ public class CTPMenu : StoryOnlineMenu
         storyGameMode.Sanitize();
         gameMode.SanitizeCTP();
         storyGameMode.currentCampaign = slugcatPages[slugcatPageIndex].slugcatNumber;
+        storyGameMode.region = lastRegion; //set region
 
 
         //add region dropdowns
@@ -310,14 +311,16 @@ public class CTPMenu : StoryOnlineMenu
 
 
             //Change background if host changes region or client changes slugcat
+            if (storyGameMode.region != previousRegion)
+            {
+                ChangePageBackground(); //update ONLY for region changes
+            }
             if (storyGameMode.region != previousRegion || previousPageIdx != slugcatPageIndex || needRefresh)
             {
                 clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
 
-                ChangePageBackground(); //actually, what if we do it for host too?
                 if (!IsHost) //client only
                 {
-                    //ChangePageBackground();
                     //ensure the new region selected is actually in my region list
                     if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
                         RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
@@ -468,6 +471,8 @@ public class CTPMenu : StoryOnlineMenu
         {
             page.RemoveSubObject(page.slugcatImage);
             page.slugcatImage.RemoveSprites();
+            page.glowOffset.y += 10000; //move it out of the way
+            page.markOffset.y += 10000; //get it out of my sight
             //page.slugcatImage = null; //we are not allowed to make it null, but maybe we can do something else?
             page.slugcatImage.inactive = true;
         }
@@ -482,11 +487,10 @@ public class CTPMenu : StoryOnlineMenu
 
         try
         {
-            var page = slugcatPages[slugcatPageIndex];
+            //var page = slugcatPages[slugcatPageIndex];
+            var page = pages[0];
             //remove sprites
             //RemoveSlugcatImage();
-            page.glowOffset.y += 10000; //move it out of the way
-            page.markOffset.y += 10000; //get it out of my sight
 
 
             //remove the old background from its container
@@ -522,10 +526,15 @@ public class CTPMenu : StoryOnlineMenu
     }
     private FSprite GetRegionSprite()
     {
+        bool flat = manager.rainWorld.flatIllustrations;
+        manager.rainWorld.flatIllustrations = true; //make this scene flat
         var scene = new InteractiveMenuScene(this, slugcatPages[slugcatPageIndex], Region.GetRegionLandscapeScene(storyGameMode.region));
-        scene.flatMode = true;
-        scene.BuildScene(); //rebuild, but flat this time!!!!!
-        if (ModManager.MSC) scene.BuildMSCScene();
+        manager.rainWorld.flatIllustrations = flat;
+
+        //scene.flatMode = true;
+        //scene.BuildScene(); //rebuild, but flat this time!!!!!
+        //if (ModManager.MSC) scene.BuildMSCScene();
+        //if (ModManager.Watcher) scene.BuildWatcherScene(); //just in case
 
         FSprite sprite;
         if (scene.flatIllustrations.Count < 1)
@@ -549,12 +558,13 @@ public class CTPMenu : StoryOnlineMenu
             sprite.scale = 3.5f; //default size = 100x100; this makes it 350x350
             sprite.alpha = 0.5f;
             sprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
-            sprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
+            sprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.6f; //moved down a bit compared to other background
 
             return sprite;
         }
         sprite = scene.flatIllustrations[0].sprite;
         scene.flatIllustrations.Clear(); //remove its references to my stuff!!!!
+        scene.UnloadImages(); //maybe saves memory or something, idk?
 
         sprite.alpha = 0.5f;
         sprite.scale *= 0.7f;
