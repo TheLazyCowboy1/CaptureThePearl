@@ -245,10 +245,13 @@ public class CTPMenu : StoryOnlineMenu
     {
         bool needRefresh = storyGameMode.needMenuSaveUpdate;
 
-        if (!IsHost && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
-            slugcatPageIndex = base.indexFromColor(gameMode.currentCampaign); //weird hack to prevent client page scrolling animation
+        //if (!IsHost && gameMode.currentCampaign != slugcatColorOrder[slugcatPageIndex])
+        //slugcatPageIndex = base.indexFromColor(gameMode.currentCampaign); //weird hack to prevent client page scrolling animation
 
-        base.Update();
+        try
+        {
+            base.Update();
+        } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
 
         if (needRefresh)
             RefreshMenu();
@@ -544,7 +547,11 @@ public class CTPMenu : StoryOnlineMenu
                 Futile.atlasManager.LoadAtlasFromTexture(reg, tex, false);
             }
             sprite = new FSprite(reg, true);
-            sprite.scale = 5f; //default size = 100x100; this makes it 500x500; then turns into 350x350
+            sprite.scale = 3.5f; //default size = 100x100; this makes it 350x350
+            sprite.alpha = 0.5f;
+            sprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
+            sprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
+
             return sprite;
         }
         sprite = scene.flatIllustrations[0].sprite;
