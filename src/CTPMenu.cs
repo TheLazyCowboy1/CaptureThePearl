@@ -303,7 +303,7 @@ public class CTPMenu : StoryOnlineMenu
             CreatureCheckbox.SetValueBool(gameMode.SpawnCreatures);
 
             //remove slugcat image
-            RemoveSlugcatImage();
+            //RemoveSlugcatImage();
         }
 
 
@@ -312,9 +312,10 @@ public class CTPMenu : StoryOnlineMenu
         {
             clientDescription = GetCurrentCampaignName() + (string.IsNullOrEmpty(storyGameMode.region) ? Translate(" - Unknown Region") : " - " + Translate(Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
 
+            ChangePageBackground(); //actually, what if we do it for host too?
             if (!IsHost) //client only
             {
-                ChangePageBackground();
+                //ChangePageBackground();
                 //ensure the new region selected is actually in my region list
                 if (!RegionDropdownBox._itemList.Any(item => item.name == storyGameMode.region))
                     RegionDropdownBox.AddItems(false, new ListItem(storyGameMode.region, Region.GetRegionFullName(storyGameMode.region, storyGameMode.currentCampaign)));
@@ -468,7 +469,8 @@ public class CTPMenu : StoryOnlineMenu
         }
     }
 
-    private FSprite backgroundSprite;
+    //private FSprite backgroundSprite;
+    private bool[] HasAddedBackground = null;
     public void ChangePageBackground()
     {
         //RainMeadow.RainMeadow.Debug($"[CTP]: Attempting background change for {storyGameMode.region}");
@@ -478,23 +480,32 @@ public class CTPMenu : StoryOnlineMenu
         {
             var page = slugcatPages[slugcatPageIndex];
             //remove sprites
-            RemoveSlugcatImage();
+            //RemoveSlugcatImage();
             page.glowOffset.y += 10000; //move it out of the way
             page.markOffset.y += 10000; //get it out of my sight
 
-            backgroundSprite?.RemoveFromContainer(); //remove its old self from its container
+            const int BACKGROUND_INDEX = 1; //not the very background, but close to it?
 
-            backgroundSprite = GetRegionSprite();
+            //remove the old background from its container
+            //backgroundSprite?.RemoveFromContainer();
+            HasAddedBackground ??= new bool[slugcatPages.Count];
+            if (HasAddedBackground[slugcatPageIndex])
+                page.slugcatImage.Container.RemoveChild(page.slugcatImage.Container.GetChildAt(BACKGROUND_INDEX));
+
+            FSprite backgroundSprite = GetRegionSprite();
+            if (backgroundSprite == null)
+            {
+                RainMeadow.RainMeadow.Error("[CTP]: Failed to generate background for page " + slugcatPageIndex);
+                return;
+            }
+
+            //FSprite backgroundSprite = GetRegionSprite();
 
             if (backgroundSprite != null)
             {
-                backgroundSprite.alpha = 0.5f;
-                backgroundSprite.scale *= 0.7f;
-                backgroundSprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
-                backgroundSprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
-
                 //page.Container.AddChild(backgroundSprite);
-                page.Container.AddChildAtIndex(backgroundSprite, 0);
+                //page.Container.AddChildAtIndex(backgroundSprite, 0);
+                page.slugcatImage.Container.AddChildAtIndex(backgroundSprite, BACKGROUND_INDEX);
 
                 RainMeadow.RainMeadow.Debug($"[CTP]: Changed background region scene to {storyGameMode.region}.");
             }
@@ -538,6 +549,12 @@ public class CTPMenu : StoryOnlineMenu
         }
         sprite = scene.flatIllustrations[0].sprite;
         scene.flatIllustrations.Clear(); //remove its references to my stuff!!!!
+
+        sprite.alpha = 0.5f;
+        sprite.scale *= 0.7f;
+        sprite.x = this.manager.rainWorld.options.ScreenSize.x * 0.5f;
+        sprite.y = this.manager.rainWorld.options.ScreenSize.y * 0.7f;
+
         return sprite;
     }
     #endregion
