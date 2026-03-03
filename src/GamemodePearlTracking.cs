@@ -10,6 +10,7 @@ public partial class CTPGameMode
 {
     #region Setup
     public const int MAX_PROBLEMATIC_OPO_TIME = 40;
+    public const int MAX_BAD_TILE_TIME = 20;
 
     //public TrackedPearl[] TrackedPearls = new TrackedPearl[0];
     public OnlinePhysicalObject[] TeamPearls = new OnlinePhysicalObject[0];
@@ -187,6 +188,8 @@ public partial class CTPGameMode
         foreach (AbstractRoom room in rooms)
         {
             if (room == null) continue;
+            if (room.realizedRoom == null) continue; //BIG CHANGE: only search currently realized rooms using this function!
+
             //go through every entity in the room
             foreach (AbstractWorldEntity abEnt in room.entities.Concat(room.entitiesInDens))
             {
@@ -504,6 +507,7 @@ public partial class CTPGameMode
     private AbstractRoom PearlTeamRoom(AbstractPhysicalObject apo) => apo.world.GetAbstractRoom(TeamShelters[PearlIdxToTeam((apo as DataPearl.AbstractDataPearl).dataPearlType.index)]);
 
     private bool loadedIn = false;
+    private int[] pearlBadTileCounter = null;
     public void RepositionPearls()
     {
         var player = GetMyPlayer();
@@ -596,6 +600,18 @@ public partial class CTPGameMode
                         else if (tile.Solid) moveReason = "in a wall";
                         else if (tile.wormGrass) moveReason = "in worm grass";
                         else moveNeeded = false; //passed all checks!
+
+                        if (moveNeeded)
+                        {
+                            pearlBadTileCounter ??= new int[TeamPearls.Length]; //init if not already
+                            if (pearlBadTileCounter[i] < MAX_BAD_TILE_TIME)
+                            {
+                                pearlBadTileCounter[i]++;
+                                moveNeeded = false; //don't reposition until we've reached MAX_BAD_TILE_TIME
+                            }
+                        }
+                        else
+                            pearlBadTileCounter[i] = 0; //reset counter if not in a bad tile
                     }
 
                         
