@@ -515,7 +515,10 @@ public partial class CTPGameMode
         var myPlayers = GetMyPlayers();
 
         if (!loadedIn)
+        {
             loadedIn = player != null && player.realizedObject != null && player.realizedObject.room != null;
+            if (loadedIn) RainMeadow.RainMeadow.Debug("[CTP]: Player is now loaded in");
+        }
 
         //EnsureTrackerExists(player.world);
 
@@ -606,12 +609,16 @@ public partial class CTPGameMode
                         }
                         pearl.apo.InDen = false; //just to doubly ensure it's not in a den
 
-                        if (loadedIn && (player.realizedObject == null || player.state.dead))
+                        if (player.realizedObject == null || player.state.dead)
                         {
                             //I am no longer responsible to manage this pearl; give management of it to someone else
-                            RainMeadow.RainMeadow.Debug($"[CTP]: Being banished to sleep screen due to being judged too irresponsible to maintain pearl {pearl} for team {i}");
-                            pearl.apo.world.game.GoToDeathScreen(); //just force the player to go to the death screen. Cheap solution, but works
-                            loadedIn = false;
+                            if (loadedIn)
+                            {
+                                RainMeadow.RainMeadow.Debug($"[CTP]: Being banished to sleep screen due to being judged too irresponsible to maintain pearl {pearl} for team {i}");
+                                pearl.apo.world.game.GoToDeathScreen(); //just force the player to go to the death screen. Cheap solution, but works
+                                loadedIn = false;
+                            }
+                            else RainMeadow.RainMeadow.Debug($"[CTP]: Cannot reposition pearl {pearl} for team {i} because player is not yet loaded in.");
                             continue;
                         }
                         else if (player.realizedCreature.inShortcut)
