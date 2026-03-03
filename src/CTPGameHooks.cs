@@ -546,8 +546,6 @@ public static class CTPGameHooks
             if (CTPGameMode.IsCTPGameMode(out var gamemode))
             {
                 gamemode.ClientGameTick();
-                if (gamemode.lobby.isOwner)
-                    gamemode.HostGameTick();
 
                 //should game end?
                 if (gamemode.gameSetup && self.world != null && self.world.rainCycle != null

@@ -503,6 +503,7 @@ public partial class CTPGameMode
     }
     private AbstractRoom PearlTeamRoom(AbstractPhysicalObject apo) => apo.world.GetAbstractRoom(TeamShelters[PearlIdxToTeam((apo as DataPearl.AbstractDataPearl).dataPearlType.index)]);
 
+    private bool loadedIn = false;
     public void RepositionPearls()
     {
         var player = GetMyPlayer();
@@ -512,6 +513,9 @@ public partial class CTPGameMode
             return;
         }
         var myPlayers = GetMyPlayers();
+
+        if (!loadedIn)
+            loadedIn = player != null && player.realizedObject != null && player.realizedObject.room != null;
 
         //EnsureTrackerExists(player.world);
 
@@ -555,15 +559,6 @@ public partial class CTPGameMode
             //If the pearl is mine, yet destroyed //and in the same room
             if (pearl != null && pearl.isMine)
                 {
-                    /*if (pearlUntouchedTicks[i] < 0 || pearlUntouchedTicks[i] > (UNTENDED_PEARL_RESPAWN_TIME + 1) * 200f)
-                    {//forced abstraction
-                        pearl.apo.realizedObject?.AllGraspsLetGoOfThisObject(true);
-                        pearl.apo.Abstractize(pearl.apo.pos);
-                        pearl.apo.LoseAllStuckObjects();
-                        pearl.apo.Room?.RemoveEntity(pearl.apo);
-                        RainMeadow.RainMeadow.Debug($"[CTP] Manually abstractized newly acquired pearl {pearl} for team {i}");
-                    }*/
-
                     if (pearlIndicators[i] == null && player.realizedObject == null)
                     {
                         RainMeadow.RainMeadow.Debug("[CTP]: Not yet loaded in!");
@@ -611,11 +606,12 @@ public partial class CTPGameMode
                         }
                         pearl.apo.InDen = false; //just to doubly ensure it's not in a den
 
-                        if (player.realizedObject == null || player.state.dead)
+                        if (loadedIn && (player.realizedObject == null || player.state.dead))
                         {
                             //I am no longer responsible to manage this pearl; give management of it to someone else
                             RainMeadow.RainMeadow.Debug($"[CTP]: Being banished to sleep screen due to being judged too irresponsible to maintain pearl {pearl} for team {i}");
                             pearl.apo.world.game.GoToDeathScreen(); //just force the player to go to the death screen. Cheap solution, but works
+                            loadedIn = false;
                             continue;
                         }
                         else if (player.realizedCreature.inShortcut)

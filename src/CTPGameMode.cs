@@ -207,7 +207,12 @@ public partial class CTPGameMode : StoryGameMode
     {
         if (!gameSetup)
             return;
-        if (TeamPoints.Length != TeamPearls.Length)
+
+
+        if (lobby.isOwner)
+            HostGameTick();
+
+        else if (TeamPoints.Length != TeamPearls.Length)
         {
             RainMeadow.RainMeadow.Error("[CTP]: Array length mismatches! (ClientGameTick)");
             return;
@@ -460,7 +465,7 @@ public partial class CTPGameMode : StoryGameMode
         return base.ShouldSyncAPOInRoom(rs, apo);
     }
     //don't sync pearls that aren't team pearls
-    public override bool ShouldRegisterAPO(OnlineResource resource, AbstractPhysicalObject apo)
+    /*public override bool ShouldRegisterAPO(OnlineResource resource, AbstractPhysicalObject apo)
     {
         if (apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl
             && apo is DataPearl.AbstractDataPearl ap)
@@ -470,7 +475,7 @@ public partial class CTPGameMode : StoryGameMode
                 return false;
         }
         return base.ShouldRegisterAPO(resource, apo);
-    }
+    }*/
 
     //Check if someone else has already realized this creature. If so, skip realizing/registering it for now.
     public bool ShouldRealizeCreature(AbstractCreature ac)
@@ -485,7 +490,7 @@ public partial class CTPGameMode : StoryGameMode
             );
     }
 
-    public override void FilterItems(Room room)
+    /*public override void FilterItems(Room room)
     {
         base.FilterItems(room);
 
@@ -503,7 +508,7 @@ public partial class CTPGameMode : StoryGameMode
                 }
             }
         }
-    }
+    }*/
 
     public override void ResourceAvailable(OnlineResource onlineResource)
     {
@@ -530,6 +535,8 @@ public partial class CTPGameMode : StoryGameMode
     public override void PreGameStart()
     {
         base.PreGameStart();
+
+        loadedIn = false;
 
         if (!gameSetup)
         {
