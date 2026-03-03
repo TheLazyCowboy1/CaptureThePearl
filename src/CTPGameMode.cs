@@ -450,32 +450,6 @@ public partial class CTPGameMode : StoryGameMode
         return SpawnCreatures && base.ShouldLoadCreatures(game, worldSession);
         //return SpawnCreatures; //allows clients to also spawn creatures... might be a mess, idk
     }
-    public override bool ShouldSyncAPOInWorld(WorldSession ws, AbstractPhysicalObject apo)
-    {
-        //if (apo is AbstractCreature ac)
-            //return ac.state is PlayerState; //the only creature to sync in world is PLAYERS
-
-        return base.ShouldSyncAPOInWorld(ws, apo);
-    }
-    public override bool ShouldSyncAPOInRoom(RoomSession rs, AbstractPhysicalObject apo)
-    {
-        //if (apo is AbstractCreature ac)
-            //return ShouldRealizeCreature(ac) && base.ShouldSyncAPOInRoom(rs, apo);
-
-        return base.ShouldSyncAPOInRoom(rs, apo);
-    }
-    //don't sync pearls that aren't team pearls
-    /*public override bool ShouldRegisterAPO(OnlineResource resource, AbstractPhysicalObject apo)
-    {
-        if (apo.type == AbstractPhysicalObject.AbstractObjectType.DataPearl
-            && apo is DataPearl.AbstractDataPearl ap)
-        {
-            int idx = PearlIdxToTeam(ap.dataPearlType.index);
-            if (idx < 0 || idx >= TeamPearls.Length)// || (TeamPearls[idx] != null && TeamPearls[idx].apo != apo)) //this team pearl has already been registered!
-                return false;
-        }
-        return base.ShouldRegisterAPO(resource, apo);
-    }*/
 
     //Check if someone else has already realized this creature. If so, skip realizing/registering it for now.
     public bool ShouldRealizeCreature(AbstractCreature ac)
@@ -489,26 +463,6 @@ public partial class CTPGameMode : StoryGameMode
             //&& oc.TryGetData(out CreatureSpawnData data) && (data.spawner == ac.ID.spawner) //that already occupies this spawner
             );
     }
-
-    /*public override void FilterItems(Room room)
-    {
-        base.FilterItems(room);
-
-        foreach (var list in room.physicalObjects)
-        {
-            foreach (var item in list)
-            {
-                //remove any DataPearls that aren't in the TeamPearls list
-                if (item is DataPearl && !TeamPearls.Any(pearl => pearl.apo == item.abstractPhysicalObject))
-                {
-                    var apo = item.abstractPhysicalObject;
-                    apo.GetOnlineObject()?.Deregister();
-                    apo.Abstractize(new());
-                    apo.Destroy();
-                }
-            }
-        }
-    }*/
 
     public override void ResourceAvailable(OnlineResource onlineResource)
     {
