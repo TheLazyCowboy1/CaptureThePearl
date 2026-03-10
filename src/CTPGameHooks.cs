@@ -29,6 +29,8 @@ public static class CTPGameHooks
 
         MeadowHooks.ApplyHooks();
 
+        On.Player.SpitOutOfShortCut += Player_SpitOutOfShortCut;
+
         On.RainWorldGame.Update += RainWorldGame_Update;
 
         //On.Player.Update += Player_Update;
@@ -112,12 +114,27 @@ public static class CTPGameHooks
         HooksApplied = true;
     }
 
+    //TEMPORARY DEBUG METHOD
+    private static void Player_SpitOutOfShortCut(On.Player.orig_SpitOutOfShortCut orig, Player self, RWCustom.IntVector2 pos, Room newRoom, bool spitOutAllSticks)
+    {
+        try
+        {
+            orig(self, pos, newRoom, spitOutAllSticks);
+        } catch (NullReferenceException ne) {
+            if (newRoom == null) RainMeadow.RainMeadow.Error("newRoom is null!!!");
+            RainMeadow.RainMeadow.Error($"Potential null references: newRoom.game={newRoom?.game}, newRoom.world={newRoom?.world}, (newRoom.game.session as StoryGameSession).saveState.regionStates={(newRoom?.game?.session as StoryGameSession)?.saveState?.regionStates}, newRoom.world.region.regionNumber={newRoom?.world?.region?.regionNumber}, newRoom.abstractRoom={newRoom?.abstractRoom}, newRoom.game.rainWorld.progression={newRoom?.game?.rainWorld?.progression}");
+            throw ne;
+        }
+    }
+
     public static void RemoveHooks()
     {
         if (!HooksApplied) return;
         RainMeadow.RainMeadow.Debug("[CTP]: Removing CTPGameHooks");
 
         MeadowHooks.RemoveHooks();
+
+        On.Player.SpitOutOfShortCut -= Player_SpitOutOfShortCut;
 
         On.RainWorldGame.Update -= RainWorldGame_Update;
 
@@ -717,7 +734,7 @@ public static class CTPGameHooks
                 try
                 {
                     if (gamemode.hasSpawnedIn)
-                        denPos = RandomShelterChooser.GetRespawnShelter(gamemode.region, saveStateNumber, gamemode.TeamShelters, myTeam, gamemode.ShelterRespawnCloseness, gamemode.TargetRespawnDistance, gamemode.MapBorderDistance);
+                        denPos = RandomShelterChooser.GetRespawnShelter(gamemode.region, SlugcatStats.SlugcatToTimeline(saveStateNumber), gamemode.TeamShelters, myTeam, gamemode.ShelterRespawnCloseness, gamemode.TargetRespawnDistance, gamemode.MapBorderDistance);
                 } catch (Exception ex) { RainMeadow.RainMeadow.Error(ex); }
                 gamemode.hasSpawnedIn = true;
 

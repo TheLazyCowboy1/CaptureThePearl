@@ -247,14 +247,14 @@ public partial class CTPGameMode
             World world = ws.world;
             if (world == null || world.abstractRooms == null)
             {
-                RainMeadow.RainMeadow.Error("[CTP]: Can't search for pearls: World is null!");
+                RainMeadow.RainMeadow.Debug("[CTP]: Can't search for pearls: World is null!");
                 return;
             }
 
             var player = GetMyPlayer();
             if (player?.realizedObject == null || (player.realizedObject.room == null && !player.realizedCreature.inShortcut))
             {
-                RainMeadow.RainMeadow.Error("[CTP]: Can't search for pearls: Player is null!");
+                RainMeadow.RainMeadow.Debug("[CTP]: Can't search for pearls: Player is null!");
                 return;
             }
 
